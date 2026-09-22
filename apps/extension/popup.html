@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Recall</title><link rel="stylesheet" href="popup.css" /></head>
+  <body>
+    <header><span class="mark">R</span><h1>recall</h1></header>
+    <p class="eyebrow">LEETCODE CONNECTION</p>
+    <p id="worker" role="status">Checking extension…</p>
+    <section><h2>Current problem</h2><p id="problem" aria-live="polite">Checking this tab…</p></section>
+    <button id="record" type="button" disabled>Record this problem</button>
+    <button id="refresh" class="secondary" type="button">Check again</button>
+    <p id="launch-status" role="status"></p>
+    <p class="note">Opens your local dashboard to review and save an attempt. Start Recall with npm.cmd run dev first. No submissions are read automatically.</p>
+    <script src="src/adapters/leetcode.js"></script>
+    <script type="module" src="src/popup.js"></script>
+  </body>
+</html>

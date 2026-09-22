@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Recall — DSA Tracker",
+  "version": "0.2.0",
+  "description": "Recognize the current LeetCode problem and open Recall to record a practice attempt.",
+  "background": { "service_worker": "src/service-worker.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "Recall DSA Tracker" },
+  "content_scripts": [{
+    "matches": ["https://leetcode.com/*"],
+    "js": ["src/adapters/leetcode.js", "src/content.js"],
+    "run_at": "document_idle"
+  }]
+}
