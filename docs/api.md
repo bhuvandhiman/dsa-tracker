@@ -80,3 +80,13 @@ This API imports historical evidence for already-cataloged problems. Parsing cop
 
 Errors use { "error": "message" }. In Phase 2, /attempts replaces the Phase 1 empty-placeholder/501 behavior. Missing PostgreSQL now produces 503.
 
+
+## Review queue (Phase 5)
+
+GET /api/reviews?view=due&limit=10&offset=0
+
+view is due (default) or all; limit is 1–100 (default 50); offset is 0–1,000,000. Unknown query fields are rejected. The server supplies asOf; clients cannot change the queue's clock.
+
+The response contains reviews, totalTracked (problems with practice attempts), totalDue, totalMatching (for this view), view, limit, offset, asOf, and policy.days ({solution:1,hint:3,independent:7}). Each review contains problemId, attemptId, title, url, assistance, attemptedAt, intervalDays, dueAt, due, and patternSlugs from the selected actual attempt. No notes or invented attempt evidence are added.
+
+Latest means attemptedAt descending, then creation time and UUID descending. Each interval day is exactly 24 elapsed hours. Due means dueAt <= asOf. Results sort by dueAt then problemId. Historical-only problems are excluded. Counts and rows use one SQL snapshot; pagination is offset-based, so concurrent updates can move entries between pages. GET never marks anything complete or writes schedule data.

@@ -4,11 +4,11 @@ JavaScript monorepo: React + Vite + Material UI, Express 5, PostgreSQL through p
 
 ## Current phase
 
-Phase 4 connects the LeetCode extension to the practice journal. The existing database and API support problems, patterns, actual attempt approaches, assistance levels, notes, and historical solve imports.
+Phase 5 adds a review queue with due and upcoming problems. The latest attempt schedules a review after 1 day for solution help, 3 days for hints, or 7 days for an independent solve. These are transparent starter intervals, not retention scores. The existing database and API support problems, patterns, actual attempt approaches, assistance levels, notes, and historical solve imports.
 
 The dashboard records attempts and shows paginated history. Interrupted saves can be retried without duplicates, including after a reload in the same tab. The extension opens the dashboard with the current problem filled in; review and save there. Automatic submission capture is not implemented.
 
-See the [Phase 4 extension walkthrough](docs/phase-4.md) for the complete workflow and Chrome verification checklist.
+See the [Phase 5 review walkthrough](docs/phase-5.md) for scheduling rules and usage. See the [Phase 4 extension walkthrough](docs/phase-4.md) for the complete workflow and Chrome verification checklist.
 
 ## Run locally
 
@@ -63,7 +63,7 @@ No extension build is needed. It runs only on https://leetcode.com/* and request
 | --- | --- |
 | npm.cmd run dev | Start API and dashboard |
 | npm.cmd run dev:api / dev:web | Start either app separately |
-| npm.cmd run check | Lint, 86 database-independent tests, dashboard build |
+| npm.cmd run check | Lint, 90 database-independent tests, dashboard build |
 | npm.cmd test | Run database-independent tests |
 | npm.cmd run test:db | Explicit PostgreSQL integration suite |
 | npm.cmd run db:check | Check PostgreSQL connectivity |

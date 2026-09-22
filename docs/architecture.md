@@ -1,4 +1,4 @@
-# Architecture through Phase 4
+# Architecture through Phase 5
 
 ## Boundaries
 
@@ -9,6 +9,12 @@ The dashboard loads patterns and saved problems, validates a manual attempt, res
 The extension uses popup → service worker for readiness and popup → content script → LeetCode adapter for identity. Record this problem rechecks that identity and opens the fixed local dashboard with a canonical problem URL. The dashboard validates the link through its own adapter, suggests an editable title from the slug, and leaves assistance and patterns unselected. No submission data is read. The backend also validates URLs through a LeetCode adapter. A future Codeforces adapter will produce the same platform/externalId/url identity, with a separately reviewed extension host match.
 
 Opening a tab uses chrome.tabs.create with no additional permissions; see the [Chrome Tabs API](https://developer.chrome.com/docs/extensions/reference/api/tabs). All writes still originate from the dashboard through its proxy, so no CORS changes or extension API host permissions are needed. A pending save takes priority over a new launch link. After successful saving, the launch parameter is removed so reloading starts a blank form.
+
+## Review scheduling
+
+GET /api/reviews derives one schedule per practiced problem from the latest attempted_at, with created_at and UUID as deterministic tie-breakers. Historical-only problems have no schedule. A backdated entry cannot replace a later practice event. Intervals come from review-policy.js: solution 1 day, hint 3, independent 7. A day is exactly 24 elapsed hours, including across daylight-saving changes. Due means dueAt <= the server-provided asOf time.
+
+One SQL statement computes counts and paginated rows in the same database snapshot. Due and all views sort by dueAt then problemId; this is ordinary offset pagination, so concurrent new attempts can move page boundaries. No stored score, scheduler process, migration, or background job is needed. The browser presents a dated snapshot, refreshes after saving in that tab, and offers manual refresh for time passing or changes in other tabs.
 
 ## Relationships
 

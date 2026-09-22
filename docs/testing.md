@@ -1,8 +1,8 @@
 # Testing
 
-## Phase 4 verification
+## Phase 5 verification
 
-`npm.cmd run check` runs linting, 86 database-independent tests, and a production dashboard build. These passed after the Phase 4 changes. No new test dependencies were added.
+`npm.cmd run check` runs linting, 90 database-independent tests, and a production dashboard build. These passed after the Phase 5 changes. No new test dependencies were added.
 
 Phase 4 adds mocked Chrome API checks for fixed-destination handoff, changed SPA problems, navigation away, malformed identities, creation-error recovery, and rapid-click suppression. Dashboard tests cover metadata-only prefill and invalid launch links.
 
@@ -17,6 +17,10 @@ The default suite covers:
 - Practice form validation, UTC conversion, pending-save restoration, and stable request IDs through uncertain retries.
 - Extension manifest scope, URL parsing, SPA navigation, messages, popup retries and malformed responses.
 - Real API process startup/shutdown, invalid/occupied ports, Vite proxy behavior, unavailable PostgreSQL probe behavior, and combined-startup cleanup.
+
+Phase 5 adds HTTP validation, unavailable-database, policy, and pagination-contract tests for reviews. The PostgreSQL suite additionally verifies empty/import-only queues, 1/3/7-day intervals, exact due-time boundaries, paging/counts, latest-attempt selection, backfills, practiced-pattern separation, and elapsed hours across daylight-saving changes.
+
+Browser checks against an isolated schema verified empty guidance, 12 due and 1 upcoming problem, 10-row pagination, all-scheduled filtering, an independent attempt moving a due problem seven days forward, unavailable-API messaging, and a 320-pixel viewport without horizontal overflow.
 
 ## PostgreSQL integration suite
 

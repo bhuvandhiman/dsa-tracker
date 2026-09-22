@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { DomainError, attemptInput, problemInput, patternInput, positiveId, importInput, pageInput } from './domain.js';
+import { DomainError, attemptInput, problemInput, patternInput, positiveId, importInput, pageInput, reviewInput } from './domain.js';
+import { reviewDays } from './review-policy.js';
 
 export function dataRoutes(repository) {
   const router = Router();
@@ -9,6 +10,11 @@ export function dataRoutes(repository) {
     next();
   });
   router.get('/patterns', async (_request, response) => response.json({ patterns: await repository.listPatterns() }));
+  router.get('/reviews', async (request, response) => {
+    const page = reviewInput(request.query);
+    const asOf = new Date().toISOString();
+    response.json({ ...await repository.listReviews({ ...page, asOf }), ...page, asOf, policy: { days: reviewDays } });
+  });
   router.get('/problems', async (request, response) => {
     const page = pageInput(request.query);
     response.json({ problems: await repository.listProblems(page), ...page });

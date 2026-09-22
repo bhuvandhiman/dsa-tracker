@@ -53,3 +53,9 @@ export function pageInput(query) {
   if ((query.offset !== undefined && (typeof query.offset !== 'string' || !/^\d+$/.test(query.offset))) || !Number.isInteger(offset) || offset < 0 || offset > 1000000) invalid('offset must be between 0 and 1000000.');
   return { limit, offset };
 }
+
+export function reviewInput(query) {
+  const { view = 'due', ...pagination } = query;
+  if (!['due', 'all'].includes(view)) invalid('view must be due or all.');
+  return { ...pageInput(pagination), view };
+}

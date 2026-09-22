@@ -3,6 +3,7 @@ import { Alert, Box, Button, Chip, Container, Stack, Typography } from '@mui/mat
 import { requestJson } from './api.js';
 import AttemptForm from './AttemptForm.jsx';
 import History from './History.jsx';
+import ReviewQueue from './ReviewQueue.jsx';
 
 export default function App() {
   const [catalog, setCatalog] = useState({ patterns: [], problems: [], more: false, ready: false, error: '' });
@@ -58,20 +59,22 @@ export default function App() {
     <Box component="header" sx={{ bgcolor: 'background.paper', borderBottom: '1px solid #e0e7e2' }}>
       <Container maxWidth="lg"><Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 2.5 }}>
         <Stack direction="row" spacing={1.5} alignItems="center"><Box sx={{ bgcolor: 'primary.main', color: 'white', px: 1.3, py: 0.6, borderRadius: 2, fontWeight: 800 }}>R</Box><Typography variant="h6" component="span">recall</Typography></Stack>
-        <Chip label="Phase 4 · LeetCode journal" size="small" variant="outlined" />
+        <Chip label="Phase 5 · Review practice" size="small" variant="outlined" />
       </Stack></Container>
     </Box>
     <Container component="main" maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
       <Typography variant="overline" color="primary" sx={{ letterSpacing: 2 }}>YOUR PRACTICE, WITH PURPOSE</Typography>
       <Typography variant="h4" component="h1" sx={{ mt: 1, mb: 1.5 }}>Build understanding. Keep it.</Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>Beyond a solved count: remember the approach, the help you needed, and what you learned.</Typography>
+      <Button href="#record-attempt" variant="outlined" sx={{ mb: 2 }}>Jump to recording form</Button>
+      <ReviewQueue version={catalogVersion} patterns={catalog.patterns} />
       {!catalog.ready && !catalog.error && <Alert severity="info" sx={{ mb: 3 }}>Connecting to your practice database…</Alert>}
       {catalog.error && <Alert severity="error" action={<Button color="inherit" onClick={refreshAll}>Retry</Button>} sx={{ mb: 3 }}>{catalog.error}</Alert>}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 5fr) minmax(0, 7fr)' }, gap: 3, alignItems: 'start' }}>
         <AttemptForm patterns={catalog.patterns} problems={catalog.problems} moreProblems={catalog.more} onMoreProblems={moreProblems} loadingProblems={moreLoading} ready={catalog.ready} onSaved={saved} />
         <History attempts={history.attempts} patterns={catalog.patterns} loading={history.loading} error={history.error} page={page} hasMore={history.more} onPage={refreshHistory} onRefresh={() => refreshHistory()} />
       </Box>
-      <Typography component="footer" variant="caption" color="text.secondary" sx={{ display: 'block', mt: 4 }}>Manual practice journal · Open this journal from a LeetCode problem using the extension. Automatic capture and review scoring come later.</Typography>
+      <Typography component="footer" variant="caption" color="text.secondary" sx={{ display: 'block', mt: 4 }}>Manual practice journal · Open this journal from a LeetCode problem using the extension. Review dates follow a simple schedule; automatic capture comes later.</Typography>
     </Container>
   </>;
 }

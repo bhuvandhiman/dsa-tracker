@@ -54,7 +54,7 @@ export default function AttemptForm({ patterns, problems, moreProblems, onMorePr
 
   const disabled = locked || busy;
   const selectedProblem = problems.find((problem) => String(problem.id) === String(form.problemId));
-  return <Paper component="section" variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+  return <Paper id="record-attempt" component="section" variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
     <Typography component="h2" variant="h6">Record an attempt</Typography>
     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3 }}>Capture how you solved it, while it’s still fresh.</Typography>
     <Box component="form" onSubmit={submit} noValidate>

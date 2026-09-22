@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { DomainError } from './domain.js';
+import { reviewDays } from './review-policy.js';
 
 const problemSelect = `SELECT p.id, p.platform, p.external_id AS "externalId", p.title, p.url, p.difficulty,
   COALESCE((SELECT json_agg(pp.pattern_slug ORDER BY pp.pattern_slug) FROM problem_patterns pp WHERE pp.problem_id=p.id), '[]') AS "patternSlugs",
@@ -32,6 +33,32 @@ export function createRepository(pool) {
   }
   return {
     async listPatterns() { return (await pool.query('SELECT slug, name FROM patterns ORDER BY name')).rows; },
+    async listReviews({ limit, offset, view, asOf }) {
+      // Choose the latest practiced time, not the most recently entered backfill.
+      // Equal practice times use creation time, then UUID, for a stable tie-break.
+      const { rows } = await pool.query(`WITH latest AS (
+        SELECT DISTINCT ON (a.problem_id) a.* FROM attempts a
+        ORDER BY a.problem_id, a.attempted_at DESC, a.created_at DESC, a.id DESC
+      ), scheduled AS (
+        SELECT a.id AS "attemptId", a.problem_id AS "problemId", p.title, p.url,
+          a.assistance, a.attempted_at AS "attemptedAt",
+          CASE a.assistance WHEN 'solution' THEN $1::int WHEN 'hint' THEN $2::int ELSE $3::int END AS "intervalDays",
+          a.attempted_at + (CASE a.assistance WHEN 'solution' THEN $1::int WHEN 'hint' THEN $2::int ELSE $3::int END * 24) * INTERVAL '1 hour' AS "dueAt",
+          COALESCE((SELECT json_agg(ap.pattern_slug ORDER BY ap.pattern_slug) FROM attempt_patterns ap WHERE ap.attempt_id=a.id), '[]') AS "patternSlugs"
+        FROM latest a JOIN problems p ON p.id=a.problem_id
+      ), matching AS (
+        SELECT *, "dueAt" <= $4::timestamptz AS due FROM scheduled
+        WHERE $5::text='all' OR "dueAt" <= $4::timestamptz
+      ) SELECT
+        (SELECT COUNT(*)::int FROM scheduled) AS "totalTracked",
+        (SELECT COUNT(*)::int FROM scheduled WHERE "dueAt" <= $4::timestamptz) AS "totalDue",
+        (SELECT COUNT(*)::int FROM matching) AS "totalMatching",
+        COALESCE((SELECT json_agg(page ORDER BY page."dueAt", page."problemId") FROM (
+          SELECT * FROM matching ORDER BY "dueAt", "problemId" LIMIT $6 OFFSET $7
+        ) page), '[]') AS reviews`,
+      [reviewDays.solution, reviewDays.hint, reviewDays.independent, asOf, view, limit, offset]);
+      return rows[0];
+    },
     async listProblems({ limit, offset }) { return (await pool.query(`${problemSelect} ORDER BY p.id DESC LIMIT $1 OFFSET $2`, [limit, offset])).rows; },
     async createProblem(input) {
       return transaction(async (client) => {
