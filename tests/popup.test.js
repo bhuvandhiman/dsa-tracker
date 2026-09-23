@@ -26,6 +26,7 @@ function popup({ ping, tabs, reply, create } = {}) {
     },
   });
   vm.runInContext(readFileSync(new URL('../apps/extension/src/adapters/leetcode.js', import.meta.url), 'utf8'), context);
+  vm.runInContext(readFileSync(new URL('../apps/extension/src/recorder.js', import.meta.url), 'utf8'), context);
   const ready = vm.runInContext(source, context);
   return { elements, messages, opened, ready };
 }

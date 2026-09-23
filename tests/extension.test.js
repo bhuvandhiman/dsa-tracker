@@ -11,6 +11,9 @@ function loadContent(href) {
   let listener;
   const context = vm.createContext({
     URL, location: { href },
+    document: { querySelectorAll: () => [], addEventListener() {}, documentElement: {} },
+    window: { addEventListener() {} },
+    MutationObserver: class { observe() {} },
     chrome: { runtime: { onMessage: { addListener(fn) { listener = fn; } } } },
   });
   for (const script of manifest.content_scripts[0].js) vm.runInContext(read(script), context);
@@ -51,7 +54,7 @@ test('adapter rejects non-problem pages and other hosts', () => {
 test('service worker responds to a popup ping', () => {
   let listener;
   let response;
-  vm.runInNewContext(read(manifest.background.service_worker), {
+  vm.runInNewContext(read(manifest.background.service_worker).replace(/^import .*;\r?$/gm, ''), {
     chrome: { runtime: {
       getManifest: () => manifest,
       onMessage: { addListener(fn) { listener = fn; } },

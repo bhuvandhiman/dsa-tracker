@@ -29,7 +29,7 @@ An existing problem URL reuses its identity and retains saved catalog metadata. 
 - With the server stopped, the dashboard cannot load. Start the server and reload that tab; its problem link remains until a save succeeds.
 - An uncertain save offers Retry save. A pending save in the same tab takes priority over a different incoming problem link. Finish the pending save, then reopen the desired problem from the extension.
 
-The extension targets http://127.0.0.1:5173. For a different dashboard port, change the destination in apps/extension/src/popup.js and reload the extension. The popup confirms that a tab opened, not that the server is running.
+The extension targets http://127.0.0.1:5173. For a different dashboard port, change the destination in apps/extension/src/recorder.js and reload the extension. The popup confirms that a tab opened, not that the server is running.
 
 ## Verification scope
 

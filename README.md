@@ -4,9 +4,11 @@ JavaScript monorepo: React + Vite + Material UI, Express 5, PostgreSQL through p
 
 ## Current phase
 
-Phase 5 adds a review queue with due and upcoming problems. The latest attempt schedules a review after 1 day for solution help, 3 days for hints, or 7 days for an independent solve. These are transparent starter intervals, not retention scores. The existing database and API support problems, patterns, actual attempt approaches, assistance levels, notes, and historical solve imports.
+Phase 6 adds a recording prompt after a newly accepted LeetCode submission, plus title and detection-time prefill. Detection is conservative and depends on LeetCode markup. Saving remains explicit. See the [Phase 6 capture walkthrough](docs/phase-6.md), including the remaining live Chrome check.
 
-The dashboard records attempts and shows paginated history. Interrupted saves can be retried without duplicates, including after a reload in the same tab. The extension opens the dashboard with the current problem filled in; review and save there. Automatic submission capture is not implemented.
+The review queue schedules problems after 1 day for solution help, 3 days for hints, or 7 days for an independent solve. These are starter intervals, not retention scores.
+
+The dashboard records attempts and shows paginated history. Interrupted saves can be retried without duplicates, including after a reload in the same tab. The extension can offer a reminder after acceptance and opens the dashboard with the problem filled in. It never saves automatically.
 
 See the [Phase 5 review walkthrough](docs/phase-5.md) for scheduling rules and usage. See the [Phase 4 extension walkthrough](docs/phase-4.md) for the complete workflow and Chrome verification checklist.
 
@@ -51,7 +53,7 @@ See [Phase 3 dashboard walkthrough](docs/phase-3.md) to record your first attemp
 1. Open `chrome://extensions` in Chrome and enable Developer mode.
 2. Click Load unpacked and choose `C:\Users\bhuva\Documents\Projects\dsa-tracker\apps\extension`.
 3. Open https://leetcode.com/problems/two-sum/ and refresh the tab after loading/reloading the extension.
-4. Open Recall from the Extensions menu. Expect “Extension loaded · v0.2.0” and “two-sum”.
+4. Open Recall from the Extensions menu. Expect “Extension loaded · v0.3.0” and “two-sum”.
 5. Click Record this problem to open the dashboard. Review the suggested title, choose assistance and practiced patterns, then save.
 6. When updating an existing installation, reload the extension and refresh the LeetCode tab.
 
@@ -63,7 +65,8 @@ No extension build is needed. It runs only on https://leetcode.com/* and request
 | --- | --- |
 | npm.cmd run dev | Start API and dashboard |
 | npm.cmd run dev:api / dev:web | Start either app separately |
-| npm.cmd run check | Lint, 90 database-independent tests, dashboard build |
+| npm.cmd run check | Lint, 99 database-independent tests, dashboard build |
+| npm.cmd run test:capture | Serve the controlled capture fixture on port 8765 |
 | npm.cmd test | Run database-independent tests |
 | npm.cmd run test:db | Explicit PostgreSQL integration suite |
 | npm.cmd run db:check | Check PostgreSQL connectivity |

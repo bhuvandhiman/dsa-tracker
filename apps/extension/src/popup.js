@@ -16,7 +16,7 @@ async function readProblem() {
   if (!identity || identity.platform !== response.problem.platform || identity.problemId !== response.problem.problemId) {
     throw new Error('Unexpected reply. Reload the extension and refresh this page.');
   }
-  return identity;
+  return { ...identity, title: typeof response.problem.title === 'string' ? response.problem.title : undefined };
 }
 
 async function checkExtension() {
@@ -58,9 +58,7 @@ async function openRecorder() {
     if (!currentProblem) throw new Error('Open a LeetCode problem, then check again.');
     problem.textContent = currentProblem.problemId;
     // Fixed local destination. A page message cannot choose where we open a tab.
-    const destination = new URL('http://127.0.0.1:5173/');
-    destination.searchParams.set('problem', currentProblem.url);
-    await chrome.tabs.create({ url: destination.href });
+    await chrome.tabs.create({ url: DsaRecorder.buildUrl(currentProblem, { title: currentProblem.title }) });
     launchStatus.textContent = 'Journal opened. Review the details and save there.';
   } catch {
     currentProblem = null;

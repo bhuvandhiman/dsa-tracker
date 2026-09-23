@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Recall capture fixture</title><style>body{font:16px/1.6 system-ui;max-width:750px;margin:40px auto;padding:20px}button,select{font:inherit;padding:8px;margin:6px}#opened{overflow-wrap:anywhere}aside{background:#fff4cc;padding:15px}</style></head><body>
+<h1>Recall capture fixture</h1><aside>This is a controlled test page, not LeetCode. It runs the real adapter and capture UI with simulated verdicts and mocked extension messaging. It never submits code or saves attempts.</aside>
+<div class="text-title-large"><a id="title" href="https://leetcode.com/problems/two-sum/">1. Two Sum</a></div>
+<p>Simulated page: <span id="page"></span></p>
+<label>Next verdict <select id="verdict"><option>Accepted</option><option>Wrong Answer</option><option>Runtime Error</option></select></label>
+<button id="submit" data-e2e-locator="console-submit-button">Submit fixture</button><button id="run">Run fixture</button><button id="old">View old accepted submission</button><button id="navigate">Navigate to 3Sum</button>
+<p>Submission result: <span data-e2e-locator="submission-result" id="result"></span></p>
+<p>Page statistics: Accepted 500 / 1000 (must never trigger Recall).</p>
+<p id="opened" role="status"></p>
+<script src="/adapter.js"></script><script src="/recorder.js"></script><script src="/capture.js"></script><script src="/fixture.js"></script>
+</body></html>

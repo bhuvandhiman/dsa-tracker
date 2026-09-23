@@ -17,6 +17,7 @@
     "start:api": "npm run start --workspace=@dsa/api",
     "lint": "eslint .",
     "test": "node --test tests/*.test.js",
+    "test:capture": "node scripts/test-capture.js",
     "check": "npm run lint && npm test && npm run build",
     "db:check": "npm run db:check --workspace=@dsa/api",
     "db:migrate": "npm run db:migrate --workspace=@dsa/api",

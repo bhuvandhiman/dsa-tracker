@@ -16,10 +16,13 @@ export function extensionDraft(search) {
   if (!params.has('problem')) return { form: emptyForm(), message: null };
   const problem = leetcodeProblem(params.get('problem'));
   if (!problem) return { form: emptyForm(), message: { severity: 'warning', text: 'The problem link was not recognized. Enter a valid LeetCode URL below.' } };
+  const suppliedTitle = params.get('title')?.trim();
+  const suppliedTime = params.get('attemptedAt');
+  const validTime = typeof suppliedTime === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(suppliedTime) && Number.isFinite(Date.parse(suppliedTime)) && new Date(suppliedTime).toISOString() === suppliedTime && Date.parse(suppliedTime) <= Date.now() + 60000;
   const title = problem.externalId.split('-').map((word) => word[0].toUpperCase() + word.slice(1)).join(' ');
   return {
-    form: { ...emptyForm(), url: problem.url, title },
-    message: { severity: 'info', text: 'Problem link filled in. Check the suggested title, then choose how you solved it and the patterns you practiced. Nothing has been saved yet.' },
+    form: { ...emptyForm(), url: problem.url, title: suppliedTitle && suppliedTitle.length <= 200 ? suppliedTitle : title, ...(validTime ? { attemptedAt: localDateTime(new Date(suppliedTime)) } : {}) },
+    message: { severity: 'info', text: 'Problem details filled in. Review the title and time, then choose assistance and the patterns you actually practiced. Nothing has been saved yet.' },
   };
 }
 

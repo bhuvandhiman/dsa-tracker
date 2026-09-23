@@ -59,7 +59,7 @@ export default function App() {
     <Box component="header" sx={{ bgcolor: 'background.paper', borderBottom: '1px solid #e0e7e2' }}>
       <Container maxWidth="lg"><Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 2.5 }}>
         <Stack direction="row" spacing={1.5} alignItems="center"><Box sx={{ bgcolor: 'primary.main', color: 'white', px: 1.3, py: 0.6, borderRadius: 2, fontWeight: 800 }}>R</Box><Typography variant="h6" component="span">recall</Typography></Stack>
-        <Chip label="Phase 5 · Review practice" size="small" variant="outlined" />
+        <Chip label="Phase 6 · LeetCode capture" size="small" variant="outlined" />
       </Stack></Container>
     </Box>
     <Container component="main" maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
@@ -74,7 +74,7 @@ export default function App() {
         <AttemptForm patterns={catalog.patterns} problems={catalog.problems} moreProblems={catalog.more} onMoreProblems={moreProblems} loadingProblems={moreLoading} ready={catalog.ready} onSaved={saved} />
         <History attempts={history.attempts} patterns={catalog.patterns} loading={history.loading} error={history.error} page={page} hasMore={history.more} onPage={refreshHistory} onRefresh={() => refreshHistory()} />
       </Box>
-      <Typography component="footer" variant="caption" color="text.secondary" sx={{ display: 'block', mt: 4 }}>Manual practice journal · Open this journal from a LeetCode problem using the extension. Review dates follow a simple schedule; automatic capture comes later.</Typography>
+      <Typography component="footer" variant="caption" color="text.secondary" sx={{ display: 'block', mt: 4 }}>Manual practice journal · Open this journal from a LeetCode problem using the extension. The extension can prompt after acceptance. Review and save every attempt yourself.</Typography>
     </Container>
   </>;
 }

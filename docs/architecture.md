@@ -1,4 +1,4 @@
-# Architecture through Phase 5
+# Architecture through Phase 6
 
 ## Boundaries
 
@@ -6,7 +6,13 @@ Dashboard → Vite same-origin /api proxy → Express route → input validator 
 
 The dashboard loads patterns and saved problems, validates a manual attempt, resolves the problem identity, and saves the attempt. History reads 21 rows at a time to display 20 and detect a next page. Local form times are converted to UTC for storage and displayed in the browser time zone. Health is liveness only and never claims database readiness.
 
-The extension uses popup → service worker for readiness and popup → content script → LeetCode adapter for identity. Record this problem rechecks that identity and opens the fixed local dashboard with a canonical problem URL. The dashboard validates the link through its own adapter, suggests an editable title from the slug, and leaves assistance and patterns unselected. No submission data is read. The backend also validates URLs through a LeetCode adapter. A future Codeforces adapter will produce the same platform/externalId/url identity, with a separately reviewed extension host match.
+The extension uses popup → service worker for readiness and popup → content script → LeetCode adapter for identity and page title. Record this problem rechecks the identity and opens the fixed local dashboard. The dashboard validates the metadata, falls back to a title from the slug, and leaves assistance and patterns unselected. The backend also validates URLs through a LeetCode adapter. A future Codeforces adapter will produce the same platform/externalId/url identity, with a separately reviewed extension host match.
+
+Phase 6 also observes a visible submission verdict and numeric submission ID after a trusted Submit action. It does not read source code, cookies, or submission history. A separate state machine waits up to two minutes for a new accepted result on the same problem. Old, failed, duplicate, cancelled, or expired events do not prompt. A previously accepted verdict requires an intervening non-accepted/loading observation. DOM checks are throttled with a MutationObserver, and LeetCode selectors remain inside the adapter.
+
+The shadow-DOM reminder never writes to the API. Clicking it asks the worker to open the fixed dashboard URL; the worker checks the sender's extension ID, top frame, and matching problem identity. Only canonical problem URL, bounded title, and detection time are passed. Pending saves take priority over incoming metadata. Prompt deduplication is per page session, retaining the last 100 submission IDs; no durable cross-tab submission deduplication is claimed.
+
+Content scripts use the isolated world described in the [Chrome documentation](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts). No new permissions or dependencies were needed. Detection relies on provider markup; see phase-6.md for its boundaries and the live check still required.
 
 Opening a tab uses chrome.tabs.create with no additional permissions; see the [Chrome Tabs API](https://developer.chrome.com/docs/extensions/reference/api/tabs). All writes still originate from the dashboard through its proxy, so no CORS changes or extension API host permissions are needed. A pending save takes priority over a new launch link. After successful saving, the launch parameter is removed so reloading starts a blank form.
 

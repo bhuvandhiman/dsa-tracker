@@ -36,7 +36,7 @@ export default function AttemptForm({ patterns, problems, moreProblems, onMorePr
       await saveAttempt(pending.current);
       clearPending();
       const location = new URL(window.location.href);
-      location.searchParams.delete('problem');
+      for (const key of ['problem', 'title', 'attemptedAt']) location.searchParams.delete(key);
       window.history.replaceState(null, '', location);
       setForm(emptyForm());
       setMessage({ severity: 'success', text: 'Attempt saved.' });

@@ -1,8 +1,12 @@
 # Testing
 
-## Phase 5 verification
+## Phase 6 verification
 
-`npm.cmd run check` runs linting, 90 database-independent tests, and a production dashboard build. These passed after the Phase 5 changes. No new test dependencies were added.
+`npm.cmd run check` runs linting, 99 database-independent tests, and a production dashboard build. These passed after the Phase 6 changes. No new test dependencies were added.
+
+Capture tests cover state transitions, stale/duplicate suppression, failed verdicts, cancellation/navigation/expiry, URL and visibility restrictions, bounded metadata, keyboard shortcuts, and worker sender checks. The browser fixture runs the actual adapter and prompt with mocked extension messaging. Completed browser checks showed no prompt for Run/old acceptance, one prompt for a fresh accepted result, a correct title/time handoff, and successful dismissal. Failed verdict behavior is covered by state-machine tests.
+
+The public LeetCode Submit and title markup was inspected. Actual Chrome loading and authenticated acceptance-result markup have not been verified. The in-app browser could not open new tabs when final browser checks resumed. Follow phase-6.md for the remaining live check. The fixture is available through `npm.cmd run test:capture`; it creates no real submission or database write.
 
 Phase 4 adds mocked Chrome API checks for fixed-destination handoff, changed SPA problems, navigation away, malformed identities, creation-error recovery, and rapid-click suppression. Dashboard tests cover metadata-only prefill and invalid launch links.
 
