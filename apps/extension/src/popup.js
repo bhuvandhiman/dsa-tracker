@@ -51,18 +51,19 @@ async function openRecorder() {
   opening = true;
   record.disabled = true;
   refresh.disabled = true;
-  launchStatus.textContent = 'Opening practice journal…';
+  launchStatus.textContent = 'Opening recording panel…';
   try {
     // Re-read on click: LeetCode may have navigated since the popup was opened.
     currentProblem = await readProblem();
     if (!currentProblem) throw new Error('Open a LeetCode problem, then check again.');
     problem.textContent = currentProblem.problemId;
-    // Fixed local destination. A page message cannot choose where we open a tab.
-    await chrome.tabs.create({ url: DsaRecorder.buildUrl(currentProblem, { title: currentProblem.title }) });
-    launchStatus.textContent = 'Journal opened. Review the details and save there.';
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const result = await chrome.tabs.sendMessage(tab.id, { type: 'SHOW_RECORDER' });
+    if (!result?.opened) throw new Error('Panel unavailable');
+    window.close();
   } catch {
     currentProblem = null;
-    launchStatus.textContent = 'Could not open the journal. Return to the LeetCode problem and click Check again.';
+    launchStatus.textContent = 'Could not open the panel. Return to the LeetCode problem and click Check again.';
   } finally {
     opening = false;
     refresh.disabled = false;

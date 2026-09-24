@@ -6,11 +6,11 @@ export async function getHealth(signal) {
   return health;
 }
 
-export async function requestJson(path, { body, signal } = {}) {
+export async function requestJson(path, { body, signal, method } = {}) {
   let response;
   try {
     response = await fetch(`/api${path}`, {
-      method: body === undefined ? 'GET' : 'POST',
+      method: method ?? (body === undefined ? 'GET' : 'POST'),
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(10000)]) : AbortSignal.timeout(10000),
@@ -28,16 +28,4 @@ export async function requestJson(path, { body, signal } = {}) {
     throw error;
   }
   return data;
-}
-
-export async function saveAttempt(draft) {
-  let problemId = draft.problemId;
-  if (!problemId) {
-    const result = await requestJson('/problems', { body: draft.problem });
-    problemId = result?.problem?.id;
-    if (!Number.isInteger(problemId)) throw new Error('The server did not confirm the problem. Please retry.');
-  }
-  const result = await requestJson('/attempts', { body: { ...draft.attempt, problemId } });
-  if (result?.attempt?.id !== draft.attempt.requestId) throw new Error('The server did not confirm the attempt. Please retry.');
-  return result;
 }

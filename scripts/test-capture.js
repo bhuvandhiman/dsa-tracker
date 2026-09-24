@@ -5,7 +5,6 @@ const files = new Map([
   ['/', ['../tests/fixtures/capture.html','text/html']],
   ['/fixture.js', ['../tests/fixtures/capture-browser.js','text/javascript']],
   ['/adapter.js', ['../apps/extension/src/adapters/leetcode.js','text/javascript']],
-  ['/recorder.js', ['../apps/extension/src/recorder.js','text/javascript']],
   ['/capture.js', ['../apps/extension/src/capture.js','text/javascript']],
 ]);
 const server = createServer(async (request, response) => {

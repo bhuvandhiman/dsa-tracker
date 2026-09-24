@@ -1,65 +1,21 @@
-# Architecture through Phase 6
+# Architecture
 
-## Boundaries
+Recall is a single local workspace. React/Vite/Material UI renders major pattern cards, a desktop detail panel, and a mobile drawer. Node/Express serves JSON; PostgreSQL is accessed through pg and parameterized raw SQL. Chrome MV3 captures self-reported practice on LeetCode.
 
-Dashboard → Vite same-origin /api proxy → Express route → input validator → PostgreSQL repository.
+## Data flow
 
-The dashboard loads patterns and saved problems, validates a manual attempt, resolves the problem identity, and saves the attempt. History reads 21 rows at a time to display 20 and detect a next page. Local form times are converted to UTC for storage and displayed in the browser time zone. Health is liveness only and never claims database readiness.
+1. A fresh Accepted transition opens the extension prompt. The worker obtains the catalog and suggested approach from POST /api/practice-context.
+2. The user supplies assistance and confirms one approach. Optional LeetCode topics are metadata only. The worker persists a frozen payload locally before POST /api/capture.
+3. Capture atomically creates or reuses the problem and records an idempotent attempt. Confirmed success closes the prompt; uncertain failures preserve the UUID and payload.
+4. GET /api/retention calculates independent subpattern strength. GET /api/pattern-problems and per-problem history supply contextual details and corrections.
+5. Extension setup imports all accepted problems, then available recent accepted dates. Settings creates a fresh resumable run for later reimports.
 
-The extension uses popup → service worker for readiness and popup → content script → LeetCode adapter for identity and page title. Record this problem rechecks the identity and opens the fixed local dashboard. The dashboard validates the metadata, falls back to a title from the slug, and leaves assistance and patterns unselected. The backend also validates URLs through a LeetCode adapter. A future Codeforces adapter will produce the same platform/externalId/url identity, with a separately reviewed extension host match.
+## Storage and boundaries
 
-Phase 6 also observes a visible submission verdict and numeric submission ID after a trusted Submit action. It does not read source code, cookies, or submission history. A separate state machine waits up to two minutes for a new accepted result on the same problem. Old, failed, duplicate, cancelled, or expired events do not prompt. A previously accepted verdict requires an intervening non-accepted/loading observation. DOM checks are throttled with a MutationObserver, and LeetCode selectors remain inside the adapter.
+Problems use unique (platform, external_id) identity. Primary browsing placement, provider topic tags, and attempt practice_unit are separate. Legacy solves establish breadth without inventing practice dates. Imported submissions retain unknown assistance and unique (username, submission_id) identity. Attempts retain assistance, notes, timestamps, original tags, selected topics, capture provenance, and approach provenance. Corrections use optimistic revisions; removal is soft deletion.
 
-The shadow-DOM reminder never writes to the API. Clicking it asks the worker to open the fixed dashboard URL; the worker checks the sender's extension ID, top frame, and matching problem identity. Only canonical problem URL, bounded title, and detection time are passed. Pending saves take priority over incoming metadata. Prompt deduplication is per page session, retaining the last 100 submission IDs; no durable cross-tab submission deduplication is claimed.
+Migration 006 adds approach snapshots and the single workspace account binding. Existing migration files are unchanged. Existing installation_id SQL columns now identify import runs; the new wire field is runId, with installationId accepted for older pending payloads.
 
-Content scripts use the isolated world described in the [Chrome documentation](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts). No new permissions or dependencies were needed. Detection relies on provider markup; see phase-6.md for its boundaries and the live check still required.
+LeetCode session credentials stay in the browser. Site adapters fail closed on invalid or incomplete data. Live provider markup and endpoint changes may require adapter updates. This app has no multi-user authentication and is intended for localhost use.
 
-Opening a tab uses chrome.tabs.create with no additional permissions; see the [Chrome Tabs API](https://developer.chrome.com/docs/extensions/reference/api/tabs). All writes still originate from the dashboard through its proxy, so no CORS changes or extension API host permissions are needed. A pending save takes priority over a new launch link. After successful saving, the launch parameter is removed so reloading starts a blank form.
-
-## Review scheduling
-
-GET /api/reviews derives one schedule per practiced problem from the latest attempted_at, with created_at and UUID as deterministic tie-breakers. Historical-only problems have no schedule. A backdated entry cannot replace a later practice event. Intervals come from review-policy.js: solution 1 day, hint 3, independent 7. A day is exactly 24 elapsed hours, including across daylight-saving changes. Due means dueAt <= the server-provided asOf time.
-
-One SQL statement computes counts and paginated rows in the same database snapshot. Due and all views sort by dueAt then problemId; this is ordinary offset pagination, so concurrent new attempts can move page boundaries. No stored score, scheduler process, migration, or background job is needed. The browser presents a dated snapshot, refreshes after saving in that tab, and offers manual refresh for time passing or changes in other tabs.
-
-## Relationships
-
-```text
-problems ──< problem_patterns >── patterns
-   │
-   ├──< attempts ──< attempt_patterns >── patterns
-   │
-   └── historical_solves (zero or one per problem)
-```
-
-- A problem is unique by (platform, external_id), not by its title or full page URL.
-- problem_patterns records possible approaches in the catalog.
-- An attempt is a manually reported completed solve, with one of independent/hint/solution, UTC timestamp, optional notes, and at least one explicitly chosen practiced pattern.
-- attempt_patterns records actual approaches for that attempt. It does not inherit every catalog tag. Changing catalog patterns cannot rewrite old attempts.
-- Historical solves indicate prior completion with unknown assistance, patterns used, and solve time. imported_at is the import time, not the solve time. No fake attempt or confidence is created.
-- Multiple attempts on the same problem are allowed. A retry uses the same requestId; a genuinely new practice session gets a new requestId.
-
-All data belongs to one local workspace. Before adding accounts, introduce explicit ownership through a migration. There is no authentication or public deployment in this phase.
-
-## Write guarantees
-
-Every multi-table write runs BEGIN/COMMIT/ROLLBACK on one checked-out pg client. SQL values are parameterized. Database constraints cover primary keys, unique identities, foreign keys, allowed assistance/difficulty values, and note bounds.
-
-Attempt request IDs are caller-generated version-4 UUIDs. A hash of the normalized payload distinguishes a retry from an accidental reuse with different data. Concurrent retries create one attempt; a conflicting payload receives 409. Timestamps are supplied by the caller so a retry does not acquire a new time.
-
-Problem creation deduplicates by platform identity. An existing problem is returned without overwriting its catalog metadata. Replace catalog patterns explicitly with PUT /api/problems/:id/patterns. Replacements lock the problem row to avoid mixing concurrent sets.
-
-Historical import batches contain 1–100 existing problem IDs. IDs are deduplicated. The whole batch succeeds or fails; repeated imports do not duplicate evidence.
-
-The dashboard creates one request ID and freezes its payload before sending. Uncertain network/server failures preserve that payload in memory and sessionStorage for a same-tab reload. Retrying reuses the same ID and timestamp. A successful response clears the pending save. If browser storage is blocked, in-memory retries remain available but reload recovery is unavailable. An unsent form is not autosaved. Problem creation and attempt creation are separate requests, so a failed attempt may leave a reusable catalog problem.
-
-## Migrations and failures
-
-db:migrate applies ordered SQL files within a transaction, records checksums, and serializes runners with a PostgreSQL advisory transaction lock. It never drops application data. New changes require new migration files.
-
-With no DATABASE_URL, the API still starts and health returns 200, while data routes return 503. Missing schema and connection failures also return actionable 503 errors rather than pretending the database is empty.
-
-## References
-
-The implementation follows [pg parameterized queries](https://node-postgres.com/features/queries) and [pg transaction guidance](https://node-postgres.com/features/transactions). The latter requires using the same client throughout a transaction.
-
+There is no recommendation engine, study schedule, standalone library/history screen, priority override control, global progress counter, or dashboard recording form. Older phase documents describe historical implementations only.

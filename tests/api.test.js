@@ -16,7 +16,7 @@ after(() => new Promise((resolve, reject) => server.close((error) => error ? rej
 test('health responds over HTTP without a database', async () => {
   const response = await fetch(`${base}/api/health`);
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { status: 'ok', service: 'dsa-tracker-api', phase: 2 });
+  assert.deepEqual(await response.json(), { status: 'ok', service: 'dsa-tracker-api' });
 });
 test('data routes explicitly require database configuration', async () => {
   const response = await fetch(`${base}/api/attempts`);

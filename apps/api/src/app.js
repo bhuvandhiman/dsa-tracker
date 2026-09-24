@@ -9,13 +9,13 @@ export function createApp({ repository = null } = {}) {
 
   // Liveness only: this does not claim that PostgreSQL is connected.
   app.get('/api/health', (_request, response) => {
-    response.json({ status: 'ok', service: 'dsa-tracker-api', phase: 2 });
+    response.json({ status: 'ok', service: 'dsa-tracker-api' });
   });
 
   // Match known data resources only, so unrelated URLs retain a JSON 404 even without a database.
   const routes = dataRoutes(repository);
   app.use('/api', (request, response, next) => {
-    if (!/^\/(patterns|problems|attempts|imports|reviews)(\/|$)/.test(request.path)) return next();
+    if (!/^\/(patterns|problems|attempts|imports|pattern-problems|practice-context|capture|retention)(\/|$)/.test(request.path)) return next();
     return routes(request, response, next);
   });
 

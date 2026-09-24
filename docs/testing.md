@@ -1,57 +1,11 @@
-# Testing
+# Verification
 
-## Phase 6 verification
+- npm.cmd run check: ESLint, database-independent Node tests, Vite production build.
+- npm.cmd run test:db: seven PostgreSQL integration tests in generated temporary schemas. Tests verify migrations, old-data backfill, immutable snapshots, import/reimport preservation, idempotent capture, approach corrections, contextual problem lookup and account isolation. Configure TEST_DATABASE_URL to use a separate database.
+- npm.cmd run test:capture: controlled browser fixture on port 8765. No real LeetCode submission or database write occurs.
 
-`npm.cmd run check` runs linting, 99 database-independent tests, and a production dashboard build. These passed after the Phase 6 changes. No new test dependencies were added.
+Strength regressions cover lasting breadth/reinforcement, fading recency, diminishing returns, local-day grouping, assistance precedence, subpattern isolation, unassessed ranking, coverage gaps, and deep old experience versus shallow recent practice.
 
-Capture tests cover state transitions, stale/duplicate suppression, failed verdicts, cancellation/navigation/expiry, URL and visibility restrictions, bounded metadata, keyboard shortcuts, and worker sender checks. The browser fixture runs the actual adapter and prompt with mocked extension messaging. Completed browser checks showed no prompt for Run/old acceptance, one prompt for a fresh accepted result, a correct title/time handoff, and successful dismissal. Failed verdict behavior is covered by state-machine tests.
+Trigger regressions cover Run, stale Accepted, failed verdicts, navigation, repeated keyboard shortcuts, fresh Submit/Accepted, and duplicate result renders. Worker tests cover frozen pending payloads, restart recovery, invalid senders and uncertain save retries.
 
-The public LeetCode Submit and title markup was inspected. Actual Chrome loading and authenticated acceptance-result markup have not been verified. The in-app browser could not open new tabs when final browser checks resumed. Follow phase-6.md for the remaining live check. The fixture is available through `npm.cmd run test:capture`; it creates no real submission or database write.
-
-Phase 4 adds mocked Chrome API checks for fixed-destination handoff, changed SPA problems, navigation away, malformed identities, creation-error recovery, and rapid-click suppression. Dashboard tests cover metadata-only prefill and invalid launch links.
-
-Browser verification used the actual API and an isolated PostgreSQL schema. Opening a handoff link filled URL/title but left assistance and patterns unselected, with zero stored attempts. After a deliberately interrupted save, a different incoming problem link preserved the original pending attempt. Retry left exactly one attempt, removed the launch parameter, and a reload showed a blank form. Actual unpacked Chrome loading remains a manual step in phase-4.md.
-
-The default suite covers:
-
-- Health availability without PostgreSQL, explicit 503 setup responses, malformed/oversized JSON, unsupported encodings, and concurrent requests.
-- Domain validation: canonical LeetCode identities, assistance values, explicit practiced patterns, timestamps, note bounds, UUIDs, historical imports, and pagination.
-- Data-route HTTP behavior with injected repository doubles: validation before writes, creation/retry statuses, conflict/not-found errors, and database failure responses. These tests do not execute SQL.
-- Web health-client validation, HTTP/network failures, and cancellation.
-- Practice form validation, UTC conversion, pending-save restoration, and stable request IDs through uncertain retries.
-- Extension manifest scope, URL parsing, SPA navigation, messages, popup retries and malformed responses.
-- Real API process startup/shutdown, invalid/occupied ports, Vite proxy behavior, unavailable PostgreSQL probe behavior, and combined-startup cleanup.
-
-Phase 5 adds HTTP validation, unavailable-database, policy, and pagination-contract tests for reviews. The PostgreSQL suite additionally verifies empty/import-only queues, 1/3/7-day intervals, exact due-time boundaries, paging/counts, latest-attempt selection, backfills, practiced-pattern separation, and elapsed hours across daylight-saving changes.
-
-Browser checks against an isolated schema verified empty guidance, 12 due and 1 upcoming problem, 10-row pagination, all-scheduled filtering, an independent attempt moving a due problem seven days forward, unavailable-API messaging, and a 320-pixel viewport without horizontal overflow.
-
-## PostgreSQL integration suite
-
-Run `npm.cmd run test:db` after PostgreSQL is installed and DATABASE_URL is configured in apps/api/.env. TEST_DATABASE_URL can select a separate test database.
-
-The suite creates an isolated random schema, applies the actual SQL migration twice, and verifies:
-
-- Seed patterns and unique problem identities.
-- Possible versus practiced pattern separation.
-- Stored notes with SQL-like text.
-- Identical/concurrent retries creating only one attempt and conflicting retries returning 409.
-- Validation failures rolling back without partial data.
-- Catalog pattern edits preserving past attempt approaches.
-- Historical import deduplication and atomic failure, with no invented attempts.
-- Data surviving connection closure/reopening.
-- Applied migration checksum mismatch detection.
-
-Cleanup drops only the generated test schema. Existing application tables are untouched. The test requires CREATE permission on the configured database.
-
-**Verified against the running PostgreSQL database.** `db:check` passed, `db:migrate` confirmed that the application schema is up to date, and `test:db` passed all assertions in the integration suite above. The running API also returned phase 2 health and all 15 seeded patterns through `/api/patterns`. The integration suite used its isolated schema and cleaned it up afterward. Default tests remain database-independent; rerun `test:db` explicitly after database-layer changes.
-
-## Browser and installation evidence
-
-During Phase 1, a clean npm ci installation passed checks. The dashboard was manually checked for a healthy API, HTTP 503, five-second timeout, null response, retry recovery, and 320/390-pixel layouts without horizontal overflow. The heading structure was corrected. Phase 3 replaces the connection shell with the practice journal. Its production build and PostgreSQL integration suite passed.
-
-Phase 3 browser checks used the real API/repository and migrations in an isolated PostgreSQL schema: new problem and attempt creation, persistence after reload, literal rendering of script-like notes, existing problem selection without inherited patterns, and a deliberately dropped response after commit. Reloading and retrying the pending save left exactly two attempts instead of inserting a duplicate. Pagination showed 20 then 3 records after seeding 21 additional fixtures. API failure retained previously loaded history with an error; an initial failure disabled new saves. A 320-pixel viewport had no horizontal overflow.
-
-Actual Chrome extension loading still requires the README manual checklist. The available in-app browser cannot load the unpacked Chrome extension. No submission capture, scoring, authentication, or deployment is implemented.
-
-See phase-3.md for the dashboard walkthrough and phase-2.md for the API walkthrough.
+Browser verification covers the prompt after Accepted, no prompt after Run, offline retry preservation close-on-save, desktop panels, mobile drawers, and preserved legacy history in the running dashboard. The signed-in Chrome profile is not available through the current browser connection; live LeetCode compatibility remains a manual verification step. See app-review.md for the user-facing checks.

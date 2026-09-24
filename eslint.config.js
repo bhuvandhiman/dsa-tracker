@@ -30,6 +30,6 @@ export default [
   },
   {
     files: ['apps/extension/**/*.js', 'tests/fixtures/capture-browser.js'],
-    languageOptions: { globals: { ...globals.browser, chrome: 'readonly', DsaAdapters: 'readonly', DsaCapture: 'readonly', DsaRecorder: 'readonly' } },
+    languageOptions: { globals: { ...globals.browser, chrome: 'readonly', DsaAdapters: 'readonly', DsaCapture: 'readonly', DsaLegacy: 'readonly' } },
   },
 ];

@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "project": {
+    "name": "Recall — Developer Arcade",
+    "productType": "Local DSA practice retention tracker",
+    "stack": [
+      "JavaScript",
+      "React",
+      "Vite",
+      "Material UI",
+      "Emotion",
+      "Chrome MV3"
+    ]
+  },
+  "sources": {
+    "tokens": [
+      "apps/web/src/theme.js"
+    ],
+    "components": [
+      "apps/web/src/PatternCard.jsx",
+      "apps/web/src/PracticeStrength.jsx"
+    ],
+    "assets": [],
+    "instructions": []
+  },
+  "design": {
+    "colorMode": "dark",
+    "colors": {
+      "canvas": "#0d1117",
+      "surface": "#161d27",
+      "mint": "#5ee6a8",
+      "amber": "#f3b562"
+    },
+    "density": "compact",
+    "motion": {
+      "hover": "180ms",
+      "progress": "600ms",
+      "reducedMotion": true
+    }
+  },
+  "components": {
+    "installed": [
+      "Material UI"
+    ],
+    "preferredPrimitives": [
+      "MUI"
+    ],
+    "patterns": [
+      "Collapsible pattern navigation",
+      "Independent strength bars",
+      "Scoped history timelines",
+      "Responsive details drawer"
+    ]
+  },
+  "constraints": {
+    "must": [
+      "Preserve API ordering and existing data",
+      "Unassessed is not zero",
+      "JavaScript only",
+      "Keyboard access and reduced motion"
+    ],
+    "avoid": [
+      "Mastery claims",
+      "Global question counters",
+      "XP and study recommendations",
+      "Standalone problem library"
+    ]
+  },
+  "decisions": [
+    {
+      "date": "2026-09-24",
+      "direction": "Developer Arcade",
+      "reason": "User approved dark developer-tool surfaces, mint/amber accents, restrained game-like interactions and a single pattern explorer."
+    }
+  ],
+  "evidence": [
+    {
+      "url": "https://21st.dev/@manuarora700/components/sidebar",
+      "use": "Responsive collapsible navigation inspiration"
+    },
+    {
+      "url": "https://21st.dev/community/components/educalvolpz/animated-progress-bar/default",
+      "use": "Animated progress inspiration"
+    },
+    {
+      "url": "https://21st.dev/@dillionverma/components/animated-circular-progress-bar",
+      "use": "Single-subpattern circular indicator inspiration"
+    }
+  ]
+}

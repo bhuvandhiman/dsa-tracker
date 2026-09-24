@@ -2,113 +2,80 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { extensionDraft, localDateTime } from '../apps/web/src/attempt-form.js';
-
-const root = new URL('../apps/extension/src/', import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), 'utf8');
-function environment(extra = {}) {
-  const context = vm.createContext({ URL, Date, ...extra });
-  for (const file of ['adapters/leetcode.js', 'recorder.js', 'capture.js']) vm.runInContext(read(file), context);
-  return context;
-}
-const problem = { platform: 'leetcode', problemId: 'two-sum', url: 'https://leetcode.com/problems/two-sum/', title: 'Two Sum' };
-const now = Date.parse('2025-01-01T12:00:00.000Z');
-const result = (id='2', status='Accepted') => ({ id, status });
-
-test('acceptance requires an armed Submit and a new submission ID, then prompts once', () => {
-  const tracker = environment().DsaCapture.createTracker();
-  assert.equal(tracker.observe(problem,result(),now), null);
-  tracker.arm(problem,'1',now);
-  assert.equal(tracker.observe(problem,result('1'),now), null);
-  const capture = tracker.observe(problem,result(),now+1000);
-  assert.equal(capture.problem.url,problem.url);
-  assert.equal(capture.attemptedAt,'2025-01-01T12:00:01.000Z');
-  assert.equal(tracker.observe(problem,result(),now+2000),null);
-  tracker.arm(problem,'1',now+3000);
-  assert.equal(tracker.observe(problem,result(),now+4000),null);
-});
-
-test('failed results, navigation, cancellation and expiry never offer a prompt', () => {
-  for (const status of ['Wrong Answer','Runtime Error','Time Limit Exceeded','Compile Error']) {
-    const tracker=environment().DsaCapture.createTracker();tracker.arm(problem,null,now);
-    assert.equal(tracker.observe(problem,result('2',status),now+1),null);
-    assert.equal(tracker.observe(problem,result('3'),now+2),null);
-  }
-  const tracker=environment().DsaCapture.createTracker();
-  tracker.arm(problem,null,now);assert.equal(tracker.observe(null,result(),now+1),null);
-  tracker.arm(problem,null,now);assert.equal(tracker.observe({...problem,url:'https://leetcode.com/problems/3sum/'},result(),now+1),null);
-  tracker.arm(problem,null,now);assert.equal(tracker.observe(problem,result(),now+120001),null);
-  tracker.arm(problem,null,now);tracker.cancel();assert.equal(tracker.observe(problem,result(),now+1),null);
-});
-
-test('a stale Accepted verdict cannot be reused immediately after another Submit', () => {
-  const tracker=environment().DsaCapture.createTracker();tracker.arm(problem,'1',now,'Accepted');
-  assert.equal(tracker.observe(problem,result('2'),now+1),null);
-  assert.equal(tracker.observe(problem,result('2',null),now+2),null);
-  assert.ok(tracker.observe(problem,result('2'),now+3));
-});
-
-test('adapter requires numeric submission detail URL and visible dedicated verdict', () => {
-  const adapter=environment().DsaAdapters[0];
-  let text='Accepted';let visible=true;
-  const doc={ querySelector(selector) { assert.equal(selector,'[data-e2e-locator="submission-result"]');return {textContent:text,getClientRects:()=>visible?[{}]:[]}; } };
-  assert.equal(adapter.getSubmission(doc,problem.url),null);
-  assert.equal(adapter.getSubmission(doc,problem.url+'submissions/'),null);
-  assert.equal(adapter.getSubmission(doc,problem.url+'submissions/not-an-id/'),null);
-  const href=problem.url+'submissions/1234/';
-  assert.equal(adapter.getSubmission(doc,href).status,'Accepted');
-  visible=false;assert.equal(adapter.getSubmission(doc,href).status,null);
-  visible=true;text='Accepted 500 / 1000';assert.equal(adapter.getSubmission(doc,href).status,null);
-  text='Pending';assert.equal(adapter.getSubmission(doc,href).status,null);
-});
-
-test('metadata chooses only the matching problem title and bounds it', () => {
-  const adapter=environment().DsaAdapters[0];
-  const doc={querySelectorAll:()=>[{href:'https://leetcode.com/problems/3sum/',textContent:'15. 3Sum'}, {href:problem.url,textContent:'1. Two Sum'}]};
-  assert.equal(adapter.getDetails(doc,problem.url).title,'Two Sum');
-  doc.querySelectorAll=()=>[{href:problem.url,textContent:'x'.repeat(201)}];
-  assert.equal(adapter.getDetails(doc,problem.url).title,undefined);
-});
-
-test('recorder carries bounded metadata to a fixed origin and never sends code or notes', () => {
-  const recorder=environment().DsaRecorder;
-  const url=new URL(recorder.buildUrl(problem,{title:'Two Sum',attemptedAt:new Date(now).toISOString(),code:'private'}));
-  assert.equal(url.origin,'http://127.0.0.1:5173');assert.equal(url.hash,'#record-attempt');
-  assert.equal(url.searchParams.get('title'),'Two Sum');assert.equal(url.searchParams.get('attemptedAt'),new Date(now).toISOString());
-  assert.equal(url.searchParams.has('code'),false);
-  assert.throws(()=>recorder.buildUrl({...problem,url:'https://evil.example/'}));
-  const invalid=new URL(recorder.buildUrl(problem,{title:'x'.repeat(201),attemptedAt:'bad'}));
-  assert.equal(invalid.searchParams.has('title'),false);assert.equal(invalid.searchParams.has('attemptedAt'),false);
-});
-
-test('dashboard accepts title/time as editable metadata, never as practice evidence', () => {
-  const query=new URLSearchParams({problem:problem.url,title:'Two Sum & More',attemptedAt:new Date(now).toISOString()});
-  const {form}=extensionDraft('?'+query);
-  assert.equal(form.title,'Two Sum & More');assert.equal(form.attemptedAt,localDateTime(new Date(now)));
-  assert.equal(form.assistance,'');assert.deepEqual(form.patternSlugs,[]);
-  query.set('title','x'.repeat(201));query.set('attemptedAt','2099-01-01T00:00:00.000Z');
-  const invalid=extensionDraft('?'+query).form;
-  assert.equal(invalid.title,'Two Sum');assert.notEqual(invalid.attemptedAt,'2099-01-01T00:00');
-});
-
-test('worker restricts prompt opening to its own top-frame matching LeetCode content script', async () => {
-  let listener;const opened=[];
-  const context=environment({chrome:{runtime:{id:'recall-test',onMessage:{addListener(fn){listener=fn;}}},tabs:{async create(value){opened.push(value.url);}}}});
+import { captureInput } from '../apps/api/src/domain.js';
+const read = path => readFileSync(new URL('../apps/extension/src/'+path,import.meta.url),'utf8');
+const problem={url:'https://leetcode.com/problems/two-sum/',platform:'leetcode',problemId:'two-sum'};
+const payload={requestId:'00000000-0000-4000-8000-000000000001',url:problem.url,title:'Two Sum',topics:['Array','Hash Table'],selectedTopics:[],assistance:'hint',attemptedAt:'2025-01-01T00:00:00.000Z'};
+function worker(fetcher,storage={}) {
+  let listener;
+  const context=vm.createContext({URL,AbortSignal,fetch:fetcher,chrome:{
+    storage:{local:{async get(key){return {[key]:storage[key]};},async set(data){Object.assign(storage,data);},async remove(key){delete storage[key];}}},
+    runtime:{id:'test',onMessage:{addListener(fn){listener=fn;}}},
+  }});
+  vm.runInContext(read('adapters/leetcode.js'),context);
   vm.runInContext(read('service-worker.js').replace(/^import .*;\r?$/gm,''),context);
-  const message={type:'OPEN_RECORDER',problem,attemptedAt:new Date(now).toISOString()};
-  const sender={id:'recall-test',frameId:0,tab:{id:2},url:problem.url+'submissions/123/'};
-  for(const invalid of [{...sender,id:'other'}, {...sender,frameId:1}, {...sender,url:'https://evil.example/'}, {...sender,url:'https://leetcode.com/problems/3sum/'}, {}]) {
-    let response;listener(message,invalid,value=>response=value);assert.equal(response.opened,false);
-  }
-  await new Promise(resolve=>{assert.equal(listener(message,sender,value=>{assert.equal(value.opened,true);resolve();}),true);});
-  assert.equal(opened.length,1);assert.equal(new URL(opened[0]).origin,'http://127.0.0.1:5173');
+  return {context,storage,send(message,sender={id:'test',frameId:0,tab:{id:1},url:problem.url}) {return new Promise(resolve=>listener(message,sender,resolve));}};
+}
+test('capture maps only problem topics; skipped selections use inferred defaults',()=>{
+  const input=captureInput(payload);
+  assert.deepEqual(input.attempt.patternSlugs,['arrays-hashing']);
+  assert.equal(input.attempt.patternSource,'inferred');
+  assert.equal(captureInput({...payload,selectedTopics:['Hash Table']}).attempt.patternSource,'explicit');
+  assert.deepEqual(captureInput({...payload,topics:[]}).problem.patternSlugs,['uncategorized']);
+  assert.throws(()=>captureInput({...payload,selectedTopics:['Trees']}),{status:400});
+  assert.throws(()=>captureInput({...payload,url:'https://evil.test/'}),{status:400});
+  assert.throws(()=>captureInput({...payload,assistance:''}),{status:400});
 });
-
-test('adapter recognizes Submit shortcuts but excludes Run and repeated keys', () => {
-  const adapter=environment().DsaAdapters[0];
+test('worker uses a fixed API destination and persists the exact draft before sending',async()=>{
+  let ui;
+  ui=worker(async(url,options)=>{
+    assert.equal(url,'http://127.0.0.1:3001/api/capture');assert.equal(options.credentials,'omit');
+    assert.deepEqual(ui.storage['recall-pending:'+problem.url],payload);
+    return {ok:true,json:async()=>({attempt:{id:payload.requestId}})};
+  });
+  assert.equal((await ui.send({type:'SAVE_CAPTURE',problem,payload})).saved,true);
+  assert.equal(Object.keys(ui.storage).length,0);
+});
+test('offline draft survives worker restart and retries without a new request ID',async()=>{
+  const storage={};const failed=worker(async()=>{throw new Error('offline');},storage);
+  assert.equal((await failed.send({type:'SAVE_CAPTURE',problem,payload})).saved,false);
+  const restarted=worker(async(_url,options)=>{
+    assert.equal(JSON.parse(options.body).requestId,payload.requestId);
+    return {ok:true,json:async()=>({attempt:{id:payload.requestId}})};
+  },storage);
+  assert.equal((await restarted.send({type:'GET_PENDING_CAPTURE',problem})).pending.requestId,payload.requestId);
+  const changed=await restarted.send({type:'SAVE_CAPTURE',problem,payload:{...payload,assistance:'solution'}});
+  assert.equal(changed.saved,false);
+  assert.equal((await restarted.send({type:'SAVE_CAPTURE',problem,payload})).saved,true);
+});
+test('invalid senders cannot read drafts or ask the worker to write',async()=>{
+  const ui=worker(()=>assert.fail('No fetch expected'));
+  for(const sender of [{},{id:'other',frameId:0,tab:{id:1},url:problem.url},{id:'test',frameId:1,tab:{id:1},url:problem.url},{id:'test',frameId:0,tab:{id:1},url:'https://leetcode.com/problems/3sum/'}]) {
+    assert.equal((await ui.send({type:'SAVE_CAPTURE',problem,payload},sender)).saved,false);
+  }
+});
+test('definitive validation failures unlock editing; uncertain failures retain the draft',async()=>{
+  for(const status of [400,503,409]) {
+    const ui=worker(async()=>({ok:false,status,json:async()=>({error:'test failure'})}));
+    const result=await ui.send({type:'SAVE_CAPTURE',problem,payload});
+    assert.equal(result.saved,false);assert.equal(Boolean(result.editable),status===400);
+    assert.equal(Object.keys(ui.storage).length,status===400?0:1);
+  }
+});
+test('topic extraction accepts LeetCode tag links only and deduplicates',()=>{
+  const ui=worker(()=>{});const adapter=ui.context.DsaAdapters[0];
+  const parentElement={firstElementChild:{textContent:'Topics'}};
+  const doc={querySelectorAll:()=>[
+    {href:'https://leetcode.com/tag/array/',textContent:'Array',parentElement},
+    {href:'https://leetcode.com/tag/hash-table/',textContent:'Hash Table',parentElement},
+    {href:'https://evil.test/tag/trees/',textContent:'Trees',parentElement},
+    {href:'https://leetcode.com/tag/array/',textContent:'Array'},
+  ]};
+  assert.deepEqual(Array.from(adapter.getTopics(doc)),['Array','Hash Table']);
+});
+test('adapter recognizes Submit but excludes Run and repeated shortcuts',()=>{
+  const adapter=worker(()=>{}).context.DsaAdapters[0];
   assert.equal(adapter.isSubmitShortcut({key:'Enter',ctrlKey:true}),true);
-  assert.equal(adapter.isSubmitShortcut({key:'Enter',metaKey:true}),true);
   assert.equal(adapter.isSubmitShortcut({key:'Enter',ctrlKey:true,repeat:true}),false);
-  assert.equal(adapter.isSubmitShortcut({key:'Enter',ctrlKey:true,shiftKey:true}),false);
-  assert.equal(Boolean(adapter.isSubmitShortcut({key:'Enter'})),false);
+  assert.equal(adapter.isSubmit({closest:()=>null}),false);
 });

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Recall — DSA Tracker",
-  "version": "0.3.0",
-  "description": "Offer a practice reminder after a newly accepted LeetCode submission, then review and save in Recall.",
+  "version": "0.7.0",
+  "description": "Record practice in a compact LeetCode side panel after Accepted.",
   "background": {
     "service_worker": "src/service-worker.js",
     "type": "module"
@@ -18,10 +18,18 @@
       ],
       "js": [
         "src/adapters/leetcode.js",
+        "src/adapters/leetcode-import.js",
         "src/capture.js",
         "src/content.js"
       ],
       "run_at": "document_idle"
     }
+  ],
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "https://leetcode.com/*"
   ]
 }

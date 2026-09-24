@@ -11,7 +11,7 @@ function popup({ ping, tabs, reply, create } = {}) {
   const messages = [];
   const opened = [];
   const context = vm.createContext({
-    URL,
+    URL, window: { close() {} },
     document: { querySelector: (selector) => elements[selector] },
     chrome: {
       runtime: { sendMessage: ping || (async () => ({ status: 'worker-ready', version: '0.1.0' })) },
@@ -20,13 +20,13 @@ function popup({ ping, tabs, reply, create } = {}) {
         query: tabs || (async () => [{ id: 123 }]),
         sendMessage: async (id, message) => {
           messages.push({ id, type: message.type });
+          if (message.type === 'SHOW_RECORDER') { if (create) await create(); opened.push(id); return { opened: true }; }
           return reply ? reply() : { status: 'content-script-ready', problem: { platform: 'leetcode', problemId: 'two-sum', url: 'https://leetcode.com/problems/two-sum/' } };
         },
       },
     },
   });
   vm.runInContext(readFileSync(new URL('../apps/extension/src/adapters/leetcode.js', import.meta.url), 'utf8'), context);
-  vm.runInContext(readFileSync(new URL('../apps/extension/src/recorder.js', import.meta.url), 'utf8'), context);
   const ready = vm.runInContext(source, context);
   return { elements, messages, opened, ready };
 }
@@ -99,16 +99,14 @@ test('a retry clears the previous problem while checking another tab', async () 
   await retry;
 });
 
-test('record opens only the fixed dashboard with a canonical problem URL', async () => {
+test('record opens the panel on the active tab without a dashboard tab', async () => {
   const ui = popup();
   await ui.ready;
   assert.equal(ui.opened.length, 0);
   assert.equal(ui.elements['#record'].disabled, false);
   await ui.elements['#record'].click();
-  const url = new URL(ui.opened[0]);
-  assert.equal(url.origin, 'http://127.0.0.1:5173');
-  assert.equal(url.searchParams.get('problem'), 'https://leetcode.com/problems/two-sum/');
-  assert.equal(ui.opened.length, 1);
+  assert.deepEqual(ui.opened, [123]);
+  assert.equal(ui.messages.at(-1).type,'SHOW_RECORDER');
 });
 
 test('record reads the latest SPA problem rather than the earlier popup identity', async () => {
@@ -117,7 +115,8 @@ test('record reads the latest SPA problem rather than the earlier popup identity
   await ui.ready;
   slug = 'valid-parentheses';
   await ui.elements['#record'].click();
-  assert.equal(new URL(ui.opened[0]).searchParams.get('problem'), 'https://leetcode.com/problems/valid-parentheses/');
+  assert.equal(ui.elements['#problem'].textContent, 'valid-parentheses');
+  assert.equal(ui.messages.at(-1).type,'SHOW_RECORDER');
 });
 
 test('navigation away from a problem prevents opening a stale draft', async () => {
@@ -146,7 +145,7 @@ test('untrusted or mismatched identities cannot enable recording', async () => {
   }
 });
 
-test('rapid record clicks open one tab and creation errors allow recovery', async () => {
+test('rapid record clicks open one panel and messaging errors allow recovery', async () => {
   let fail = true;
   const ui = popup({ create: async () => { if (fail) throw new Error('Cannot create tab'); } });
   await ui.ready;

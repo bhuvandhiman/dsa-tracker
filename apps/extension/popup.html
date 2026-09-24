@@ -6,12 +6,15 @@
     <p class="eyebrow">LEETCODE CONNECTION</p>
     <p id="worker" role="status">Checking extension…</p>
     <section><h2>Current problem</h2><p id="problem" aria-live="polite">Checking this tab…</p></section>
-    <button id="record" type="button" disabled>Record this problem</button>
+    <button id="record" type="button" disabled>Open recording panel</button>
     <button id="refresh" class="secondary" type="button">Check again</button>
+    <button id="legacy-setup" class="secondary" type="button" hidden>Finish first-time setup</button>
+    <button id="settings" class="secondary" type="button">Settings</button>
     <p id="launch-status" role="status"></p>
-    <p class="note">Opens your local dashboard to review and save an attempt. Start Recall with npm.cmd run dev first. Accepted submissions can offer a page reminder. Saving always requires your confirmation in the form.</p>
+    <p class="note">After Accepted, record practice directly on LeetCode. Choose how you solved it; topic checkboxes are optional. Start the local Recall API before saving.</p>
     <script src="src/adapters/leetcode.js"></script>
-    <script src="src/recorder.js"></script>
     <script type="module" src="src/popup.js"></script>
+    <script type="module" src="src/popup-legacy.js"></script>
+
   </body>
 </html>

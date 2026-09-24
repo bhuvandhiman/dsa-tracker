@@ -21,7 +21,7 @@
     "check": "npm run lint && npm test && npm run build",
     "db:check": "npm run db:check --workspace=@dsa/api",
     "db:migrate": "npm run db:migrate --workspace=@dsa/api",
-    "test:db": "node --env-file-if-exists=apps/api/.env --test tests/database.integration.js tests/reviews.integration.js"
+    "test:db": "node --env-file-if-exists=apps/api/.env --test tests/database.integration.js tests/journal.integration.js tests/legacy.integration.js tests/retention.integration.js tests/strength.integration.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

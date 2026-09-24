@@ -28,8 +28,8 @@ test('manifest uses MV3, restricted host access and existing local entry points'
   assert.equal(manifest.background.type, 'module');
   assert.equal(manifest.content_scripts.length, 1);
   assert.deepEqual(manifest.content_scripts[0].matches, ['https://leetcode.com/*']);
-  assert.equal(manifest.permissions, undefined);
-  assert.equal(manifest.host_permissions, undefined);
+  assert.deepEqual(manifest.permissions, ['storage']);
+  assert.deepEqual(manifest.host_permissions, ['http://127.0.0.1/*', 'https://leetcode.com/*']);
   for (const path of [manifest.background.service_worker, manifest.action.default_popup, ...manifest.content_scripts[0].js]) {
     assert.ok(existsSync(new URL(path, root)), path);
   }
