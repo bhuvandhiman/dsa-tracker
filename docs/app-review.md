@@ -1,7 +1,7 @@
 # Review checklist
 
 1. Run migrations and npm.cmd run dev. The dashboard contains major pattern cards and no global counters or library/history tabs.
-2. Open a card. Desktop uses an adjacent panel; narrow screens use a drawer. Every subpattern has its own bar or Unassessed label, experience count, reason and dated last practice when known.
+2. Open a pattern row. It replaces the dashboard with a full-width detail screen. Every subpattern has its own bar, experience count, reason and dated last practice when known. Legacy-only evidence is labeled “Prior solves · date unknown.”
 3. Expand a subpattern and problem. Inspect dated attempts and the undated legacy entry. Correct assistance, approach, notes or date; verify bars refresh and siblings remain independent. Remove a mistaken recording using the explicit confirmation.
 4. Change primary browsing placement. Confirm existing attempt approaches and history remain intact.
 5. Reload the unpacked Chrome extension and refresh a signed-in LeetCode problem. Run and old Accepted pages should stay quiet. A new Accepted result should open the compact prompt. Failed verdicts should stay quiet.

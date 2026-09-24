@@ -1,6 +1,6 @@
 # Architecture
 
-Recall is a single local workspace. React/Vite/Material UI renders major pattern cards, a desktop detail panel, and a mobile drawer. Node/Express serves JSON; PostgreSQL is accessed through pg and parameterized raw SQL. Chrome MV3 captures self-reported practice on LeetCode.
+Recall is a single local workspace. React/Vite/Material UI renders a single-column pattern dashboard and full-width pattern detail screens. Node/Express serves JSON; PostgreSQL is accessed through pg and parameterized raw SQL. Chrome MV3 captures self-reported practice on LeetCode.
 
 ## Data flow
 

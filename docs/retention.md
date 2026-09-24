@@ -11,7 +11,11 @@ Practice strength is a product heuristic for experience and recency, not a measu
 
 Daily grouping uses Asia/Calcutta. Within a problem/subpattern/day, explicit evidence wins over imported unknown; otherwise use the strongest assistance, then latest time. All attempts remain in history. Imported evidence matching a recorded problem/day or submission identity is suppressed while that recording exists, so uncertain imported approaches do not refresh extra patterns.
 
-Without dated evidence, the bar is Unassessed. Ordering uses the experience-only score 95 * (0.5B + 0.3D) / 0.8, without inventing recency. Experienced subpatterns sort weakest first. Each major card uses its weakest experienced child; untouched children and wholly untouched categories follow. Needs classification is outside ranking. Ties use catalog order.
+Without dated evidence, the visible bar uses the experience-only score 95 * (0.5B + 0.3D) / 0.8 and is labeled “Prior solves · date unknown.” The assessed flag remains false and recency remains null, so the API does not invent practice dates. Every subpattern, including untouched ones, has a bar.
+
+Breadth uses a centralized target per subpattern. Broad patterns such as hashing need more distinct problems; narrow or advanced patterns such as segment trees and minimum spanning trees need fewer. This makes the coverage component comparable without treating raw problem counts as equivalent across patterns.
+
+Experienced subpatterns sort weakest first. Each major row uses its weakest experienced child; untouched children and wholly untouched categories follow. Needs classification is outside ranking. Ties use catalog order.
 
 ## Evidence and correction
 

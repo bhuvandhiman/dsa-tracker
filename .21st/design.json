@@ -46,16 +46,16 @@
       "MUI"
     ],
     "patterns": [
-      "Collapsible pattern navigation",
+      "Single-column pattern navigation",
       "Independent strength bars",
       "Scoped history timelines",
-      "Responsive details drawer"
+      "Full-width pattern details"
     ]
   },
   "constraints": {
     "must": [
       "Preserve API ordering and existing data",
-      "Unassessed is not zero",
+      "Legacy-only evidence has a visible bar and an unknown-date label",
       "JavaScript only",
       "Keyboard access and reduced motion"
     ],
@@ -71,13 +71,14 @@
       "date": "2026-09-24",
       "direction": "Developer Arcade",
       "reason": "User approved dark developer-tool surfaces, mint/amber accents, restrained game-like interactions and a single pattern explorer."
+    },
+    {
+      "date": "2026-09-24",
+      "direction": "Bar-first single-column dashboard",
+      "reason": "Every pattern needs a visible strength bar; the sidebar and split panel diluted the primary retention signal."
     }
   ],
   "evidence": [
-    {
-      "url": "https://21st.dev/@manuarora700/components/sidebar",
-      "use": "Responsive collapsible navigation inspiration"
-    },
     {
       "url": "https://21st.dev/community/components/educalvolpz/animated-progress-bar/default",
       "use": "Animated progress inspiration"

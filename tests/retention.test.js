@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {decay,retentionFor,overview,practiceDay} from '../apps/api/src/retention-policy.js';
+import {breadthTargets,decay,retentionFor,overview,practiceDay} from '../apps/api/src/retention-policy.js';
 import {classifyProblem} from '../apps/api/src/pattern-catalog.js';
 const now=Date.parse('2026-01-01T12:00:00Z'),day=86400000;
 const event=(assistance='independent',at=now,problemId=1,practiceUnit)=>({problemId,assistance,at:new Date(at).toISOString(),practiceUnit});
@@ -42,5 +42,12 @@ test('undated experience is unassessed but ranked; multiple records do not infla
   const groups=overview([problem(1,'coin-change',true)],[event('unknown',now,1),event('hint',now,1)],{},now).categories;
   const dp=groups.find(c=>c.slug==='dynamic-programming');assert.equal(dp.children.find(u=>u.slug==='knapsack-unbounded').distinctSolved,1);
   const undated=overview([problem(1,'coin-change',true)],[],{},now).categories;
-  assert.equal(undated[0].slug,'dynamic-programming');assert.equal(undated[0].children[0].strength,null);assert.equal(undated[0].children.at(-1).experienced,false);
+  assert.equal(undated[0].slug,'dynamic-programming');assert.equal(undated[0].children[0].strength,null);assert.ok(undated[0].children[0].displayStrength>0);assert.equal(undated[0].children.at(-1).displayStrength,0);assert.equal(undated[0].children.at(-1).experienced,false);
+});
+test('breadth is normalized by pattern scope so narrow advanced patterns need fewer examples',()=>{
+  const narrow=retentionFor([],now,4,breadthTargets['segment-tree']);
+  const broad=retentionFor([],now,4,breadthTargets.hashing);
+  assert.ok(narrow.displayStrength>35);
+  assert.ok(narrow.displayStrength>broad.displayStrength);
+  assert.equal(narrow.assessed,false);
 });

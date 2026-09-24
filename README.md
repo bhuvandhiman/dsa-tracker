@@ -3,12 +3,12 @@
 Recall shows which patterns have less practice or have been neglected. It leaves the study decision to you.
 
 - One screen of major pattern cards, ordered by their weakest experienced subpattern.
-- Independent subpattern bars combining breadth (50%), reinforcement (30%), and recent practice (20%). Experience persists while recency fades. Bars never fill completely.
-- A desktop detail panel and mobile drawer with problems, expandable history, and corrections. There is no standalone library, global counter, or dashboard recording form.
+- Independent subpattern bars combining breadth (50%), reinforcement (30%), and recent practice (20%). Breadth is normalized by the scope of each pattern, so a narrow advanced pattern does not require as many distinct problems as a broad arrays pattern.
+- A single-column pattern dashboard and full-width pattern detail screens with problems, expandable history, and corrections. There is no standalone library, global counter, sidebar, or dashboard recording form.
 - A compact LeetCode prompt after a fresh Accepted submission: assistance, one practiced approach, optional topic checkboxes, then Save practice. Manual recording remains available in the extension.
 - Accepted-problem imports preserve existing practice and add legacy experience without inventing dates or assistance. Available recent dates initialize assessed bars. Reimport and retry live in extension Settings.
 
-The Developer Arcade interface uses a dark mint/amber theme, collapsible pattern navigation, pattern and scoped problem search, and reduced-motion-aware transitions. Ctrl/Cmd+K focuses pattern search. Design references and verification are documented in [.21st/DESIGN.md](.21st/DESIGN.md).
+The Developer Arcade interface uses a dark mint/amber theme, full-width pattern rows, pattern and scoped problem search, and reduced-motion-aware transitions. Every row has a Practice strength bar. Legacy solves produce an experience-based bar while remaining clearly marked as date unknown. Ctrl/Cmd+K focuses pattern search. Design references and verification are documented in [.21st/DESIGN.md](.21st/DESIGN.md).
 
 ## Run
 

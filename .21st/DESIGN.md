@@ -4,7 +4,6 @@ Recall uses a charcoal workspace, mint interaction accents, amber context, and c
 
 ## Grounded references
 
-- [Aceternity Sidebar](https://21st.dev/@manuarora700/components/sidebar): collapsible navigation and responsive composition.
 - [SmoothUI Animated Progress](https://21st.dev/community/components/educalvolpz/animated-progress-bar/default): restrained value transitions.
 - [Magic UI Circular Progress](https://21st.dev/@dillionverma/components/animated-circular-progress-bar): a selected subpattern indicator, never category mastery.
 
@@ -12,9 +11,9 @@ These are design references, not copied source or installed component packages. 
 
 ## Interaction and semantics
 
-Search matches category and subpattern names without altering server ordering. Ctrl/Cmd+K focuses search. Experienced and coverage-gap filters narrow the view. The desktop details panel becomes a full-width drawer on phones. Scoped problem search uses the existing API. Histories retain assistance, source, notes, placement corrections, and revision-checked editing/removal. No dashboard recording forms were added.
+Search matches category and subpattern names without altering server ordering. Ctrl/Cmd+K focuses search. Experienced and coverage-gap filters narrow the view. The dashboard is a single vertical list of full-width pattern rows; selecting one opens a dedicated full-width detail screen on every device. Scoped problem search uses the existing API. Histories retain assistance, source, notes, placement corrections, and revision-checked editing/removal. No dashboard recording forms were added.
 
-Bars are Practice strength, not mastery. Legacy-only experience stays Unassessed, without an empty bar or ring. Each indicator uses one subpattern. No XP, achievements, streaks, global counters, recommendations, or study schedules are introduced. All motion respects reduced-motion preferences.
+Bars are Practice strength, not mastery. Every row has a bar. Legacy-only evidence uses pattern-normalized distinct-problem coverage and is labeled “Prior solves · date unknown”; dated practice adds reinforcement and recency. Each indicator uses one subpattern. No XP, achievements, streaks, global counters, recommendations, or study schedules are introduced. All motion respects reduced-motion preferences.
 
 ## Maintenance
 

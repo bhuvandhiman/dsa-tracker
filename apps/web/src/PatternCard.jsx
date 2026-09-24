@@ -1,21 +1,18 @@
 import { Box, ButtonBase, Paper, Stack, Typography } from "@mui/material";
 import PracticeStrength from "./PracticeStrength.jsx";
 import ArcadeIcon from "./ArcadeIcon.jsx";
-export default function PatternCard({ category, selected, onSelect, index }) {
-  const unit = category.children.find((u) => u.slug === category.attention);
-  const gap = !unit;
+export default function PatternCard({ category, onSelect, index }) {
+  const unit =
+    category.children.find((u) => u.slug === category.attention) ||
+    category.children[0];
+  const gap = !unit?.experienced;
   return (
     <Paper
       variant="outlined"
       sx={{
         overflow: "hidden",
-        borderColor: selected ? "primary.main" : "divider",
-        bgcolor: selected
-          ? "#182b27"
-          : gap
-            ? "transparent"
-            : "background.paper",
-        borderStyle: gap ? "dashed" : "solid",
+        borderColor: "divider",
+        bgcolor: "background.paper",
         transition: "transform 180ms ease, border-color 180ms ease",
         animation: "appear 300ms ease both",
         animationDelay: Math.min(index, 8) * 35 + "ms",
@@ -25,31 +22,26 @@ export default function PatternCard({ category, selected, onSelect, index }) {
         },
         "&:hover": {
           transform: "translateY(-3px)",
-          borderColor: gap ? "text.secondary" : "primary.main",
+          borderColor: "primary.main",
         },
       }}
     >
       <ButtonBase
         onClick={onSelect}
         aria-label={"Open " + category.name}
-        aria-pressed={selected}
         sx={{
-          p: 2.4,
+          p: { xs: 2, sm: 2.5 },
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "stretch",
+          flexDirection: { xs: "column", sm: "row" },
+          alignItems: { xs: "stretch", sm: "center" },
           textAlign: "left",
-          gap: 2,
-          minHeight: gap ? 158 : unit?.assessed ? 238 : 215,
+          gap: { xs: 2, sm: 3 },
+          minHeight: 142,
         }}
       >
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
+        <Stack direction="row" alignItems="center" spacing={2} sx={{ minWidth: { sm: 280 } }}>
           <Box
             sx={{
               width: 34,
@@ -66,49 +58,20 @@ export default function PatternCard({ category, selected, onSelect, index }) {
               fontSize="small"
             />
           </Box>
-          <ArcadeIcon
-            name="arrow"
-            sx={{
-              fontSize: 17,
-              color: selected ? "primary.main" : "text.secondary",
-            }}
-          />
+          <Box>
+            <Typography component="h3" variant="h6">{category.name}</Typography>
+            <Typography variant="caption" color="text.secondary">{unit?.name || "Needs classification"}</Typography>
+          </Box>
         </Stack>
-        <Box>
-          <Typography component="h3" variant="h6">
-            {category.name}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {unit
-              ? unit.name
-              : category.slug === "other"
-                ? "Needs classification"
-                : "No practice recorded"}
-          </Typography>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <PracticeStrength unit={unit} compact />
+          <Typography variant="caption" sx={{ display: "block", mt: 1, color: unit.assessed ? "secondary.main" : "text.secondary" }}>{unit.reason}</Typography>
         </Box>
-        {unit ? (
-          <>
-            <Box sx={{ mt: "auto" }}>
-              <PracticeStrength unit={unit} compact />
-            </Box>
-            <Typography
-              variant="caption"
-              sx={{
-                color: unit.assessed ? "secondary.main" : "text.secondary",
-              }}
-            >
-              {unit.reason}
-            </Typography>
-          </>
-        ) : (
-          <Typography variant="caption" color="text.secondary">
-            {category.slug === "other"
-              ? "Organize your unclassified problems"
-              : "Coverage gap · explore subpatterns"}
-          </Typography>
-        )}
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ minWidth: { sm: 135 } }}>
+          <Typography variant="caption" color="text.secondary">{unit.distinctSolved} solved</Typography>
+          <ArcadeIcon name="arrow" sx={{ fontSize: 18, color: "primary.main" }} />
+        </Stack>
       </ButtonBase>
     </Paper>
   );
 }
-
