@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {breadthTargets,decay,retentionFor,overview,practiceDay} from '../apps/api/src/retention-policy.js';
+import {breadthTargets,categoryBreadthTargets,decay,retentionFor,overview,practiceDay} from '../apps/api/src/retention-policy.js';
 import {classifyProblem} from '../apps/api/src/pattern-catalog.js';
 const now=Date.parse('2026-01-01T12:00:00Z'),day=86400000;
 const event=(assistance='independent',at=now,problemId=1,practiceUnit)=>({problemId,assistance,at:new Date(at).toISOString(),practiceUnit});
@@ -50,4 +50,18 @@ test('breadth is normalized by pattern scope so narrow advanced patterns need fe
   assert.ok(narrow.displayStrength>35);
   assert.ok(narrow.displayStrength>broad.displayStrength);
   assert.equal(narrow.assessed,false);
+});
+test('major category summaries aggregate solved problems without merging child evidence',()=>{
+  const problems=[
+    ...Array.from({length:20},(_,i)=>problem(i+1,'climbing-stairs',true)),
+    ...Array.from({length:15},(_,i)=>problem(i+101,'coin-change',true)),
+  ];
+  const dp=overview(problems,[],{},now).categories.find(category=>category.slug==='dynamic-programming');
+  assert.equal(dp.summary.distinctSolved,35);
+  assert.equal(dp.summary.assessed,false);
+  assert.ok(dp.summary.displayStrength>0);
+  assert.ok(dp.summary.distinctSolved>Math.max(...dp.children.map(unit=>unit.distinctSolved)));
+  assert.equal(dp.children.find(unit=>unit.slug==='dp-1d').distinctSolved,20);
+  assert.equal(dp.children.find(unit=>unit.slug==='knapsack-unbounded').distinctSolved,15);
+  assert.equal(dp.summary.breadthTarget,categoryBreadthTargets['dynamic-programming']);
 });

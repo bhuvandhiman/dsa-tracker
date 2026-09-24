@@ -15,7 +15,7 @@ Without dated evidence, the visible bar uses the experience-only score 95 * (0.5
 
 Breadth uses a centralized target per subpattern. Broad patterns such as hashing need more distinct problems; narrow or advanced patterns such as segment trees and minimum spanning trees need fewer. This makes the coverage component comparable without treating raw problem counts as equivalent across patterns.
 
-Experienced subpatterns sort weakest first. Each major row uses its weakest experienced child; untouched children and wholly untouched categories follow. Needs classification is outside ranking. Ties use catalog order.
+Within a detail screen, experienced subpatterns sort weakest first and untouched children follow. Major dashboard rows use a separate category summary: distinct solved problems and dated evidence are aggregated across that category, then normalized with a category breadth target. This prevents one narrow child with a single solve from making a heavily practiced category appear nearly empty. Needs classification remains outside priority ranking. Ties use catalog order.
 
 ## Evidence and correction
 

@@ -97,8 +97,8 @@ export default function Overview({ version }) {
     const hasExperience = category.children.some((unit) => unit.experienced);
     return matchesQuery && (filter === "all" || (filter === "experienced" ? hasExperience : !hasExperience));
   });
-  const weakestCategory = visibleGroups.find((category) => category.attention);
-  const weakestUnit = weakestCategory?.children.find((unit) => unit.slug === weakestCategory.attention);
+  const weakestCategory = visibleGroups.find((category) => category.priority !== null);
+  const weakestUnit = weakestCategory?.summary;
 
   function saved() {
     setRetry((value) => value + 1);
@@ -106,7 +106,7 @@ export default function Overview({ version }) {
   }
 
   if (panel) {
-    const focusUnit = panel.children.find((unit) => unit.slug === panel.attention) || panel.children[0];
+    const focusUnit = panel.summary;
     return (
       <Box sx={{ px: { xs: 2, sm: 4 }, py: { xs: 3, md: 5 }, maxWidth: 1100, mx: "auto" }}>
         <Button startIcon={<ArcadeIcon name="arrow" sx={{ transform: "rotate(180deg)" }} />} onClick={() => setSelected(null)} sx={{ mb: 3, ml: -1 }}>

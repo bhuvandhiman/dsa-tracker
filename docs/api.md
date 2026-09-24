@@ -5,7 +5,7 @@ All routes use /api, JSON, bounded pagination, and parameterized SQL. Errors ret
 ## Current workflow
 
 - GET /health: liveness only.
-- GET /retention: asOf, timeZone, ordered categories and children. Children contain assessed, strength (null when no dated evidence exists), displayStrength (always available for the bar), breadth, breadthTarget, reinforcement, recency, weightedRevisits, distinctSolved, lastPracticedAt, reason and ordering metadata. Ranking numbers are internal and not displayed.
+- GET /retention: asOf, timeZone, ordered categories and children. Each category contains a summary used for its dashboard bar and total distinct-solved count. Children retain independent subpattern evidence. Summary and child strength objects contain assessed, strength (null when no dated evidence exists), displayStrength (always available for the bar), breadth, breadthTarget, reinforcement, recency, weightedRevisits, distinctSolved, lastPracticedAt and a concise reason. Ranking numbers are internal and not displayed.
 - POST /practice-context: {url,title,topics}; returns units and suggested practiceUnit, honoring an existing manual placement.
 - GET /pattern-problems?category=slug&limit=10&offset=0: paginated problem details for a category/subpattern. Includes problems whose recorded approach matches even when primary browsing placement differs. Returns {total,problems}.
 - GET /problems/:id/history?limit=20&offset=0: {problem,attempts,more,legacy}. Undated legacy evidence is shown after dated history. Imported rows have unknown assistance and inferred approach.

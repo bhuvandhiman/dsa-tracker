@@ -2,7 +2,7 @@
 
 Recall shows which patterns have less practice or have been neglected. It leaves the study decision to you.
 
-- One screen of major pattern cards, ordered by their weakest experienced subpattern.
+- One screen of major pattern rows, ordered by category-level practice strength. Each row shows the category's total distinct solved problems; independent subpatterns remain visible inside its detail screen.
 - Independent subpattern bars combining breadth (50%), reinforcement (30%), and recent practice (20%). Breadth is normalized by the scope of each pattern, so a narrow advanced pattern does not require as many distinct problems as a broad arrays pattern.
 - A single-column pattern dashboard and full-width pattern detail screens with problems, expandable history, and corrections. There is no standalone library, global counter, sidebar, or dashboard recording form.
 - A compact LeetCode prompt after a fresh Accepted submission: assistance, one practiced approach, optional topic checkboxes, then Save practice. Manual recording remains available in the extension.

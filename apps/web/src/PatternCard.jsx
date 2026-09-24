@@ -2,9 +2,7 @@ import { Box, ButtonBase, Paper, Stack, Typography } from "@mui/material";
 import PracticeStrength from "./PracticeStrength.jsx";
 import ArcadeIcon from "./ArcadeIcon.jsx";
 export default function PatternCard({ category, onSelect, index }) {
-  const unit =
-    category.children.find((u) => u.slug === category.attention) ||
-    category.children[0];
+  const unit = category.summary;
   const gap = !unit?.experienced;
   return (
     <Paper
@@ -60,7 +58,7 @@ export default function PatternCard({ category, onSelect, index }) {
           </Box>
           <Box>
             <Typography component="h3" variant="h6">{category.name}</Typography>
-            <Typography variant="caption" color="text.secondary">{unit?.name || "Needs classification"}</Typography>
+            <Typography variant="caption" color="text.secondary">Across all subpatterns</Typography>
           </Box>
         </Stack>
         <Box sx={{ flex: 1, minWidth: 0 }}>

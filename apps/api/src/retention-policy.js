@@ -14,6 +14,12 @@ export const breadthTargets = Object.freeze({
   'state-machine-dp':6,'multidimensional-dp':6,'dynamic-programming-general':16,
   greedy:14,intervals:10,math:16,'bit-manipulation':10,other:20,
 });
+export const categoryBreadthTargets = Object.freeze({
+  'arrays-hashing':40,'two-pointers':20,'sliding-window':18,stack:18,
+  'binary-search':18,'linked-list':15,trees:30,trie:8,heap:18,
+  backtracking:18,graphs:28,'dynamic-programming':35,greedy:20,
+  intervals:14,math:24,'bit-manipulation':14,other:24,
+});
 export const policy = Object.freeze({ceiling:95,cap:94,halfLifeDays:30,timeZone:'Asia/Calcutta',defaultBreadthTarget:12,depthScale:10,recovery:{independent:0.6,hint:0.4,solution:0.2,unknown:0.3},reinforcement:{independent:1,hint:0.5,solution:0.2,unknown:0}});
 const day=86400000;
 export const practiceDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:policy.timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
@@ -47,6 +53,7 @@ export function overview(problems,events,_preferences={},now=Date.now()) {
   const placements=new Map(problems.map(p=>[p.id,unitForPlacement(p.placement)]));
   const groups=navigationCategories.map((category,index)=>{
     const members=problems.filter(p=>p.placement.category===category.slug);
+    const unitSlugs=unitsFor(category).map(unit=>unit.slug);
     const children=unitsFor(category).map((unit,order)=>{
       const matching=members.filter(p=>unitForPlacement(p.placement)===unit.slug);
       const evidence=events.filter(e=>(e.practiceUnit||placements.get(e.problemId))===unit.slug);
@@ -59,7 +66,15 @@ export function overview(problems,events,_preferences={},now=Date.now()) {
       return {...unit,...freshness,count:matching.length,distinctSolved,experienced,priority,reason,order};
     }).sort((a,b)=>(b.priority??-1)-(a.priority??-1)||a.order-b.order);
     const attention=children.find(c=>c.priority!==null);
-    return {slug:category.slug,name:category.name,count:members.length,tracked:children.filter(c=>c.assessed).length,children,attention:attention?.slug||null,priority:attention?.priority??null,order:index};
+    const categoryEvidence=events.filter(e=>unitSlugs.includes(e.practiceUnit||placements.get(e.problemId)));
+    const distinctSolved=new Set([...members.filter(p=>p.historicallySolved).map(p=>p.id),...categoryEvidence.map(e=>e.problemId)]).size;
+    const summaryFreshness=retentionFor(categoryEvidence,now,distinctSolved,categoryBreadthTargets[category.slug]??policy.defaultBreadthTarget);
+    const experienced=distinctSolved>0;
+    const days=summaryFreshness.lastPracticedAt?Math.floor((now-new Date(summaryFreshness.lastPracticedAt))/day):null;
+    const reason=!experienced?'No solved problems yet':!summaryFreshness.assessed?'Prior solves · date unknown':summaryFreshness.breadth<0.5?'Limited category coverage':days>=30?'Last practiced '+Math.floor(days/7)+' weeks ago':summaryFreshness.weightedRevisits<3?'Limited reinforcement':'Recently practiced';
+    const summary={name:category.name,...summaryFreshness,distinctSolved,experienced,reason};
+    const priority=experienced&&category.slug!=='other'?95-summary.displayStrength:null;
+    return {slug:category.slug,name:category.name,count:members.length,tracked:children.filter(c=>c.assessed).length,children,summary,attention:attention?.slug||null,priority,order:index};
   }).sort((a,b)=>(b.priority??-1)-(a.priority??-1)||a.order-b.order);
   return {asOf:new Date(now).toISOString(),timeZone:policy.timeZone,categories:groups};
 }
