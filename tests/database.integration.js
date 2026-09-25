@@ -24,7 +24,7 @@ test('PostgreSQL migrations, relationships, persistence and transaction boundari
   await admin.query(`CREATE SCHEMA "${schema}"`);
   created = true;
   pool = new pg.Pool({ connectionString, options: `-c search_path=${schema}`, connectionTimeoutMillis: 5000, max: 5 });
-  assert.deepEqual(await migrate(pool), ['001_domain.sql', '002_attempt_corrections.sql', '003_extension_capture.sql', '004_legacy_imports.sql', '005_retention.sql', '006_practice_strength.sql']);
+  assert.deepEqual(await migrate(pool), ['001_domain.sql', '002_attempt_corrections.sql', '003_extension_capture.sql', '004_legacy_imports.sql', '005_retention.sql', '006_practice_strength.sql', '007_goal_coverage.sql']);
   assert.deepEqual(await migrate(pool), []);
   const repository = createRepository(pool);
   assert.equal((await repository.listPatterns()).length, 35);

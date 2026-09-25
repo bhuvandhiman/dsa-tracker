@@ -56,3 +56,19 @@ test('database setup and connection errors give actionable 503 responses', async
     assert.doesNotMatch(body.error, /private/);
   }
 });
+test('goal routes validate input and expose the saved configuration', async (t) => {
+  let saved = null;
+  const base = await serverFor(t, {
+    async goal() { return saved || { configured: false, targets: [300, 500, 1000] }; },
+    async setGoal(input) { saved = { configured: true, ...input }; return saved; },
+  });
+  assert.equal((await fetch(`${base}/goal`)).status, 200);
+  const response = await fetch(`${base}/goal`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: 'interview', target: 500 }),
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { configured: true, profile: 'interview', target: 500 });
+  assert.equal((await fetch(`${base}/goal`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: 'balanced', target: 500 }),
+  })).status, 400);
+});

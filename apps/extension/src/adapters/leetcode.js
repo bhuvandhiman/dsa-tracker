@@ -17,7 +17,14 @@ globalThis.DsaAdapters.push({
     for (const link of doc.querySelectorAll('.text-title-large a[href]')) {
       if (this.getProblem(link.href)?.url !== problem.url) continue;
       const title = link.textContent.replace(/^\s*\d+\.\s*/, '').trim();
-      if (title && title.length <= 200) return { ...problem, title };
+      let difficulty = null, scope = link.parentElement;
+      for (let level = 0; scope && level < 5 && !difficulty; level++, scope = scope.parentElement) {
+        for (const node of scope.querySelectorAll?.('[class*="text-difficulty-"]') || []) {
+          const value = node.textContent?.trim()?.toLowerCase();
+          if (['easy','medium','hard'].includes(value)) { difficulty = value; break; }
+        }
+      }
+      if (title && title.length <= 200) return { ...problem, title, difficulty };
     }
     return problem;
   },

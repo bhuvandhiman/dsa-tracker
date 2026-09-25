@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { captureInput } from '../apps/api/src/domain.js';
 const read = path => readFileSync(new URL('../apps/extension/src/'+path,import.meta.url),'utf8');
 const problem={url:'https://leetcode.com/problems/two-sum/',platform:'leetcode',problemId:'two-sum'};
-const payload={requestId:'00000000-0000-4000-8000-000000000001',url:problem.url,title:'Two Sum',topics:['Array','Hash Table'],selectedTopics:[],assistance:'hint',attemptedAt:'2025-01-01T00:00:00.000Z'};
+const payload={requestId:'00000000-0000-4000-8000-000000000001',url:problem.url,title:'Two Sum',difficulty:'easy',topics:['Array','Hash Table'],selectedTopics:[],assistance:'hint',attemptedAt:'2025-01-01T00:00:00.000Z'};
 function worker(fetcher,storage={}) {
   let listener;
   const context=vm.createContext({URL,AbortSignal,fetch:fetcher,chrome:{
@@ -20,6 +20,7 @@ test('capture maps only problem topics; skipped selections use inferred defaults
   const input=captureInput(payload);
   assert.deepEqual(input.attempt.patternSlugs,['arrays-hashing']);
   assert.equal(input.attempt.patternSource,'inferred');
+  assert.equal(input.problem.difficulty,'easy');
   assert.equal(captureInput({...payload,selectedTopics:['Hash Table']}).attempt.patternSource,'explicit');
   assert.deepEqual(captureInput({...payload,topics:[]}).problem.patternSlugs,['uncategorized']);
   assert.throws(()=>captureInput({...payload,selectedTopics:['Trees']}),{status:400});

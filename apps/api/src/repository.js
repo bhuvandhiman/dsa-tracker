@@ -2,6 +2,7 @@ import { overview, practiceDay } from './retention-policy.js';
 import { createHash } from 'node:crypto';
 import { DomainError } from './domain.js';
 import { candidateUnits, classifyProblem, patternInventory, unitForPlacement, retentionUnits } from './pattern-catalog.js';
+import { GOAL_POLICY_VERSION, goalCoverage, unconfiguredGoal } from './goal-policy.js';
 
 const problemSelect = `SELECT p.id, p.platform, p.external_id AS "externalId", p.title, p.url, p.difficulty,
   (SELECT unit_slug FROM problem_placements WHERE problem_id=p.id) AS "placementOverride",
@@ -50,7 +51,32 @@ export function createRepository(pool) {
     async retention() {
       const problems=await classifiedProblems();
       const events=(await pool.query(`SELECT problem_id AS "problemId",attempted_at AS at,assistance,practice_unit AS "practiceUnit" FROM attempts WHERE deleted_at IS NULL UNION ALL SELECT i.problem_id,i.submitted_at,'unknown',NULL FROM imported_submissions i WHERE NOT EXISTS(SELECT 1 FROM attempts a WHERE a.problem_id=i.problem_id AND a.deleted_at IS NULL AND (a.submission_id=i.submission_id OR (a.attempted_at AT TIME ZONE 'Asia/Calcutta')::date=(i.submitted_at AT TIME ZONE 'Asia/Calcutta')::date))`)).rows;
-      return overview(problems,events);
+      const result=overview(problems,events);
+      const savedGoal=(await pool.query('SELECT profile,target FROM workspace_goal WHERE singleton=true')).rows[0];
+      if(!savedGoal) return {...result,goal:unconfiguredGoal()};
+      const solvedRows=(await pool.query(`SELECT problem_id FROM attempts WHERE deleted_at IS NULL
+        UNION SELECT problem_id FROM historical_solves
+        UNION SELECT problem_id FROM imported_submissions`)).rows;
+      const solvedIds=new Set(solvedRows.map(row=>row.problem_id));
+      const goal=goalCoverage(problems.filter(problem=>solvedIds.has(problem.id)),savedGoal);
+      const byCategory=new Map(goal.categories.map(category=>[category.slug,category]));
+      const categories=result.categories.map(category=>{
+        const categoryGoal=byCategory.get(category.slug)||null;
+        const byUnit=new Map((categoryGoal?.units||[]).map(unit=>[unit.slug,unit]));
+        return {...category,goal:categoryGoal,children:category.children.map(unit=>({...unit,goal:byUnit.get(unit.slug)||null}))};
+      });
+      return {...result,goal,categories};
+    },
+    async goal() {
+      const row=(await pool.query('SELECT profile,target,policy_version AS "policyVersion",updated_at AS "updatedAt" FROM workspace_goal WHERE singleton=true')).rows[0];
+      return row?{configured:true,...row}:{...unconfiguredGoal()};
+    },
+    async setGoal({profile,target}) {
+      const row=(await pool.query(`INSERT INTO workspace_goal(singleton,profile,target,policy_version,updated_at)
+        VALUES(true,$1,$2,$3,CURRENT_TIMESTAMP)
+        ON CONFLICT(singleton) DO UPDATE SET profile=EXCLUDED.profile,target=EXCLUDED.target,policy_version=EXCLUDED.policy_version,updated_at=CURRENT_TIMESTAMP
+        RETURNING profile,target,policy_version AS "policyVersion",updated_at AS "updatedAt"`,[profile,target,GOAL_POLICY_VERSION])).rows[0];
+      return {configured:true,...row};
     },
     async setPlacement(id,unit) {
       return transaction(async client=>{

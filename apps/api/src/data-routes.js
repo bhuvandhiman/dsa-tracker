@@ -1,6 +1,6 @@
 import { mapTopics } from './platforms/leetcode-topics.js';
 import { Router } from 'express';
-import { DomainError, attemptInput, problemInput, patternInput, positiveId, importInput, pageInput, uuid, revisionInput, correctionInput, libraryInput, captureInput, legacyInput, recentInput, placementInput } from './domain.js';
+import { DomainError, attemptInput, problemInput, patternInput, positiveId, importInput, pageInput, uuid, revisionInput, correctionInput, libraryInput, captureInput, legacyInput, recentInput, placementInput, goalInput } from './domain.js';
 
 export function dataRoutes(repository) {
   const router = Router();
@@ -22,6 +22,8 @@ export function dataRoutes(repository) {
     response.json(await repository.practiceContext(p));
   });
   router.get('/retention',async(_request,response)=>response.json(await repository.retention()));
+  router.get('/goal',async(_request,response)=>response.json(await repository.goal()));
+  router.put('/goal',async(request,response)=>response.json(await repository.setGoal(goalInput(request.body))));
   router.put('/problems/:id/placement',async(request,response)=>response.json(await repository.setPlacement(positiveId(request.params.id),placementInput(request.body))));
   router.get('/imports/recent/:id',async(request,response)=>response.json(await repository.recentStatus(uuid(request.params.id))));
   router.post('/imports/recent',async(request,response)=>response.json(await repository.importRecent(recentInput(request.body))));

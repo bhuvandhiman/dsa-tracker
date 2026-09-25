@@ -19,6 +19,7 @@ import PatternCard from "./PatternCard.jsx";
 import PatternProblems from "./PatternProblems.jsx";
 import PracticeInsights from "./PracticeInsights.jsx";
 import PracticeStrength from "./PracticeStrength.jsx";
+import { GoalCoverage, GoalSetup } from "./GoalCoverage.jsx";
 import ArcadeIcon from "./ArcadeIcon.jsx";
 import { matchesRetentionFilter } from "./retentionFilters.js";
 
@@ -30,6 +31,10 @@ export default function Overview({ version }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [notice, setNotice] = useState(false);
+  const [goalDraft, setGoalDraft] = useState(null);
+  const [goalSaving, setGoalSaving] = useState(false);
+  const [goalError, setGoalError] = useState("");
+  const [editingGoal, setEditingGoal] = useState(false);
   const searchRef = useRef(null);
   const titleRef = useRef(null);
 
@@ -95,7 +100,9 @@ export default function Overview({ version }) {
     const matchesQuery = (category.name + " " + category.children.map((unit) => unit.name).join(" "))
       .toLowerCase()
       .includes(query.toLowerCase().trim());
-    return matchesQuery && matchesRetentionFilter(category, filter, new Date(result.data.asOf).getTime());
+    const matchesGoal = filter !== "goal" || (category.goal?.deficit ?? 0) > 0;
+    const matchesPractice = filter === "goal" || matchesRetentionFilter(category, filter, new Date(result.data.asOf).getTime());
+    return matchesQuery && matchesGoal && matchesPractice;
   });
   const weakestCategory = visibleGroups.find((category) => category.priority !== null);
   const weakestUnit = weakestCategory?.summary;
@@ -103,6 +110,25 @@ export default function Overview({ version }) {
   function saved() {
     setRetry((value) => value + 1);
     setNotice(true);
+  }
+
+  async function saveGoal(next) {
+    if (next.preview) {
+      setGoalDraft((current) => ({ ...(current || result.data.goal), profile: next.profile, target: next.target }));
+      return;
+    }
+    setGoalSaving(true);
+    setGoalError("");
+    try {
+      await requestJson("/goal", { method: "PUT", body: { profile: next.profile, target: next.target } });
+      setGoalDraft(null);
+      setEditingGoal(false);
+      setRetry((value) => value + 1);
+    } catch (error) {
+      setGoalError(error.message);
+    } finally {
+      setGoalSaving(false);
+    }
   }
 
   if (panel) {
@@ -123,6 +149,7 @@ export default function Overview({ version }) {
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1, maxWidth: 680 }}>
                 Each bar starts with the different problems you have solved here. Re-solving problems strengthens it, and recent practice gives it an extra boost.
               </Typography>
+              {panel.goal && <Box sx={{ mt: 2, maxWidth: 620 }}><GoalCoverage goal={panel.goal} /></Box>}
             </Box>
           </Stack>
         </Paper>
@@ -141,7 +168,11 @@ export default function Overview({ version }) {
                         <Typography variant="caption" color="text.secondary">{unit.reason}</Typography>
                       </Box>
                       <Box sx={{ flex: 1 }}><PracticeStrength unit={unit} compact /></Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 76, textAlign: { sm: "right" } }}>{unit.distinctSolved} solved</Typography>
+                      <Box sx={{ minWidth: { sm: 210 } }}>
+                        {unit.goal ? <GoalCoverage goal={unit.goal} compact /> : (
+                          <Typography variant="caption" color="text.secondary">{unit.distinctSolved} solved</Typography>
+                        )}
+                      </Box>
                     </Stack>
                   </ButtonBase>
                   {active && (
@@ -184,6 +215,34 @@ export default function Overview({ version }) {
         </IconButton>
       </Stack>
 
+      {(!result.data.goal.configured || editingGoal) && (
+        <GoalSetup
+          goal={goalDraft || result.data.goal}
+          onSave={saveGoal}
+          onCancel={result.data.goal.configured ? () => { setEditingGoal(false); setGoalDraft(null); setGoalError(""); } : null}
+          saving={goalSaving}
+          error={goalError}
+        />
+      )}
+
+      {result.data.goal.configured && !editingGoal && (
+        <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: "#0f161f" }}>
+          <Stack direction={{ xs: "column", sm: "row" }} gap={2} alignItems={{ xs: "stretch", sm: "center" }}>
+            <Box sx={{ flex: 1 }}>
+              <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
+                <Typography fontWeight={700}>{result.data.goal.profileName}</Typography>
+                <Chip label={`${result.data.goal.target} problem goal`} variant="outlined" />
+              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                Goal Coverage is separate from Practice Strength. Easy surplus cannot cover Medium or Hard gaps.
+              </Typography>
+            </Box>
+            <Box sx={{ minWidth: { sm: 280 } }}><GoalCoverage goal={result.data.goal} /></Box>
+            <Button size="small" variant="outlined" onClick={() => { setGoalDraft(result.data.goal); setEditingGoal(true); }}>Edit goal</Button>
+          </Stack>
+        </Paper>
+      )}
+
       {weakestUnit && (
         <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 4, borderColor: "#30476f", background: "linear-gradient(110deg, #15233a 0%, #161d27 78%)" }}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={3} alignItems={{ xs: "flex-start", sm: "center" }}>
@@ -221,6 +280,7 @@ export default function Overview({ version }) {
           ["stale", "Not practiced recently"],
           ["legacy", "Mostly legacy data"],
           ["never", "Never practiced"],
+          ...(result.data.goal.configured ? [["goal", "Goal gaps"]] : []),
         ].map(([value, label]) => (
           <Chip
             key={value}
@@ -250,6 +310,7 @@ export default function Overview({ version }) {
       <Box component="footer" sx={{ mt: 4, pt: 2, borderTop: 1, borderColor: "divider" }}>
         <Typography variant="caption" color="text.secondary">
           Practice strength considers how many different problems you solved, whether you revisited them, and how recently you practiced.
+          {result.data.goal.configured && " Goal Coverage compares distinct solved problems with your chosen target; exact quotas are Recall policy and difficulty buckets are counted independently."}
         </Typography>
       </Box>
     </Box>

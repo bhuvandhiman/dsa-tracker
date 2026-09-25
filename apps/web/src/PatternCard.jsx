@@ -1,5 +1,6 @@
 import { Box, ButtonBase, Paper, Stack, Typography } from "@mui/material";
 import PracticeStrength from "./PracticeStrength.jsx";
+import { GoalCoverage } from "./GoalCoverage.jsx";
 import ArcadeIcon from "./ArcadeIcon.jsx";
 export default function PatternCard({ category, onSelect, index }) {
   const unit = category.summary;
@@ -64,6 +65,11 @@ export default function PatternCard({ category, onSelect, index }) {
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <PracticeStrength unit={unit} compact />
           <Typography variant="caption" sx={{ display: "block", mt: 1, color: unit.assessed ? "secondary.main" : "text.secondary" }}>{unit.reason}</Typography>
+          {category.goal && (
+            <Box sx={{ mt: 1.5, pt: 1.25, borderTop: 1, borderColor: "divider" }}>
+              <GoalCoverage goal={category.goal} compact />
+            </Box>
+          )}
         </Box>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ minWidth: { sm: 135 } }}>
           <Typography variant="caption" color="text.secondary">{unit.distinctSolved} solved</Typography>

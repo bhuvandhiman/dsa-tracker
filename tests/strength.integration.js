@@ -28,7 +28,7 @@ test('upgrade snapshots old approaches without rewriting assistance, notes, tags
     await pool.query("INSERT INTO attempts(id,problem_id,assistance,notes,attempted_at,request_hash,pattern_source) VALUES($1,$2,'hint','Keep this note','2025-01-01T12:00:00Z',$3,$4)",[attempt,id,'a'.repeat(64),source]);
     await pool.query('INSERT INTO attempt_patterns VALUES($1,$2)',[attempt,pattern]);
   }
-  assert.deepEqual(await migrate(pool),['006_practice_strength.sql']);
+  assert.deepEqual(await migrate(pool),['006_practice_strength.sql','007_goal_coverage.sql']);
   const repo=createRepository(pool),attempts=await repo.listAttempts({limit:20,offset:0});
   assert.equal(attempts.find(a=>a.id===inferred).practiceUnit,'graph-bfs');
   assert.equal(attempts.find(a=>a.id===inferred).approachSource,'inferred');

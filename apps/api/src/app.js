@@ -15,7 +15,7 @@ export function createApp({ repository = null } = {}) {
   // Match known data resources only, so unrelated URLs retain a JSON 404 even without a database.
   const routes = dataRoutes(repository);
   app.use('/api', (request, response, next) => {
-    if (!/^\/(patterns|problems|attempts|imports|pattern-problems|practice-context|capture|retention)(\/|$)/.test(request.path)) return next();
+    if (!/^\/(patterns|problems|attempts|imports|pattern-problems|practice-context|capture|retention|goal)(\/|$)/.test(request.path)) return next();
     return routes(request, response, next);
   });
 

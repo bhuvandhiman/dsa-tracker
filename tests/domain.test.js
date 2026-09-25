@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { attemptInput, problemInput, importInput, pageInput, patternInput } from '../apps/api/src/domain.js';
+import { attemptInput, problemInput, importInput, pageInput, patternInput, goalInput } from '../apps/api/src/domain.js';
 
 const attempt = () => ({ requestId: randomUUID(), problemId: 1, assistance: 'independent', patternSlugs: ['binary-search'], attemptedAt: '2025-01-02T03:04:05.000Z' });
 test('problem identity removes query strings and problem subpages', () => {
@@ -45,4 +45,13 @@ test('pagination is bounded and rejects repeated query parameters', () => {
   assert.deepEqual(pageInput({ limit: '10', offset: '20' }), { limit: 10, offset: 20 });
   for (const query of [{ limit: '101' }, { limit: '0' }, { offset: '-1' }, { limit: ['5', '10'] }, { surprise: 'yes' }]) assert.throws(() => pageInput(query));
   assert.deepEqual(patternInput({ patternSlugs: [] }), []);
+});
+test('goal configuration accepts only supported profiles and target sizes', () => {
+  assert.deepEqual(goalInput({ profile: 'interview', target: 500 }), { profile: 'interview', target: 500 });
+  assert.deepEqual(goalInput({ profile: 'deep', target: 1000 }), { profile: 'deep', target: 1000 });
+  for (const input of [
+    { profile: 'balanced', target: 500 },
+    { profile: 'interview', target: 400 },
+    { profile: 'interview', target: '500' },
+  ]) assert.throws(() => goalInput(input), /profile|target/);
 });

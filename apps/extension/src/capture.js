@@ -55,7 +55,7 @@ globalThis.DsaCapture = {
         event.preventDefault(); if (!event.isTrusted || busy) return;
         const choice=assistance.querySelector('input:checked');
         if (!payload && !choice) { status.textContent='Choose how you solved it.'; return; }
-        payload ||= { requestId: crypto.randomUUID(), url: problem.url, title: heading.textContent,
+        payload ||= { requestId: crypto.randomUUID(), url: problem.url, title: heading.textContent, difficulty:problem.difficulty??null,
           practiceUnit:approach.value, approachSource:approach.value==='other'?'inferred':'confirmed', captureSource:evidence.captureSource||'manual', submissionId:evidence.submissionId||null, topics, selectedTopics: [...topicFields.querySelectorAll('input:checked')].map(input=>input.value), assistance: choice.value, attemptedAt };
         busy=true; lock(true); submit.disabled=true; dismiss.disabled=true; status.textContent='Saving…';
         try {

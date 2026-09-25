@@ -1,4 +1,5 @@
 import { retentionUnits } from './pattern-catalog.js';
+import { GOAL_PROFILES, GOAL_TARGETS } from './goal-policy.js';
 import { mapTopics } from './platforms/leetcode-topics.js';
 import { identifyLeetCodeProblem } from './platforms/leetcode.js';
 
@@ -82,7 +83,7 @@ export function libraryInput(query) {
 }
 
 export function captureInput(body) {
-  object(body, ['requestId', 'url', 'title', 'topics', 'selectedTopics', 'assistance', 'attemptedAt', 'practiceUnit', 'approachSource', 'captureSource', 'submissionId']);
+  object(body, ['requestId', 'url', 'title', 'difficulty', 'topics', 'selectedTopics', 'assistance', 'attemptedAt', 'practiceUnit', 'approachSource', 'captureSource', 'submissionId']);
   const topicList = value => {
     if (!Array.isArray(value) || value.length > 30 || value.some(t => typeof t !== 'string' || !t.trim() || t.length > 100)) invalid('Topics must contain up to 30 short names.');
     return [...new Set(value.map(t => t.trim()))].sort();
@@ -92,7 +93,7 @@ export function captureInput(body) {
   if (selected.some(t => !topics.includes(t))) invalid('Selected topics must belong to this problem.');
   const possible = mapTopics(topics);
   const used = selected.length ? mapTopics(selected) : possible;
-  const problem = problemInput({ url: body.url, title: body.title, patternSlugs: possible.length ? possible : ['uncategorized'] });
+  const problem = problemInput({ url: body.url, title: body.title, difficulty: body.difficulty ?? null, patternSlugs: possible.length ? possible : ['uncategorized'] });
   const attempt = attemptInput({ requestId: body.requestId, problemId: 1, assistance: body.assistance,
     attemptedAt: body.attemptedAt, patternSlugs: (used.length ? used : ['uncategorized']) });
   const { requestId, assistance, attemptedAt, patternSlugs, notes } = attempt;
@@ -102,6 +103,13 @@ export function captureInput(body) {
   if (body.captureSource !== undefined && !['manual','accepted'].includes(body.captureSource)) invalid('Invalid capture source.');
   if (body.submissionId != null && !/^\d{1,30}$/.test(body.submissionId)) invalid('Invalid submission identity.');
   return { problem, attempt: { ...fields, practiceUnit:body.practiceUnit??null, approachSource:body.approachSource||'inferred', captureSource:body.captureSource||'manual', submissionId:body.submissionId??null, selectedTopics:selected, patternSource: selected.length ? 'explicit' : 'inferred' } };
+}
+
+export function goalInput(body) {
+  object(body, ['profile', 'target']);
+  if (typeof body.profile !== 'string' || !Object.hasOwn(GOAL_PROFILES, body.profile)) invalid('profile must be interview or deep.');
+  if (!Number.isInteger(body.target) || !GOAL_TARGETS.includes(body.target)) invalid('target must be 300, 500, or 1000.');
+  return { profile: body.profile, target: body.target };
 }
 
 export function legacyInput(body) {
