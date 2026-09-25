@@ -36,7 +36,7 @@ export default function App() {
           <Typography
             sx={{ fontSize: 23, fontWeight: 800, letterSpacing: "-1px" }}
           >
-            recall<span style={{ color: "#5ee6a8" }}>.</span>
+            recall<span style={{ color: "#5b8cff" }}>.</span>
           </Typography>
           <Chip
             label="DEVELOPER ARCADE"

@@ -2,18 +2,18 @@
 body { width: 320px; padding: 22px; margin: 0; }
 header { display: flex; gap: 12px; align-items: center; }
 h1 { margin: 0; font-size: 24px; letter-spacing: -1px; }
-.mark { background: #5ee6a8; color: #09251b; font-weight: 800; padding: 6px 12px; border-radius: 9px; }
+.mark { background: #5b8cff; color: #08111f; font-weight: 800; padding: 6px 12px; border-radius: 9px; }
 .eyebrow { color: #9aa9ba; font-size: 10px; letter-spacing: 1.8px; margin-top: 24px; }
 section { background: #161d27; border: 1px solid #293442; border-radius: 14px; padding: 16px; margin: 16px 0; }
 h2 { margin: 0; font-size: 12px; color: #9aa9ba; }
 #problem { overflow-wrap: anywhere; margin-bottom: 0; font-weight: 600; line-height: 1.5; }
-button { font: inherit; font-size: 13px; font-weight: 650; background: #5ee6a8; color: #09251b; border: 1px solid transparent; border-radius: 9px; padding: 11px 16px; cursor: pointer; transition: background 150ms, transform 150ms; }
-button:hover:not(:disabled) { transform: translateY(-1px); background: #87edbe; }
+button { font: inherit; font-size: 13px; font-weight: 650; background: #5b8cff; color: #08111f; border: 1px solid transparent; border-radius: 9px; padding: 11px 16px; cursor: pointer; transition: background 150ms, transform 150ms; }
+button:hover:not(:disabled) { transform: translateY(-1px); background: #7aa2ff; }
 button:disabled { opacity: .6; cursor: wait; }
-.secondary { background: transparent; color: #5ee6a8; border-color: #35483f; margin-top: 10px; }
-.secondary:hover:not(:disabled) { background: #1b302a; }
+.secondary { background: transparent; color: #7aa2ff; border-color: #30476f; margin-top: 10px; }
+.secondary:hover:not(:disabled) { background: #15233a; }
 #record, #refresh { width: 100%; }
 #launch-status { font-size: 13px; line-height: 1.5; }
-button:focus-visible { outline: 2px solid #f3b562; outline-offset: 3px; }
+button:focus-visible { outline: 2px solid #7aa2ff; outline-offset: 3px; }
 .note { color: #9aa9ba; font-size: 12px; line-height: 1.6; margin-top: 20px; }
 @media(prefers-reduced-motion:reduce) { * { transition:none !important; } }

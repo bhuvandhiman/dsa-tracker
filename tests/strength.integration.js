@@ -35,7 +35,7 @@ test('upgrade snapshots old approaches without rewriting assistance, notes, tags
   assert.equal(attempts.find(a=>a.id===explicit).practiceUnit,'union-find');
   assert.equal(attempts.find(a=>a.id===explicit).approachSource,'confirmed');
   for(const a of attempts){assert.equal(a.notes,'Keep this note');assert.equal(a.assistance,'hint');assert.equal(new Date(a.attemptedAt).toISOString(),'2025-01-01T12:00:00.000Z');}
-  await repo.setPlacement(id,'graph-dfs');
+  await repo.setPlacement(id,'graphs-general');
   assert.deepEqual((await repo.listAttempts({limit:20,offset:0})).map(a=>a.practiceUnit),attempts.map(a=>a.practiceUnit));
   assert.deepEqual(await migrate(pool),[]);
 });
@@ -45,15 +45,15 @@ test('confirmed capture, imports and corrections preserve one approach and indep
   const first=await repo.capture(captureInput(raw));
   assert.equal(first.attempt.practiceUnit,'graph-dfs');assert.equal(first.attempt.captureSource,'accepted');assert.deepEqual(first.attempt.selectedTopics,['Graph']);
   assert.equal((await repo.capture(captureInput(raw))).created,false);
-  await repo.setPlacement(first.attempt.problem.id,'union-find');
-  assert.equal((await repo.practiceContext({platform:'leetcode',externalId:'word-ladder'})).practiceUnit,'union-find');
+  await repo.setPlacement(first.attempt.problem.id,'graphs-general');
+  assert.equal((await repo.practiceContext({platform:'leetcode',externalId:'word-ladder'})).practiceUnit,'graphs-general');
   const provider={url:raw.url,title:'Provider title',topics:['Graph'],difficulty:'hard'};
   const runId=randomUUID();
   await repo.importLegacy(legacyInput({runId,username:'alice',problems:[provider],complete:true}));
   await repo.importRecent(recentInput({runId,username:'alice',submissions:[{...provider,submissionId:'6789',submittedAt:raw.attemptedAt}]}));
   await repo.importLegacy(legacyInput({runId:randomUUID(),username:'alice',problems:[provider],complete:true}));
   const units=()=>repo.retention().then(r=>r.categories.flatMap(c=>c.children));
-  let rows=await units();assert.equal(rows.find(u=>u.slug==='graph-dfs').assessed,true);assert.equal(rows.find(u=>u.slug==='union-find').assessed,false);
+  let rows=await units();assert.equal(rows.find(u=>u.slug==='graph-dfs').assessed,true);assert.equal(rows.find(u=>u.slug==='graphs-general').assessed,false);
   const saved=(await repo.problemHistory(first.attempt.problem.id,{limit:20,offset:0}));
   assert.equal(saved.problem.title,raw.title);assert.equal(saved.attempts.length,1);assert.equal(saved.legacy,true);
   const correction=correctionInput({revision:1,assistance:'solution',patternSlugs:first.attempt.patternSlugs,notes:'Corrected note',attemptedAt:raw.attemptedAt,practiceUnit:'graph-bfs'});

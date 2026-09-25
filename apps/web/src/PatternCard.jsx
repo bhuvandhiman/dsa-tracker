@@ -47,7 +47,7 @@ export default function PatternCard({ category, onSelect, index }) {
               borderRadius: 2,
               display: "grid",
               placeItems: "center",
-              bgcolor: gap ? "#1c2430" : "#253931",
+              bgcolor: gap ? "#1c2430" : "#1b2a44",
               color: gap ? "text.secondary" : "primary.main",
             }}
           >

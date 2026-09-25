@@ -28,7 +28,10 @@
     "colors": {
       "canvas": "#0d1117",
       "surface": "#161d27",
-      "mint": "#5ee6a8",
+      "arcadeBlue": "#5b8cff",
+      "arcadeBlueBright": "#7aa2ff",
+      "arcadeBlueDark": "#416fe0",
+      "semanticGreen": "#45d483",
       "amber": "#f3b562"
     },
     "density": "compact",
@@ -48,7 +51,8 @@
     "patterns": [
       "Single-column pattern navigation",
       "Independent strength bars",
-      "Scoped history timelines",
+      "Compact LeetCode-linked problem rows",
+      "Topic-scoped pencil correction",
       "Full-width pattern details"
     ]
   },
@@ -70,12 +74,22 @@
     {
       "date": "2026-09-24",
       "direction": "Developer Arcade",
-      "reason": "User approved dark developer-tool surfaces, mint/amber accents, restrained game-like interactions and a single pattern explorer."
+      "reason": "User approved dark developer-tool surfaces, restrained game-like interactions and a single pattern explorer."
     },
     {
       "date": "2026-09-24",
       "direction": "Bar-first single-column dashboard",
       "reason": "Every pattern needs a visible strength bar; the sidebar and split panel diluted the primary retention signal."
+    },
+    {
+      "date": "2026-09-25",
+      "direction": "Subpattern bars with a focused problem list",
+      "reason": "Pattern details expose independent strength first, then show one compact problem list with corrections limited to LeetCode-supported candidates."
+    },
+    {
+      "date": "2026-09-25",
+      "direction": "Arcade Blue palette",
+      "reason": "User selected blue as the primary interaction color because the previous green accent felt visually off. Difficulty colors remain semantic green, amber, and red."
     }
   ],
   "evidence": [

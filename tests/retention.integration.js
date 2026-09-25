@@ -29,7 +29,8 @@ test('practice strength preserves history, deduplicates imports and replays corr
   const previous=unit.retention;
   await repo.correctAttempt(attempt.requestId,{revision:1,assistance:'independent',patternSlugs:attempt.patternSlugs,notes:attempt.notes,attemptedAt:attempt.attemptedAt});
   assert.ok((await getUnit('knapsack-unbounded')).retention>previous);
-  await repo.setPlacement(p.id,'knapsack-01');
+  await repo.setPlacement(p.id,'dynamic-programming-general');
+  await assert.rejects(repo.setPlacement(p.id,'knapsack-01'),{status:400});
   assert.equal((await repo.listAttempts({limit:20,offset:0}))[0].practiceUnit,'knapsack-unbounded');
   assert.equal((await getUnit('knapsack-unbounded')).assessed,true);
   await repo.setPlacement(p.id,null);
@@ -37,8 +38,8 @@ test('practice strength preserves history, deduplicates imports and replays corr
   assert.equal((await repo.problemHistory(p.id,{limit:20,offset:0})).attempts[0].imported,true);
   await repo.importRecent(recentInput({...raw,installationId:randomUUID()}));assert.equal((await repo.summary()).uniqueProblems,1);
   await assert.rejects(repo.importRecent(recentInput({...raw,username:'bob'})),{status:409});
-  await repo.setPlacement(p.id,'knapsack-01');assert.equal((await getUnit('knapsack-unbounded')).assessed,false);assert.equal((await getUnit('knapsack-01')).assessed,true);
-  assert.equal((await repo.library({q:'',category:'knapsack-01',status:'done',limit:20,offset:0})).total,1);
+  await repo.setPlacement(p.id,'dynamic-programming-general');assert.equal((await getUnit('knapsack-unbounded')).assessed,false);assert.equal((await getUnit('dynamic-programming-general')).assessed,true);
+  assert.equal((await repo.library({q:'',category:'dynamic-programming-general',status:'done',limit:20,offset:0})).total,1);
   await repo.updateProblem(p.id,{...problemInput({url:p.url,title:p.title,patternSlugs:['dynamic-programming'],placement:'dynamic-programming-general'})});
   assert.equal((await getUnit('dynamic-programming-general')).assessed,true);
   await repo.setPlacement(p.id,null);assert.equal((await getUnit('knapsack-unbounded')).assessed,true);
@@ -47,6 +48,6 @@ test('practice strength preserves history, deduplicates imports and replays corr
   const origin='http://127.0.0.1:'+server.address().port+'/api';
   assert.equal((await fetch(origin+'/retention')).status,200);
   assert.equal((await fetch(origin+'/retention/preferences/nope',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({preference:'low'})})).status,404);
-  assert.equal((await fetch(origin+'/problems/'+p.id+'/placement',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({unit:'knapsack-01'})})).status,200);
+  assert.equal((await fetch(origin+'/problems/'+p.id+'/placement',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({unit:'dynamic-programming-general'})})).status,200);
   assert.equal((await fetch(origin+'/imports/recent/'+installationId)).status,200);
 });

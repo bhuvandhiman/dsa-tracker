@@ -67,20 +67,72 @@ group('graphs','graph-bfs','is-graph-bipartite 01-matrix');
 group('graphs','union-find','number-of-provinces most-stones-removed-with-same-row-or-column');
 group('advanced-graphs','shortest-path','path-with-minimum-effort');
 
-const priority = ['trie','linked-list','trees','union-find','graphs','sliding-window','two-pointers','monotonic-stack','intervals','binary-search','heap','backtracking','dynamic-programming','greedy','stack','prefix-sum','bit-manipulation','arrays-hashing','math'];
+// Provider topics describe possible approaches, not the approach a learner used.
+// Keep every supported browsing candidate for correction, then choose one stable
+// default. Specific technique tags precede broad Array and Math families.
+const fallbackPriority = ['trie','linked-list','trees','union-find','graphs','sliding-window','two-pointers','monotonic-stack','intervals','binary-search','heap','backtracking','dynamic-programming','greedy','stack','prefix-sum','bit-manipulation','arrays-hashing','math'];
+const topicPlacements = {
+  'trie': {category:'trie',subpattern:null},
+  'linked-list': {category:'linked-list',subpattern:null},
+  'trees': {category:'trees',subpattern:null},
+  'union-find': {category:'graphs',subpattern:'union-find'},
+  'graphs': {category:'graphs',subpattern:null},
+  'sliding-window': {category:'sliding-window',subpattern:null},
+  'two-pointers': {category:'two-pointers',subpattern:null},
+  'monotonic-stack': {category:'stack',subpattern:'monotonic-stack'},
+  'intervals': {category:'intervals',subpattern:null},
+  'binary-search': {category:'binary-search',subpattern:null},
+  'heap': {category:'heap',subpattern:null},
+  'backtracking': {category:'backtracking',subpattern:null},
+  'dynamic-programming': {category:'dynamic-programming',subpattern:null},
+  'greedy': {category:'greedy',subpattern:null},
+  'stack': {category:'stack',subpattern:null},
+  'prefix-sum': {category:'arrays-hashing',subpattern:'prefix-sum'},
+  'arrays-hashing': {category:'arrays-hashing',subpattern:null},
+  'strings': {category:'arrays-hashing',subpattern:null},
+  'sorting': {category:'arrays-hashing',subpattern:null},
+  'counting': {category:'arrays-hashing',subpattern:null},
+  'matrix': {category:'arrays-hashing',subpattern:null},
+  'math': {category:'math',subpattern:null},
+  'bit-manipulation': {category:'bit-manipulation',subpattern:null},
+};
+
+function candidate(placement, source) {
+  const category = navigationCategories.find(item=>item.slug===placement.category);
+  const child = category.children.find(item=>item.slug===placement.subpattern);
+  return {
+    ...placement,
+    unit: unitForPlacement(placement),
+    name: child?.name || category.name,
+    categoryName: category.name,
+    source,
+  };
+}
+
+export function candidateUnits(problem) {
+  const result=[];
+  const seen=new Set();
+  const add=(placement,source)=>{
+    const value=candidate(placement,source);
+    if(!seen.has(value.unit)){seen.add(value.unit);result.push(value);}
+  };
+  const exact=problem.platform==='leetcode'&&known[problem.externalId];
+  if(exact) add(exact,'curated');
+  const tags=new Set(problem.patternSlugs||[]);
+  for(const tag of fallbackPriority) if(tags.has(tag)) add(topicPlacements[tag],'topic');
+  // These provider topics share the broad arrays placement and are deliberately
+  // added after named algorithmic patterns.
+  for(const tag of ['strings','sorting','counting','matrix']) if(tags.has(tag)) add(topicPlacements[tag],'topic');
+  return result;
+}
+
 export function classifyProblem(problem) {
   const exact = problem.platform === 'leetcode' && known[problem.externalId];
-  let placement = problem.placementOverride ? placementForUnit(problem.placementOverride) : exact;
-  if (!placement) {
-    const tag = priority.find(tag => problem.patternSlugs.includes(tag));
-    placement = tag === 'union-find' ? {category:'graphs',subpattern:tag}
-      : tag === 'monotonic-stack' ? {category:'stack',subpattern:tag}
-      : tag === 'prefix-sum' ? {category:'arrays-hashing',subpattern:tag}
-      : {category:tag || (problem.patternSlugs.some(s=>['strings','sorting','counting','matrix'].includes(s)) ? 'arrays-hashing' : 'other'),subpattern:null};
-  }
+  const inferred = candidateUnits(problem)[0];
+  const placement = problem.placementOverride ? placementForUnit(problem.placementOverride) : inferred || {category:'other',subpattern:null};
   const category = navigationCategories.find(c=>c.slug===placement.category);
   const child = category.children.find(c=>c.slug===placement.subpattern);
-  return {...placement, unit:placement.subpattern || (category.children.length?category.slug+'-general':category.slug), name:category.name, subpatternName:child?.name || null, source:problem.placementOverride?'manual':exact?'curated':'tag-fallback'};
+  return {...placement, unit:placement.subpattern || (category.children.length?category.slug+'-general':category.slug), name:category.name, subpatternName:child?.name || null, source:problem.placementOverride?'manual':exact?'curated':inferred?'topic-fallback':'unclassified'};
 }
 export function patternInventory(problems) {
   return navigationCategories.map(category=>{

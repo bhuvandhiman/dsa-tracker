@@ -13,6 +13,7 @@ const paths = {
   bolt: "m13 2-9 12h7l-1 8 10-13h-8z",
   history: "M3 4v6h6 M3 10a9 9 0 1 1 1 7 M12 7v5l3 2",
   chevron: "m9 5 7 7-7 7",
+  edit: "M4 20h4l11-11-4-4L4 16v4 M13.5 6.5l4 4",
 };
 export default function ArcadeIcon({ name = "code", ...props }) {
   return (

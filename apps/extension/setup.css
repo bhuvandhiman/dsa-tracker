@@ -1,14 +1,14 @@
 :root { color-scheme: dark; font:16px/1.6 system-ui; color:#edf3f7; background:#0d1117; }
 body { margin:0; padding:24px; }
 main { max-width:650px; margin:8vh auto; background:#161d27; padding:36px; border:1px solid #293442; border-radius:18px; }
-.brand { font-weight:800; color:#5ee6a8; letter-spacing:-.5px; }
+.brand { font-weight:800; color:#5b8cff; letter-spacing:-.5px; }
 h1 { font-size:28px; line-height:1.2; letter-spacing:-.8px; }
-button { font:inherit; font-weight:600; background:#5ee6a8; color:#09251b; border:0; padding:12px 18px; border-radius:9px; cursor:pointer; margin:6px 6px 6px 0; }
-button:hover:not(:disabled) { background:#87edbe; }
+button { font:inherit; font-weight:600; background:#5b8cff; color:#08111f; border:0; padding:12px 18px; border-radius:9px; cursor:pointer; margin:6px 6px 6px 0; }
+button:hover:not(:disabled) { background:#7aa2ff; }
 button:disabled { opacity:.5; cursor:wait; }
-#skip { background:#202d2b; color:#5ee6a8; }
-a { color:#5ee6a8; }
+#skip { background:#1b273a; color:#7aa2ff; }
+a { color:#7aa2ff; }
 #help { font-size:14px; color:#9aa9ba; }
 #status { font-weight:600; overflow-wrap:anywhere; }
-button:focus-visible,a:focus-visible { outline:2px solid #f3b562; outline-offset:3px; }
+button:focus-visible,a:focus-visible { outline:2px solid #7aa2ff; outline-offset:3px; }
 @media(max-width:480px) { body { padding:12px; } main { margin:20px auto; padding:24px; } }

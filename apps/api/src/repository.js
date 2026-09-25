@@ -1,7 +1,7 @@
 import { overview, practiceDay } from './retention-policy.js';
 import { createHash } from 'node:crypto';
 import { DomainError } from './domain.js';
-import { classifyProblem, patternInventory, unitForPlacement, retentionUnits } from './pattern-catalog.js';
+import { candidateUnits, classifyProblem, patternInventory, unitForPlacement, retentionUnits } from './pattern-catalog.js';
 
 const problemSelect = `SELECT p.id, p.platform, p.external_id AS "externalId", p.title, p.url, p.difficulty,
   (SELECT unit_slug FROM problem_placements WHERE problem_id=p.id) AS "placementOverride",
@@ -55,6 +55,8 @@ export function createRepository(pool) {
     async setPlacement(id,unit) {
       return transaction(async client=>{
         if(!(await client.query('SELECT id FROM problems WHERE id=$1 FOR UPDATE',[id])).rowCount) throw new DomainError(404,'Problem not found.');
+        const problem=(await client.query(problemSelect+' WHERE p.id=$1',[id])).rows[0];
+        if(unit&&!candidateUnits(problem).some(candidate=>candidate.unit===unit)) throw new DomainError(400,'Choose an approach supported by this problem\'s LeetCode topics.');
         await client.query('DELETE FROM problem_placements WHERE problem_id=$1',[id]);
         if(unit) await client.query('INSERT INTO problem_placements VALUES($1,$2)',[id,unit]);
         return {saved:true};
@@ -166,7 +168,7 @@ export function createRepository(pool) {
     },
     async library({ limit, offset, q, pattern = '', status, category = '' }) {
       const classified = await classifiedProblems();
-      const placements = new Map(classified.map(p=>[p.id,p.placement]));
+      const details = new Map(classified.map(p=>[p.id,p]));
       const categoryIds = classified.filter(p=>p.placement.category===category || p.placement.subpattern===category || unitForPlacement(p.placement)===category || (category==='knapsack'&&p.placement.subpattern?.startsWith('knapsack-'))).map(p=>p.id);
       if(category) {
         const unitSlugs=retentionUnits.filter(u=>u.slug===category||u.category===category).map(u=>u.slug);
@@ -177,6 +179,10 @@ export function createRepository(pool) {
         SELECT p.*,
           (EXISTS(SELECT 1 FROM attempts a WHERE a.problem_id=p.id AND a.deleted_at IS NULL) OR EXISTS(SELECT 1 FROM imported_submissions i WHERE i.problem_id=p.id)) AS practiced,
           EXISTS(SELECT 1 FROM historical_solves h WHERE h.problem_id=p.id) AS historical,
+          GREATEST(
+            (SELECT max(a.attempted_at) FROM attempts a WHERE a.problem_id=p.id AND a.deleted_at IS NULL),
+            (SELECT max(i.submitted_at) FROM imported_submissions i WHERE i.problem_id=p.id)
+          ) AS "lastPracticedAt",
           COALESCE((SELECT json_agg(pp.pattern_slug ORDER BY pp.pattern_slug) FROM problem_patterns pp WHERE pp.problem_id=p.id),'[]') AS "patternSlugs"
         FROM problems p WHERE ($6::text='' OR p.id=ANY($7::int[])) AND ($1::text='' OR strpos(lower(p.title || ' ' || p.external_id),lower($1))>0)
           AND ($2::text='' OR EXISTS(SELECT 1 FROM problem_patterns pp WHERE pp.problem_id=p.id AND pp.pattern_slug=$2)
@@ -185,7 +191,10 @@ export function createRepository(pool) {
       SELECT (SELECT count(*)::int FROM matching) AS total,
         COALESCE((SELECT json_agg(page ORDER BY page.id DESC) FROM (SELECT * FROM matching ORDER BY id DESC LIMIT $4 OFFSET $5) page),'[]') AS problems`, [q, pattern, status, limit, offset, category, categoryIds]);
       const resultPage = result.rows[0];
-      resultPage.problems = resultPage.problems.map(p=>({...p,placement:placements.get(p.id)}));
+      resultPage.problems = resultPage.problems.map(p=>{
+        const detail=details.get(p.id);
+        return {...p,placement:detail.placement,candidates:candidateUnits(detail)};
+      });
       return resultPage;
     },
     async updateProblem(id, input) {

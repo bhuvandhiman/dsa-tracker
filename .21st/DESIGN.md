@@ -1,6 +1,6 @@
 # Developer Arcade
 
-Recall uses a charcoal workspace, mint interaction accents, amber context, and compact pattern cards. The design is implemented with existing Material UI/Emotion primitives and CSS transitions; no additional runtime UI dependencies were added.
+Recall uses a charcoal workspace, Arcade Blue interaction accents, semantic difficulty colors, and compact pattern cards. Primary blue is #5B8CFF with #7AA2FF for bright interaction states and #416FE0 for darker accents. The design is implemented with existing Material UI/Emotion primitives and CSS transitions; no additional runtime UI dependencies were added.
 
 ## Grounded references
 
@@ -13,7 +13,7 @@ These are design references, not copied source or installed component packages. 
 
 Search matches category and subpattern names without altering server ordering. Ctrl/Cmd+K focuses search. Experienced and coverage-gap filters narrow the view. The dashboard is a single vertical list of full-width pattern rows; selecting one opens a dedicated full-width detail screen on every device. Scoped problem search uses the existing API. Histories retain assistance, source, notes, placement corrections, and revision-checked editing/removal. No dashboard recording forms were added.
 
-Bars are Practice strength, not mastery. Every row has a bar. Legacy-only evidence uses pattern-normalized distinct-problem coverage and is labeled “Prior solves · date unknown”; dated practice adds reinforcement and recency. Each indicator uses one subpattern. No XP, achievements, streaks, global counters, recommendations, or study schedules are introduced. All motion respects reduced-motion preferences.
+Bars are Practice strength, not mastery. Every row has a bar. Legacy-only evidence uses pattern-normalized distinct-problem coverage and is labeled “Previous solves count · dates unavailable”; dated practice adds repeat-work and recency evidence. Each indicator uses one subpattern. No XP, achievements, streaks, global counters, recommendations, or study schedules are introduced. All motion respects reduced-motion preferences.
 
 ## Maintenance
 

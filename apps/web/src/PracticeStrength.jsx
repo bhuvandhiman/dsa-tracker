@@ -6,6 +6,10 @@ export default function PracticeStrength({
 }) {
   const score = unit.displayStrength ?? unit.strength ?? unit.experienceScore ?? 0;
   const value = Math.floor(score);
+  const trend = unit.trend30Days;
+  const trendText = trend && Math.abs(trend.delta) > 0.4
+    ? `${trend.delta > 0 ? "+" : "−"}${Math.abs(trend.delta).toFixed(1)} · 30d`
+    : null;
   if (ring)
     return (
       <Box
@@ -37,7 +41,7 @@ export default function PracticeStrength({
             cy="53"
             r="45"
             fill="none"
-            stroke="#5ee6a8"
+            stroke="#5b8cff"
             strokeWidth="7"
             strokeLinecap="round"
             strokeDasharray="282.74"
@@ -73,15 +77,18 @@ export default function PracticeStrength({
         <Typography variant="caption" color="text.secondary">
           Practice strength
         </Typography>
-        <Typography
-          variant="caption"
-          sx={{
-            fontFamily: "ui-monospace, monospace",
-            color: "primary.main",
-          }}
-        >
-          {value} / 100
-        </Typography>
+        <Stack direction="row" spacing={1} alignItems="center">
+          {trendText && <Typography variant="caption" color="text.secondary">{trendText}</Typography>}
+          <Typography
+            variant="caption"
+            sx={{
+              fontFamily: "ui-monospace, monospace",
+              color: "primary.main",
+            }}
+          >
+            {value} / 100
+          </Typography>
+        </Stack>
       </Stack>
       <LinearProgress
         aria-label={
@@ -108,10 +115,11 @@ export default function PracticeStrength({
             ? "Last practiced " +
               new Date(unit.lastPracticedAt).toLocaleDateString()
             : unit.distinctSolved
-              ? "Prior solves · date unknown"
+              ? "Previous solves count · dates unavailable"
               : "No solved problems yet"}
         </Typography>
       )}
     </Stack>
   );
 }
+

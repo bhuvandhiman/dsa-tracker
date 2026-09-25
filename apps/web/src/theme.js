@@ -2,12 +2,12 @@ import { createTheme } from "@mui/material";
 export default createTheme({
   palette: {
     mode: "dark",
-    primary: { main: "#5ee6a8", contrastText: "#09251b" },
-    secondary: { main: "#f3b562" },
+    primary: { main: "#5b8cff", light: "#7aa2ff", dark: "#416fe0", contrastText: "#08111f" },
+    secondary: { main: "#8da8ff" },
     background: { default: "#0d1117", paper: "#161d27" },
     text: { primary: "#edf3f7", secondary: "#9aa9ba" },
-    divider: "#293442",
-    success: { main: "#5ee6a8" },
+    divider: "#2b3748",
+    success: { main: "#45d483" },
     warning: { main: "#f3b562" },
     info: { main: "#70cde3" },
   },
@@ -34,7 +34,7 @@ export default createTheme({
       styleOverrides: {
         root: {
           "&.Mui-focusVisible": {
-            outline: "2px solid #5ee6a8",
+            outline: "2px solid #7aa2ff",
             outlineOffset: 3,
           },
         },
@@ -50,7 +50,7 @@ export default createTheme({
       styleOverrides: {
         body: { scrollbarColor: "#354254 #0d1117" },
         "*": { boxSizing: "border-box" },
-        "::selection": { background: "#5ee6a840" },
+        "::selection": { background: "#5b8cff40" },
         "@media (prefers-reduced-motion: reduce)": {
           "*, *::before, *::after": {
             animation: "none !important",

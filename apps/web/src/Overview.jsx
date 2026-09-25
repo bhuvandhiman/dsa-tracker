@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  ButtonBase,
   Chip,
   IconButton,
   InputAdornment,
@@ -16,13 +17,16 @@ import {
 import { requestJson } from "./api.js";
 import PatternCard from "./PatternCard.jsx";
 import PatternProblems from "./PatternProblems.jsx";
+import PracticeInsights from "./PracticeInsights.jsx";
 import PracticeStrength from "./PracticeStrength.jsx";
 import ArcadeIcon from "./ArcadeIcon.jsx";
+import { matchesRetentionFilter } from "./retentionFilters.js";
 
 export default function Overview({ version }) {
   const [result, setResult] = useState(null);
   const [retry, setRetry] = useState(0);
   const [selected, setSelected] = useState(null);
+  const [selectedUnit, setSelectedUnit] = useState(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [notice, setNotice] = useState(false);
@@ -87,15 +91,11 @@ export default function Overview({ version }) {
   const groups = result.data.categories;
   const visibleGroups = groups.filter((category) => category.slug !== "other" || category.count > 0);
   const panel = groups.find((category) => category.slug === selected);
-  const units = groups.flatMap((category) =>
-    category.children.map((unit) => ({ ...unit, name: category.name + " · " + unit.name })),
-  );
   const matching = visibleGroups.filter((category) => {
     const matchesQuery = (category.name + " " + category.children.map((unit) => unit.name).join(" "))
       .toLowerCase()
       .includes(query.toLowerCase().trim());
-    const hasExperience = category.children.some((unit) => unit.experienced);
-    return matchesQuery && (filter === "all" || (filter === "experienced" ? hasExperience : !hasExperience));
+    return matchesQuery && matchesRetentionFilter(category, filter, new Date(result.data.asOf).getTime());
   });
   const weakestCategory = visibleGroups.find((category) => category.priority !== null);
   const weakestUnit = weakestCategory?.summary;
@@ -107,42 +107,64 @@ export default function Overview({ version }) {
 
   if (panel) {
     const focusUnit = panel.summary;
+    const hasSubpatterns = panel.children.length > 1;
+    const activeUnit = panel.children.find((unit) => unit.slug === selectedUnit) || panel.children[0];
     return (
       <Box sx={{ px: { xs: 2, sm: 4 }, py: { xs: 3, md: 5 }, maxWidth: 1100, mx: "auto" }}>
-        <Button startIcon={<ArcadeIcon name="arrow" sx={{ transform: "rotate(180deg)" }} />} onClick={() => setSelected(null)} sx={{ mb: 3, ml: -1 }}>
+        <Button startIcon={<ArcadeIcon name="arrow" sx={{ transform: "rotate(180deg)" }} />} onClick={() => { setSelected(null); setSelectedUnit(null); }} sx={{ mb: 3, ml: -1 }}>
           All patterns
         </Button>
-        <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 }, mb: 3, borderColor: "#35483f", background: "linear-gradient(110deg, #1b302a 0%, #161d27 78%)" }}>
+        <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 }, mb: 3, borderColor: "#30476f", background: "linear-gradient(110deg, #15233a 0%, #161d27 78%)" }}>
           <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "flex-start", sm: "center" }} spacing={3}>
             <PracticeStrength unit={focusUnit} ring />
             <Box sx={{ flex: 1 }}>
               <Typography variant="overline" color="primary">PATTERN DETAILS</Typography>
               <Typography ref={titleRef} tabIndex={-1} component="h1" variant="h4" sx={{ mt: 0.5 }}>{panel.name}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1, maxWidth: 680 }}>
-                Each approach has its own strength. Prior solves establish experience even when their dates are unknown; dated practice adds recency.
+                Each bar starts with the different problems you have solved here. Re-solving problems strengthens it, and recent practice gives it an extra boost.
               </Typography>
             </Box>
           </Stack>
         </Paper>
 
-        <Stack spacing={2}>
-          {panel.children.map((unit, index) => (
-            <Paper variant="outlined" key={unit.slug} sx={{ p: { xs: 2, md: 3 }, bgcolor: "#111821" }}>
-              <Stack spacing={2}>
-                <Stack direction="row" justifyContent="space-between" alignItems="start" gap={2}>
-                  <Box>
-                    <Typography variant="overline" color="text.secondary">SUBPATTERN {String(index + 1).padStart(2, "0")}</Typography>
-                    <Typography component="h2" variant="h6">{unit.name}</Typography>
-                  </Box>
-                  <Chip label={unit.reason} variant="outlined" sx={{ color: unit.assessed ? "secondary.main" : "text.secondary" }} />
-                </Stack>
-                <PracticeStrength unit={unit} />
-                <PatternProblems unit={unit.slug} units={units} version={retry + version} onSaved={saved} />
-              </Stack>
-            </Paper>
-          ))}
-        </Stack>
-        <Snackbar open={notice} autoHideDuration={3500} onClose={() => setNotice(false)} message="History updated. Practice strength refreshed." />
+        {hasSubpatterns ? (
+          <Stack spacing={1.25} sx={{ mb: 3 }}>
+            <Typography component="h2" variant="h6">Subpatterns</Typography>
+            {panel.children.map((unit) => {
+              const active = unit.slug === activeUnit.slug;
+              return (
+                <Paper key={unit.slug} variant="outlined" sx={{ overflow: "hidden", borderColor: active ? "primary.main" : "divider", bgcolor: active ? "#131d30" : "#111821" }}>
+                  <ButtonBase onClick={() => setSelectedUnit(unit.slug)} sx={{ display: "block", width: "100%", p: { xs: 1.75, sm: 2.25 }, textAlign: "left" }}>
+                    <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "stretch", sm: "center" }} gap={2}>
+                      <Box sx={{ minWidth: { sm: 210 } }}>
+                        <Typography fontWeight={700}>{unit.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">{unit.reason}</Typography>
+                      </Box>
+                      <Box sx={{ flex: 1 }}><PracticeStrength unit={unit} compact /></Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 76, textAlign: { sm: "right" } }}>{unit.distinctSolved} solved</Typography>
+                    </Stack>
+                  </ButtonBase>
+                  {active && (
+                    <Box sx={{ p: { xs: 1.5, md: 2.5 }, pt: 0, borderTop: 1, borderColor: "divider", bgcolor: "#0f161f" }}>
+                      <Box sx={{ py: 2 }}>
+                        <PracticeInsights unit={unit} asOf={result.data.asOf} timeZone={result.data.timeZone} />
+                      </Box>
+                      <PatternProblems key={unit.slug} unit={unit.slug} name={unit.name + " problems"} version={retry + version} onSaved={saved} />
+                    </Box>
+                  )}
+                </Paper>
+              );
+            })}
+          </Stack>
+        ) : (
+          <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, bgcolor: "#0f161f" }}>
+            <Box sx={{ mb: 2 }}>
+              <PracticeInsights unit={activeUnit} asOf={result.data.asOf} timeZone={result.data.timeZone} />
+            </Box>
+            <PatternProblems key={activeUnit.slug} unit={activeUnit.slug} name={panel.name + " problems"} version={retry + version} onSaved={saved} />
+          </Paper>
+        )}
+        <Snackbar open={notice} autoHideDuration={3500} onClose={() => setNotice(false)} message="Primary pattern updated." />
       </Box>
     );
   }
@@ -154,7 +176,7 @@ export default function Overview({ version }) {
           <Typography variant="overline" color="primary">BUILD. PRACTICE. RECALL.</Typography>
           <Typography component="h1" variant="h4" sx={{ fontSize: { xs: 28, md: 36 }, mt: 0.5 }}>Your practice arena</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Every bar reflects your foundation. Dates improve the estimate; previous solves still count.
+            Each bar uses the problems you have solved, repeat practice, and recency when dates are available.
           </Typography>
         </Box>
         <IconButton aria-label="Refresh practice strength" onClick={() => setRetry((value) => value + 1)} sx={{ display: { xs: "none", sm: "inline-flex" }, border: 1, borderColor: "divider" }}>
@@ -163,7 +185,7 @@ export default function Overview({ version }) {
       </Stack>
 
       {weakestUnit && (
-        <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 4, borderColor: "#35483f", background: "linear-gradient(110deg, #1b302a 0%, #161d27 78%)" }}>
+        <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 4, borderColor: "#30476f", background: "linear-gradient(110deg, #15233a 0%, #161d27 78%)" }}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={3} alignItems={{ xs: "flex-start", sm: "center" }}>
             <PracticeStrength unit={weakestUnit} ring />
             <Box sx={{ flex: 1 }}>
@@ -171,7 +193,7 @@ export default function Overview({ version }) {
               <Typography variant="h5" sx={{ mt: 0.5 }}>{weakestUnit.name}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{weakestCategory.name} · {weakestUnit.reason}</Typography>
             </Box>
-            <Button endIcon={<ArcadeIcon name="arrow" />} onClick={() => setSelected(weakestCategory.slug)}>View pattern</Button>
+            <Button endIcon={<ArcadeIcon name="arrow" />} onClick={() => { setSelected(weakestCategory.slug); setSelectedUnit(null); }}>View pattern</Button>
           </Stack>
         </Paper>
       )}
@@ -193,21 +215,27 @@ export default function Overview({ version }) {
       </Stack>
 
       <Stack direction="row" spacing={1} sx={{ mb: 2.5, flexWrap: "wrap", gap: 0.5 }}>
-        {[["all", "All patterns"], ["experienced", "With solved problems"], ["gaps", "No solved problems"]].map(([value, label]) => (
+        {[
+          ["all", "All patterns"],
+          ["recent", "Practiced recently"],
+          ["stale", "Not practiced recently"],
+          ["legacy", "Mostly legacy data"],
+          ["never", "Never practiced"],
+        ].map(([value, label]) => (
           <Chip
             key={value}
             label={label}
             onClick={() => setFilter(value)}
             aria-pressed={filter === value}
             variant={filter === value ? "filled" : "outlined"}
-            sx={{ bgcolor: filter === value ? "#5ee6a820" : undefined, color: filter === value ? "primary.main" : "text.secondary" }}
+            sx={{ bgcolor: filter === value ? "#5b8cff20" : undefined, color: filter === value ? "primary.main" : "text.secondary" }}
           />
         ))}
       </Stack>
 
       <Stack spacing={2}>
         {matching.map((category, index) => (
-          <PatternCard key={category.slug} category={category} index={index} onSelect={() => setSelected(category.slug)} />
+          <PatternCard key={category.slug} category={category} index={index} onSelect={() => { setSelected(category.slug); setSelectedUnit(null); }} />
         ))}
       </Stack>
       {!matching.length && (
@@ -221,9 +249,11 @@ export default function Overview({ version }) {
 
       <Box component="footer" sx={{ mt: 4, pt: 2, borderTop: 1, borderColor: "divider" }}>
         <Typography variant="caption" color="text.secondary">
-          Practice strength uses pattern-normalized problem coverage and reinforcement. When dates exist, recent practice also contributes and gradually fades.
+          Practice strength considers how many different problems you solved, whether you revisited them, and how recently you practiced.
         </Typography>
       </Box>
     </Box>
   );
 }
+
+

@@ -1,443 +1,203 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  InputAdornment,
-  Link,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
+  Alert, Box, Button, Chip, CircularProgress, Collapse, Dialog, DialogActions,
+  DialogContent, DialogTitle, IconButton, InputAdornment, Link, List,
+  ListItemButton, ListItemText, Radio, Stack, TextField, Tooltip, Typography,
 } from "@mui/material";
 import { requestJson } from "./api.js";
-const AttemptEditor = lazy(() => import("./AttemptEditor.jsx"));
 import ArcadeIcon from "./ArcadeIcon.jsx";
-import { assistanceLabels } from "./attempt-form.js";
 
-function Problem({ problem, units, onSaved, version }) {
-  const [open, setOpen] = useState(false),
-    [result, setResult] = useState(null),
-    [editing, setEditing] = useState(null),
-    [page, setPage] = useState(0),
-    [error, setError] = useState(""),
-    [retry, setRetry] = useState(0),
-    [moving, setMoving] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const controller = new AbortController();
-    requestJson(
-      "/problems/" + problem.id + "/history?limit=20&offset=" + page * 20,
-      { signal: controller.signal },
-    )
-      .then((data) => {
-        if (!controller.signal.aborted) {
-          setResult(data);
-          setError("");
-        }
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(e.message);
-      });
-    return () => controller.abort();
-  }, [open, problem.id, page, version, retry]);
-  async function placement(unit) {
-    setMoving(true);
-    setError("");
+function relativePractice(value) {
+  if (!value) return "Unknown";
+  const days = Math.floor(Math.max(0, Date.now() - new Date(value).getTime()) / 86400000);
+  if (days === 0) return "Today";
+  return days === 1 ? "1 day ago" : days + " days ago";
+}
+function difficultyColor(value) {
+  if (value?.toLowerCase() === "easy") return "success";
+  if (value?.toLowerCase() === "hard") return "error";
+  return "warning";
+}
+function historyLabel(item) {
+  if (item.imported) return "Imported accepted solve";
+  if (item.assistance === "independent") return "On my own";
+  if (item.assistance === "hint") return "With hints";
+  if (item.assistance === "solution") return "Read the solution";
+  return "Practice recorded";
+}
+function historyDate(value) {
+  if (!value) return "Date unavailable";
+  return new Date(value).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+function PlacementDialog({ problem, onClose, onSaved }) {
+  const [choice, setChoice] = useState(problem.placement.unit);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  async function save() {
+    setSaving(true); setError("");
     try {
-      await requestJson("/problems/" + problem.id + "/placement", {
-        method: "PUT",
-        body: { unit },
-      });
-      onSaved();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setMoving(false);
-    }
-  }
-  function changePage(delta) {
-    setResult(null);
-    setError("");
-    setPage((v) => v + delta);
+      await requestJson("/problems/" + problem.id + "/placement", { method: "PUT", body: { unit: choice } });
+      onSaved(); onClose();
+    } catch (caught) { setError(caught.message); }
+    finally { setSaving(false); }
   }
   return (
-    <Box
-      sx={{
-        border: 1,
-        borderColor: "divider",
-        borderRadius: 2,
-        overflow: "hidden",
-      }}
-    >
-      <Button
-        fullWidth
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        sx={{
-          justifyContent: "space-between",
-          p: 1.5,
-          color: "text.primary",
-          gap: 1,
-          textAlign: "left",
-        }}
-      >
-        <Stack spacing={0.5}>
-          <Typography variant="body2" fontWeight={600}>
-            {problem.title}
-          </Typography>
-          {problem.difficulty && (
-            <Typography
-              variant="caption"
-              sx={{
-                color:
-                  problem.difficulty.toLowerCase() === "easy"
-                    ? "primary.main"
-                    : problem.difficulty.toLowerCase() === "hard"
-                      ? "#f49caa"
-                      : "secondary.main",
-              }}
-            >
-              {problem.difficulty}
-            </Typography>
-          )}
+    <Dialog open onClose={saving ? undefined : onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Choose the primary pattern</DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          These are the approaches supported by this problem&apos;s LeetCode topics.
+        </Typography>
+        {error && <Alert severity="error" sx={{ mb: 1.5 }}>{error}</Alert>}
+        <List disablePadding aria-label={"Pattern choices for " + problem.title}>
+          {problem.candidates.map((item) => (
+            <ListItemButton key={item.unit} selected={choice === item.unit} onClick={() => setChoice(item.unit)} sx={{ borderRadius: 1.5, mb: 0.5 }}>
+              <Radio checked={choice === item.unit} tabIndex={-1} disableRipple />
+              <ListItemText primary={item.name} secondary={item.categoryName === item.name ? undefined : item.categoryName} />
+              {item.source === "curated" && <Chip size="small" label="Exact match" color="success" variant="outlined" />}
+            </ListItemButton>
+          ))}
+        </List>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button onClick={save} disabled={saving || !choice} variant="contained">
+          {saving ? <CircularProgress size={18} /> : "Save"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function ProblemRow({ problem, onSaved }) {
+  const [editing, setEditing] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState(null);
+  const [historyError, setHistoryError] = useState("");
+  const canEdit = problem.candidates?.length > 0;
+  useEffect(() => {
+    if (!historyOpen || history) return undefined;
+    const controller = new AbortController();
+    requestJson("/problems/" + problem.id + "/history?limit=6&offset=0", { signal: controller.signal })
+      .then((data) => { if (!controller.signal.aborted) { setHistory(data); setHistoryError(""); } })
+      .catch((caught) => { if (!controller.signal.aborted) setHistoryError(caught.message); });
+    return () => controller.abort();
+  }, [historyOpen, history, problem.id]);
+  return (
+    <Box sx={{ borderBottom: 1, borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
+      <Box sx={{
+        display: "grid", gridTemplateColumns: { xs: "1fr auto", sm: "minmax(0, 1fr) 132px 112px 76px" },
+        alignItems: "center", gap: { xs: 1, sm: 2 }, px: { xs: 1.5, sm: 2 }, py: 1.5,
+        "&:hover": { bgcolor: "#17202a" }, transition: "background-color 160ms ease",
+      }}>
+        <Link href={problem.url} target="_blank" rel="noreferrer" underline="hover"
+          sx={{ minWidth: 0, fontWeight: 650, color: "text.primary", overflowWrap: "anywhere" }}>
+          {problem.title} ↗
+        </Link>
+        <Chip label={problem.difficulty || "Unknown"} size="small"
+          color={problem.difficulty ? difficultyColor(problem.difficulty) : "default"} variant="outlined"
+          sx={{ display: { xs: "none", sm: "inline-flex" }, justifySelf: "start" }} />
+        <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
+          {relativePractice(problem.lastPracticedAt)}
+        </Typography>
+        <Stack direction="row" justifyContent="flex-end">
+          <Tooltip title="Show solve history">
+            <IconButton size="small" onClick={() => setHistoryOpen((value) => !value)}
+              aria-label={(historyOpen ? "Hide" : "Show") + " solve history for " + problem.title}
+              aria-expanded={historyOpen}>
+              <ArcadeIcon name="history" sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={canEdit ? "Change primary pattern" : "No supported pattern candidates"}>
+            <span><IconButton size="small" disabled={!canEdit} onClick={() => setEditing(true)}
+              aria-label={"Edit pattern for " + problem.title}><ArcadeIcon name="edit" sx={{ fontSize: 18 }} /></IconButton></span>
+          </Tooltip>
         </Stack>
-        <ArcadeIcon
-          name="chevron"
-          sx={{
-            fontSize: 16,
-            flexShrink: 0,
-            transform: open ? "rotate(90deg)" : "none",
-            transition: "transform 180ms",
-          }}
-        />
-      </Button>
-      {open && (
-        <Stack spacing={2} sx={{ p: 1.5, pt: 0.5 }}>
-          <Link
-            href={problem.url}
-            target="_blank"
-            rel="noreferrer"
-            sx={{ fontSize: 12 }}
-          >
-            Open on LeetCode ↗
-          </Link>
-          <TextField
-            disabled={moving}
-            size="small"
-            select
-            label="Primary browsing pattern"
-            value={problem.placement.unit}
-            onChange={(e) => placement(e.target.value)}
-            helperText="Browsing placement does not change recorded approaches."
-          >
-            {units.map((u) => (
-              <MenuItem key={u.slug} value={u.slug}>
-                {u.name}
-              </MenuItem>
-            ))}
-          </TextField>
-          {error && (
-            <Alert
-              severity="error"
-              action={
-                <Button size="small" onClick={() => setRetry((v) => v + 1)}>
-                  Retry
-                </Button>
-              }
-            >
-              {error}
-            </Alert>
-          )}
-          {!result ? (
-            <Typography role="status" variant="body2" color="text.secondary">
-              {error ? "History unavailable." : "Loading history…"}
-            </Typography>
-          ) : (
-            <>
-              {result.attempts.map((a) => (
-                <Stack
-                  key={a.id}
-                  spacing={1}
-                  sx={{
-                    pl: 1.5,
-                    py: 0.5,
-                    borderLeft: "2px solid",
-                    borderColor:
-                      a.assistance === "independent"
-                        ? "primary.main"
-                        : a.assistance === "hint"
-                          ? "secondary.main"
-                          : "divider",
-                  }}
-                >
-                  <Stack direction="row" gap={0.5} flexWrap="wrap">
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      color={
-                        a.imported
-                          ? "default"
-                          : a.assistance === "independent"
-                            ? "success"
-                            : a.assistance === "hint"
-                              ? "warning"
-                              : "info"
-                      }
-                      label={
-                        a.imported
-                          ? "Imported · assistance unknown"
-                          : assistanceLabels[a.assistance]
-                      }
-                    />
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(a.attemptedAt).toLocaleString()}
-                  </Typography>
-                  <Typography variant="caption">
-                    {units.find((u) => u.slug === a.practiceUnit)?.name ||
-                      "Unspecified approach"}{" "}
-                    ·{" "}
-                    {a.approachSource === "confirmed"
-                      ? "Confirmed approach"
-                      : "Suggested approach"}
-                  </Typography>
-                  {a.selectedTopics?.length > 0 && (
-                    <Stack direction="row" flexWrap="wrap" gap={0.5}>
-                      {a.selectedTopics.map((topic) => (
-                        <Chip key={topic} label={topic} size="small" />
-                      ))}
-                    </Stack>
-                  )}
-                  {!a.imported && (
-                    <Typography variant="caption" color="text.secondary">
-                      {a.captureSource === "accepted"
-                        ? "Recorded after Accepted"
-                        : "Self-reported practice"}
-                    </Typography>
-                  )}
-                  {a.notes && (
-                    <Box
-                      sx={{ bgcolor: "#1c2632", p: 1.25, borderRadius: 1.5 }}
-                    >
-                      <Typography variant="overline" color="text.secondary">
-                        NOTES
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          whiteSpace: "pre-wrap",
-                          overflowWrap: "anywhere",
-                        }}
-                      >
-                        {a.notes}
-                      </Typography>
-                    </Box>
-                  )}
-                  {!a.imported && (
-                    <Button
-                      size="small"
-                      onClick={() => setEditing(a)}
-                      sx={{ alignSelf: "flex-start", fontSize: 11 }}
-                    >
-                      Correct or remove
-                    </Button>
-                  )}
+        <Stack direction="row" gap={1} alignItems="center" sx={{ display: { xs: "flex", sm: "none" }, gridColumn: "1 / -1" }}>
+          <Chip label={problem.difficulty || "Unknown"} size="small"
+            color={problem.difficulty ? difficultyColor(problem.difficulty) : "default"} variant="outlined" />
+          <Typography variant="caption" color="text.secondary">Last practiced: {relativePractice(problem.lastPracticedAt)}</Typography>
+        </Stack>
+      </Box>
+      <Collapse in={historyOpen}>
+        <Box sx={{ px: { xs: 1.5, sm: 2 }, py: 1.5, bgcolor: "#0d141d", borderTop: 1, borderColor: "divider" }}>
+          <Typography variant="caption" sx={{ fontWeight: 700 }}>Solve history</Typography>
+          {historyError && <Typography variant="caption" color="error" sx={{ display: "block", mt: 0.75 }}>{historyError}</Typography>}
+          {!history && !historyError && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>Loading history…</Typography>}
+          {history && (
+            <Stack spacing={0.8} sx={{ mt: 1 }}>
+              {history.attempts.map((item) => (
+                <Stack key={item.id} direction="row" justifyContent="space-between" gap={2} alignItems="baseline">
+                  <Typography variant="caption" color="text.secondary">{historyDate(item.attemptedAt)}</Typography>
+                  <Typography variant="caption" sx={{ textAlign: "right" }}>{historyLabel(item)}</Typography>
                 </Stack>
               ))}
-              {!result.more && result.legacy && (
-                <Box sx={{ p: 1.5, bgcolor: "#202833", borderRadius: 1.5 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    LEGACY EXPERIENCE
-                  </Typography>
-                  <Typography variant="body2">
-                    Previously solved · date and assistance unknown
-                  </Typography>
-                </Box>
-              )}
-              {!result.attempts.length && !result.legacy && (
-                <Typography variant="body2" color="text.secondary">
-                  No practice history recorded.
-                </Typography>
-              )}
-              {(page > 0 || result.more) && (
-                <Stack direction="row" justifyContent="space-between">
-                  <Button
-                    size="small"
-                    disabled={!page}
-                    onClick={() => changePage(-1)}
-                  >
-                    Newer
-                  </Button>
-                  <Button
-                    size="small"
-                    disabled={!result.more}
-                    onClick={() => changePage(1)}
-                  >
-                    Older
-                  </Button>
+              {history.legacy && (
+                <Stack direction="row" justifyContent="space-between" gap={2} alignItems="baseline">
+                  <Typography variant="caption" color="text.secondary">Date unavailable</Typography>
+                  <Typography variant="caption">Legacy accepted status</Typography>
                 </Stack>
               )}
-            </>
+              {!history.attempts.length && !history.legacy && <Typography variant="caption" color="text.secondary">No solve history recorded.</Typography>}
+              {history.more && <Typography variant="caption" color="text.secondary">More earlier records exist.</Typography>}
+            </Stack>
           )}
-        </Stack>
-      )}
-      {editing && (
-        <Suspense
-          fallback={<Typography role="status">Opening editor…</Typography>}
-        >
-          <AttemptEditor
-            attempt={editing}
-            patterns={units}
-            onSaved={onSaved}
-            onClose={() => setEditing(null)}
-          />
-        </Suspense>
-      )}
+        </Box>
+      </Collapse>
+      {editing && <PlacementDialog problem={problem} onClose={() => setEditing(false)} onSaved={onSaved} />}
     </Box>
   );
 }
-export default function PatternProblems({ unit, units, onSaved, version }) {
-  const [open, setOpen] = useState(false),
-    [result, setResult] = useState(null),
-    [page, setPage] = useState(0),
-    [error, setError] = useState(""),
-    [query, setQuery] = useState(""),
-    [retry, setRetry] = useState(0);
+
+export default function PatternProblems({ unit, name, onSaved, version }) {
+  const [result, setResult] = useState(null);
+  const [page, setPage] = useState(0);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (!open) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      requestJson(
-        "/pattern-problems?category=" +
-          encodeURIComponent(unit) +
-          "&q=" +
-          encodeURIComponent(query) +
-          "&limit=10&offset=" +
-          page * 10,
-        { signal: controller.signal },
-      )
-        .then((data) => {
-          if (!controller.signal.aborted) {
-            setResult(data);
-            setError("");
-          }
-        })
-        .catch((e) => {
-          if (!controller.signal.aborted) setError(e.message);
-        });
-    }, 200);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [open, unit, page, version, query, retry]);
-  function changePage(delta) {
-    setResult(null);
-    setError("");
-    setPage((v) => v + delta);
-  }
+      requestJson("/pattern-problems?category=" + encodeURIComponent(unit) + "&q=" + encodeURIComponent(query) + "&limit=10&offset=" + page * 10, { signal: controller.signal })
+        .then((data) => { if (!controller.signal.aborted) { setResult(data); setError(""); } })
+        .catch((caught) => { if (!controller.signal.aborted) setError(caught.message); });
+    }, 180);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [unit, page, version, query, retry]);
+  function changePage(delta) { setResult(null); setError(""); setPage((value) => value + delta); }
   return (
-    <>
-      <Button
-        size="small"
-        startIcon={<ArcadeIcon name="history" sx={{ fontSize: 16 }} />}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        sx={{
-          justifyContent: "flex-start",
-          alignSelf: "flex-start",
-          fontSize: 12,
-        }}
-      >
-        {open ? "Hide" : "Explore"} problems and history
-      </Button>
-      {open && (
-        <Stack spacing={1.5}>
-          <TextField
-            size="small"
-            placeholder="Find a problem…"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(0);
-              setResult(null);
-              setError("");
-            }}
-            slotProps={{
-              htmlInput: {
-                "aria-label": "Search problems in " + unit,
-                maxLength: 200,
-              },
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <ArcadeIcon name="search" sx={{ fontSize: 16 }} />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
-          {error && (
-            <Alert
-              severity="error"
-              action={
-                <Button size="small" onClick={() => setRetry((v) => v + 1)}>
-                  Retry
-                </Button>
-              }
-            >
-              {error}
-            </Alert>
-          )}
-          {result ? (
-            <>
-              {result.problems.map((p) => (
-                <Problem
-                  key={p.id}
-                  problem={p}
-                  units={units}
-                  onSaved={onSaved}
-                  version={version}
-                />
-              ))}
-              {!result.total && (
-                <Typography variant="body2" color="text.secondary">
-                  {query
-                    ? "No matching problems."
-                    : "No problems yet. Your next recording will appear here."}
-                </Typography>
-              )}
-              {(page > 0 || result.total > 10) && (
-                <Stack direction="row" justifyContent="space-between">
-                  <Button
-                    size="small"
-                    disabled={!page}
-                    onClick={() => changePage(-1)}
-                  >
-                    Previous
-                  </Button>
-                  <Typography variant="caption" sx={{ alignSelf: "center" }}>
-                    {page + 1} / {Math.ceil(result.total / 10)}
-                  </Typography>
-                  <Button
-                    size="small"
-                    disabled={(page + 1) * 10 >= result.total}
-                    onClick={() => changePage(1)}
-                  >
-                    Next
-                  </Button>
-                </Stack>
-              )}
-            </>
-          ) : (
-            <Typography role="status" variant="body2" color="text.secondary">
-              {error ? "Problems unavailable." : "Loading problems…"}
-            </Typography>
-          )}
+    <Stack spacing={1.5}>
+      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} gap={1.5}>
+        <Box>
+          <Typography component="h2" variant="h6">{name || "Problems"}</Typography>
+          <Typography variant="caption" color="text.secondary">Open a problem on LeetCode or correct its primary pattern.</Typography>
+        </Box>
+        <TextField size="small" placeholder="Find a problem…" value={query}
+          onChange={(event) => { setQuery(event.target.value); setPage(0); setResult(null); setError(""); }}
+          slotProps={{ htmlInput: { "aria-label": "Search problems in " + (name || unit), maxLength: 200 },
+            input: { startAdornment: <InputAdornment position="start"><ArcadeIcon name="search" sx={{ fontSize: 16 }} /></InputAdornment> } }}
+          sx={{ width: { xs: "100%", sm: 260 } }} />
+      </Stack>
+      {error && <Alert severity="error" action={<Button size="small" onClick={() => setRetry((value) => value + 1)}>Retry</Button>}>{error}</Alert>}
+      {result ? (
+        <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, overflow: "hidden", bgcolor: "#111821" }}>
+          <Box sx={{ display: { xs: "none", sm: "grid" }, gridTemplateColumns: "minmax(0, 1fr) 132px 112px 76px", gap: 2, px: 2, py: 1, borderBottom: 1, borderColor: "divider", bgcolor: "#151d27" }}>
+            <Typography variant="overline" color="text.secondary">Problem</Typography>
+            <Typography variant="overline" color="text.secondary">Difficulty</Typography>
+            <Typography variant="overline" color="text.secondary">Last practiced</Typography><Box />
+          </Box>
+          {result.problems.map((problem) => <ProblemRow key={problem.id} problem={problem} onSaved={onSaved} />)}
+          {!result.total && <Typography variant="body2" color="text.secondary" sx={{ p: 3 }}>{query ? "No matching problems." : "No problems in this pattern yet."}</Typography>}
+        </Box>
+      ) : <Typography role="status" variant="body2" color="text.secondary">{error ? "Problems unavailable." : "Loading problems…"}</Typography>}
+      {result && (page > 0 || result.total > 10) && (
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Button size="small" disabled={!page} onClick={() => changePage(-1)}>Previous</Button>
+          <Typography variant="caption">{page + 1} / {Math.ceil(result.total / 10)}</Typography>
+          <Button size="small" disabled={(page + 1) * 10 >= result.total} onClick={() => changePage(1)}>Next</Button>
         </Stack>
       )}
-    </>
+    </Stack>
   );
 }

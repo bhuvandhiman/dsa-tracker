@@ -21,6 +21,21 @@ test('local-day dedup favors explicit assistance; only separate-day revisits rei
   assert.equal(retentionFor([event('unknown',now-day),event('hint')],now).weightedRevisits,0.5);
   assert.equal(retentionFor([event('unknown',now-day),event('unknown')],now).weightedRevisits,0);
 });
+test('retention exposes factual evidence counts and a deduplicated recent activity window',()=>{
+  const events=[
+    event('unknown',now-2*day,1),
+    event('independent',now-2*day+1000,1),
+    event('hint',now-day,1),
+    event('independent',now-day,2),
+    event('independent',now-90*day,3),
+  ];
+  const result=retentionFor(events,now,4);
+  assert.equal(result.datedDistinctSolved,3);
+  assert.equal(result.legacyDistinctSolved,1);
+  assert.equal(result.revisitCount,1);
+  assert.deepEqual(result.activity.map(item=>item.count),[1,2]);
+  assert.ok(result.activity[0].date<result.activity[1].date);
+});
 test('attempt approaches isolate siblings independently of browsing placement and other practice',()=>{
   const problems=[problem(1,'climbing-stairs'),problem(2,'coin-change',true)];
   const units=e=>overview(problems,e,{},now).categories.flatMap(c=>c.children);
@@ -64,4 +79,13 @@ test('major category summaries aggregate solved problems without merging child e
   assert.equal(dp.children.find(unit=>unit.slug==='dp-1d').distinctSolved,20);
   assert.equal(dp.children.find(unit=>unit.slug==='knapsack-unbounded').distinctSolved,15);
   assert.equal(dp.summary.breadthTarget,categoryBreadthTargets['dynamic-programming']);
+});
+test('30-day trend reports decay, recent recovery, and no invented trend for legacy-only evidence',()=>{
+  const p=problem(1,'two-sum',true);
+  const stale=overview([p],[event('independent',now-60*day,1,'hashing')],{},now).categories.find(category=>category.slug==='arrays-hashing').summary;
+  const recent=overview([p],[event('independent',now,1,'hashing')],{},now).categories.find(category=>category.slug==='arrays-hashing').summary;
+  const legacy=overview([p],[],{},now).categories.find(category=>category.slug==='arrays-hashing').summary;
+  assert.ok(stale.trend30Days.delta<0);
+  assert.ok(recent.trend30Days.delta>0);
+  assert.equal(legacy.trend30Days,null);
 });
