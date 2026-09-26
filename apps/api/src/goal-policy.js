@@ -1,6 +1,6 @@
 import { navigationCategories, unitsFor, unitForPlacement } from './pattern-catalog.js';
 
-export const GOAL_POLICY_VERSION = '2026-09-26.v1';
+export const GOAL_POLICY_VERSION = '2026-09-26.v2';
 export const GOAL_TARGETS = Object.freeze([300, 500, 1000]);
 
 export const GOAL_PROFILES = Object.freeze({
@@ -57,9 +57,19 @@ const categoryWeights = Object.freeze({
   }),
 });
 
+// Larger goals intentionally add depth instead of scaling the same matrix.
+// The exact mixes are Recall policy. See docs/goal-policy-evidence.md.
 const difficultyMix = Object.freeze({
-  interview: Object.freeze({ easy: 0.22, medium: 0.63, hard: 0.15 }),
-  deep: Object.freeze({ easy: 0.18, medium: 0.57, hard: 0.25 }),
+  interview: Object.freeze({
+    300: Object.freeze({ easy: 0.26, medium: 0.64, hard: 0.10 }),
+    500: Object.freeze({ easy: 0.22, medium: 0.63, hard: 0.15 }),
+    1000: Object.freeze({ easy: 0.18, medium: 0.60, hard: 0.22 }),
+  }),
+  deep: Object.freeze({
+    300: Object.freeze({ easy: 0.22, medium: 0.60, hard: 0.18 }),
+    500: Object.freeze({ easy: 0.18, medium: 0.57, hard: 0.25 }),
+    1000: Object.freeze({ easy: 0.14, medium: 0.56, hard: 0.30 }),
+  }),
 });
 
 const unitWeights = Object.freeze({
@@ -70,14 +80,60 @@ const unitWeights = Object.freeze({
   'dynamic-programming': Object.freeze({ 'dp-1d': 0.18, 'dp-2d': 0.17, 'knapsack-01': 0.11, 'knapsack-unbounded': 0.08, 'sequence-dp': 0.18, 'interval-dp': 0.08, 'state-machine-dp': 0.08, 'multidimensional-dp': 0.05, 'dynamic-programming-general': 0.07 }),
 });
 
-function allocate(total, entries) {
+// These multipliers control how quickly advanced subpatterns enter the target.
+// A 300-problem interview goal keeps them deliberately small; larger/deeper
+// goals reserve a larger share without making rare techniques equal to core ones.
+const depthMultipliers = Object.freeze({
+  interview: Object.freeze({
+    300: Object.freeze({
+      'segment-tree': 0.35,
+      'fenwick-tree': 0.25,
+      mst: 0.50,
+      'interval-dp': 0.55,
+      'state-machine-dp': 0.70,
+      'multidimensional-dp': 0.35,
+    }),
+    500: Object.freeze({
+      'segment-tree': 0.70,
+      'fenwick-tree': 0.60,
+      mst: 0.75,
+      'interval-dp': 0.75,
+      'state-machine-dp': 0.85,
+      'multidimensional-dp': 0.65,
+    }),
+    1000: Object.freeze({}),
+  }),
+  deep: Object.freeze({
+    300: Object.freeze({
+      'segment-tree': 0.70,
+      'fenwick-tree': 0.65,
+      mst: 0.80,
+      'interval-dp': 0.80,
+      'state-machine-dp': 0.90,
+      'multidimensional-dp': 0.75,
+    }),
+    500: Object.freeze({}),
+    1000: Object.freeze({
+      'segment-tree': 1.20,
+      'fenwick-tree': 1.20,
+      mst: 1.15,
+      'interval-dp': 1.15,
+      'state-machine-dp': 1.10,
+      'multidimensional-dp': 1.20,
+    }),
+  }),
+});
+
+function allocate(total, entries, { minimumOne = false } = {}) {
   if (!Number.isInteger(total) || total < 0) throw new Error('Allocation total must be a non-negative integer.');
   const positive = entries.filter(([, weight]) => weight > 0);
   const weightTotal = positive.reduce((sum, [, weight]) => sum + weight, 0);
   if (!weightTotal) return Object.fromEntries(entries.map(([key]) => [key, 0]));
+  const base = minimumOne && total >= positive.length ? 1 : 0;
+  const distributable = total - base * positive.length;
   const rows = positive.map(([key, weight], index) => {
-    const exact = total * weight / weightTotal;
-    return { key, index, value: Math.floor(exact), remainder: exact - Math.floor(exact) };
+    const exact = distributable * weight / weightTotal;
+    return { key, index, value: base + Math.floor(exact), remainder: exact - Math.floor(exact) };
   });
   let left = total - rows.reduce((sum, row) => sum + row.value, 0);
   rows.sort((a, b) => b.remainder - a.remainder || a.index - b.index);
@@ -88,11 +144,12 @@ function allocate(total, entries) {
   return result;
 }
 
-function unitWeightEntries(category) {
+function unitWeightEntries(category, profile, target) {
   const units = unitsFor(category);
   const configured = unitWeights[category.slug];
   if (!configured) return units.map(unit => [unit.slug, 1]);
-  return units.map(unit => [unit.slug, configured[unit.slug] ?? 0]);
+  const multipliers = depthMultipliers[profile][target];
+  return units.map(unit => [unit.slug, (configured[unit.slug] ?? 0) * (multipliers[unit.slug] ?? 1)]);
 }
 
 export function buildGoalMatrix(profile, target) {
@@ -103,7 +160,7 @@ export function buildGoalMatrix(profile, target) {
   return categories.map(category => {
     const categoryTarget = categoryTargets[category.slug];
     const units = unitsFor(category);
-    const unitTargets = allocate(categoryTarget, unitWeightEntries(category));
+    const unitTargets = allocate(categoryTarget, unitWeightEntries(category, profile, target), { minimumOne: true });
     return {
       slug: category.slug,
       name: category.name,
@@ -112,7 +169,7 @@ export function buildGoalMatrix(profile, target) {
         slug: unit.slug,
         name: unit.name,
         target: unitTargets[unit.slug],
-        difficulty: allocate(unitTargets[unit.slug], Object.entries(difficultyMix[profile])),
+        difficulty: allocate(unitTargets[unit.slug], Object.entries(difficultyMix[profile][target])),
       })),
     };
   });
@@ -212,4 +269,3 @@ export function unconfiguredGoal() {
     targets: GOAL_TARGETS,
   };
 }
-

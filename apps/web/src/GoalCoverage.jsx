@@ -18,6 +18,7 @@ export function GoalCoverage({ goal, compact = false }) {
     ? goal.actual
     : Object.values(goal.actual || {}).reduce((sum, value) => sum + (Number(value) || 0), 0) - (goal.actual?.unknown || 0);
   const exceeded = goal.deficit === 0 && totalKnown > goal.target;
+  const buckets = Object.entries(difficulty).filter(([, value]) => value.target > 0);
 
   return (
     <Stack spacing={0.8}>
@@ -39,11 +40,14 @@ export function GoalCoverage({ goal, compact = false }) {
         }}
       />
       <Stack direction="row" gap={0.75} flexWrap="wrap" alignItems="center">
-        {gaps.map(([bucket, value]) => (
-          <Typography key={bucket} variant="caption" color="text.secondary">
-            {LABELS[bucket]} {value.actual}/{value.target}
-          </Typography>
-        ))}
+        {(compact ? gaps : buckets).map(([bucket, value]) => {
+          const above = value.actual > value.target;
+          return (
+            <Typography key={bucket} variant="caption" color={value.deficit > 0 ? "text.secondary" : "info.main"}>
+              {LABELS[bucket]} {value.actual}/{value.target}{above ? " · Above target" : ""}
+            </Typography>
+          );
+        })}
         {!gaps.length && (
           <Typography variant="caption" sx={{ color: "info.main" }}>
             {exceeded ? "Target exceeded" : "Target met"}
