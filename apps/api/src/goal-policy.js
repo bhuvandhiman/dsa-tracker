@@ -261,6 +261,44 @@ export function goalCoverage(problems, { profile, target }) {
   };
 }
 
+function practicePriority(item) {
+  return Number.isFinite(item?.priority) ? item.priority : -1;
+}
+
+function remainingGoalGap(item) {
+  return Math.max(0, Number(item?.goal?.deficit) || 0);
+}
+
+function compareGoalAttention(a, b) {
+  if (a.slug === 'other') return b.slug === 'other' ? 0 : 1;
+  if (b.slug === 'other') return -1;
+  return remainingGoalGap(b) - remainingGoalGap(a)
+    || practicePriority(b) - practicePriority(a)
+    || (a.order ?? 0) - (b.order ?? 0);
+}
+
+// Goal ordering is intentionally separate from Practice Strength. The remaining
+// problem deficit is used directly so the profile's target weights still express
+// which areas deserve more of the user's finite goal. Practice weakness only
+// breaks ties between equally sized goal gaps.
+export function applyGoalOrdering(categories, goal) {
+  const byCategory = new Map(goal.categories.map(category => [category.slug, category]));
+  return categories.map(category => {
+    const categoryGoal = byCategory.get(category.slug) || null;
+    const byUnit = new Map((categoryGoal?.units || []).map(unit => [unit.slug, unit]));
+    const children = category.children
+      .map(unit => ({ ...unit, goal: byUnit.get(unit.slug) || null }))
+      .sort(compareGoalAttention);
+    return {
+      ...category,
+      goal: categoryGoal,
+      children,
+      attention: children[0]?.slug || null,
+      dashboardPriority: categoryGoal?.deficit ?? 0,
+    };
+  }).sort(compareGoalAttention);
+}
+
 export function unconfiguredGoal() {
   return {
     configured: false,

@@ -104,7 +104,9 @@ export default function Overview({ version }) {
     const matchesPractice = filter === "goal" || matchesRetentionFilter(category, filter, new Date(result.data.asOf).getTime());
     return matchesQuery && matchesGoal && matchesPractice;
   });
-  const weakestCategory = visibleGroups.find((category) => category.priority !== null);
+  const weakestCategory = visibleGroups
+    .filter((category) => category.priority !== null)
+    .sort((a, b) => b.priority - a.priority || a.order - b.order)[0];
   const weakestUnit = weakestCategory?.summary;
 
   function saved() {
@@ -141,22 +143,29 @@ export default function Overview({ version }) {
           All patterns
         </Button>
         <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 }, mb: 3, borderColor: "#30476f", background: "linear-gradient(110deg, #15233a 0%, #161d27 78%)" }}>
-          <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "flex-start", sm: "center" }} spacing={3}>
-            <PracticeStrength unit={focusUnit} ring />
+          <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "stretch", sm: "center" }} spacing={3}>
             <Box sx={{ flex: 1 }}>
               <Typography variant="overline" color="primary">PATTERN DETAILS</Typography>
               <Typography ref={titleRef} tabIndex={-1} component="h1" variant="h4" sx={{ mt: 0.5 }}>{panel.name}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1, maxWidth: 680 }}>
                 Each bar starts with the different problems you have solved here. Re-solving problems strengthens it, and recent practice gives it an extra boost.
               </Typography>
-              {panel.goal && <Box sx={{ mt: 2, maxWidth: 620 }}><GoalCoverage goal={panel.goal} /></Box>}
+              <Box sx={{ mt: 2, maxWidth: 620 }}><PracticeStrength unit={focusUnit} /></Box>
             </Box>
+            {panel.goal && <GoalCoverage goal={panel.goal} />}
           </Stack>
         </Paper>
 
         {hasSubpatterns ? (
           <Stack spacing={1.25} sx={{ mb: 3 }}>
-            <Typography component="h2" variant="h6">Subpatterns</Typography>
+            <Box>
+              <Typography component="h2" variant="h6">Subpatterns</Typography>
+              {result.data.goal.configured && (
+                <Typography variant="caption" color="text.secondary">
+                  Ordered by remaining {result.data.goal.profileName} goal gaps; weaker Practice Strength breaks ties.
+                </Typography>
+              )}
+            </Box>
             {panel.children.map((unit) => {
               const active = unit.slug === activeUnit.slug;
               return (
@@ -209,6 +218,11 @@ export default function Overview({ version }) {
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             Each bar uses the problems you have solved, repeat practice, and recency when dates are available.
           </Typography>
+          {result.data.excluded?.database > 0 && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
+              {result.data.excluded.database} SQL {result.data.excluded.database === 1 ? "problem is" : "problems are"} stored from LeetCode and excluded from DSA tracking.
+            </Typography>
+          )}
         </Box>
         <IconButton aria-label="Refresh practice strength" onClick={() => setRetry((value) => value + 1)} sx={{ display: { xs: "none", sm: "inline-flex" }, border: 1, borderColor: "divider" }}>
           <ArcadeIcon name="refresh" />
@@ -245,12 +259,12 @@ export default function Overview({ version }) {
 
       {weakestUnit && (
         <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 4, borderColor: "#30476f", background: "linear-gradient(110deg, #15233a 0%, #161d27 78%)" }}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={3} alignItems={{ xs: "flex-start", sm: "center" }}>
-            <PracticeStrength unit={weakestUnit} ring />
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={3} alignItems={{ xs: "stretch", sm: "center" }}>
             <Box sx={{ flex: 1 }}>
               <Typography variant="overline" color="primary">LOWEST PRACTICE FOUNDATION</Typography>
               <Typography variant="h5" sx={{ mt: 0.5 }}>{weakestUnit.name}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{weakestCategory.name} · {weakestUnit.reason}</Typography>
+              <Box sx={{ mt: 1.5, maxWidth: 620 }}><PracticeStrength unit={weakestUnit} /></Box>
             </Box>
             <Button endIcon={<ArcadeIcon name="arrow" />} onClick={() => { setSelected(weakestCategory.slug); setSelectedUnit(null); }}>View pattern</Button>
           </Stack>
@@ -260,7 +274,11 @@ export default function Overview({ version }) {
       <Stack direction={{ xs: "column", sm: "row" }} gap={2} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} sx={{ mb: 2 }}>
         <Box>
           <Typography component="h2" variant="h6">Pattern map</Typography>
-          <Typography variant="caption" color="text.secondary">Ordered from weakest foundation upward.</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {result.data.goal.configured
+              ? `Ordered by remaining ${result.data.goal.profileName} goal gaps; weaker Practice Strength breaks ties.`
+              : "Ordered from weakest foundation upward."}
+          </Typography>
         </Box>
         <TextField
           inputRef={searchRef}

@@ -90,6 +90,11 @@
       "date": "2026-09-25",
       "direction": "Arcade Blue palette",
       "reason": "User selected blue as the primary interaction color because the previous green accent felt visually off. Difficulty colors remain semantic green, amber, and red."
+    },
+    {
+      "date": "2026-09-28",
+      "direction": "Strength bar plus target ring",
+      "reason": "Practice Strength remains the single continuous bar, while Goal Coverage uses a LeetCode-style circular target indicator so the two metrics no longer read as competing scores."
     }
   ],
   "evidence": [

@@ -1,6 +1,54 @@
-import { Box, Button, Chip, LinearProgress, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Chip, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 
 const LABELS = { easy: "Easy", medium: "Medium", hard: "Hard" };
+const DIFFICULTY_COLOR = { easy: "success.main", medium: "warning.main", hard: "error.main" };
+
+function GoalRing({ value, credited, target, compact = false }) {
+  const size = compact ? 58 : 78;
+  const thickness = compact ? 5 : 4.5;
+
+  return (
+    <Box
+      role="img"
+      aria-label={`Goal coverage ${credited} of ${target}`}
+      sx={{ position: "relative", width: size, height: size, flexShrink: 0 }}
+    >
+      <CircularProgress
+        variant="determinate"
+        value={100}
+        size={size}
+        thickness={thickness}
+        sx={{ position: "absolute", inset: 0, color: "#26364a" }}
+      />
+      <CircularProgress
+        variant="determinate"
+        value={value}
+        size={size}
+        thickness={thickness}
+        sx={{
+          position: "absolute",
+          inset: 0,
+          color: "#70cde3",
+          "& .MuiCircularProgress-circle": {
+            strokeLinecap: "round",
+            transition: "stroke-dashoffset 600ms ease",
+          },
+          "@media (prefers-reduced-motion: reduce)": {
+            "& .MuiCircularProgress-circle": { transition: "none" },
+          },
+        }}
+      />
+      <Stack sx={{ position: "absolute", inset: 0 }} alignItems="center" justifyContent="center" spacing={0}>
+        <Typography sx={{ fontSize: compact ? 12 : 16, lineHeight: 1.05, fontWeight: 800, fontFamily: "ui-monospace, monospace" }}>
+          {credited}
+        </Typography>
+        <Typography sx={{ fontSize: compact ? 8 : 9, lineHeight: 1.1, color: "text.secondary" }}>
+          / {target}
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
 
 export function GoalCoverage({ goal, compact = false }) {
   if (!goal) return null;
@@ -20,44 +68,50 @@ export function GoalCoverage({ goal, compact = false }) {
   const exceeded = goal.deficit === 0 && totalKnown > goal.target;
   const buckets = Object.entries(difficulty).filter(([, value]) => value.target > 0);
 
-  return (
-    <Stack spacing={0.8}>
-      <Stack direction="row" justifyContent="space-between" gap={1} alignItems="center">
-        <Typography variant="caption" color="text.secondary">Goal coverage</Typography>
-        <Typography variant="caption" sx={{ fontFamily: "ui-monospace, monospace", color: "#70cde3" }}>
-          {goal.credited} / {goal.target}
-        </Typography>
+  if (compact) {
+    return (
+      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+        <GoalRing value={coverage} credited={goal.credited} target={goal.target} compact />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Target progress</Typography>
+          <Typography variant="caption" sx={{ display: "block", color: goal.deficit > 0 ? "text.primary" : "info.main", fontWeight: 700 }}>
+            {goal.deficit > 0 ? `${goal.deficit} remaining` : (exceeded ? "Target exceeded" : "Target met")}
+          </Typography>
+        </Box>
       </Stack>
-      <LinearProgress
-        variant="determinate"
-        value={coverage}
-        aria-label={`Goal coverage ${goal.credited} of ${goal.target}`}
-        sx={{
-          height: compact ? 4 : 6,
-          borderRadius: 4,
-          bgcolor: "#202d3d",
-          "& .MuiLinearProgress-bar": { bgcolor: "#70cde3", borderRadius: 4 },
-        }}
-      />
-      <Stack direction="row" gap={0.75} flexWrap="wrap" alignItems="center">
-        {(compact ? gaps : buckets).map(([bucket, value]) => {
-          const above = value.actual > value.target;
-          return (
-            <Typography key={bucket} variant="caption" color={value.deficit > 0 ? "text.secondary" : "info.main"}>
-              {LABELS[bucket]} {value.actual}/{value.target}{above ? " · Above target" : ""}
+    );
+  }
+
+  return (
+    <Stack direction="row" spacing={2} alignItems="center">
+      <GoalRing value={coverage} credited={goal.credited} target={goal.target} />
+      <Stack spacing={0.75} sx={{ minWidth: 0 }}>
+        <Box>
+          <Typography variant="caption" color="text.secondary">Target progress</Typography>
+          <Typography variant="body2" fontWeight={700}>
+            {goal.deficit > 0 ? `${goal.deficit} problems remaining` : (exceeded ? "Target exceeded" : "Target met")}
+          </Typography>
+        </Box>
+        <Stack direction="row" gap={1.25} flexWrap="wrap" alignItems="center">
+          {buckets.map(([bucket, value]) => {
+            const above = value.actual > value.target;
+            return (
+              <Typography key={bucket} variant="caption" sx={{ color: value.deficit > 0 ? "text.secondary" : DIFFICULTY_COLOR[bucket] }}>
+                {LABELS[bucket]} {value.actual}/{value.target}{above ? " · Above target" : ""}
+              </Typography>
+            );
+          })}
+          {!gaps.length && (
+            <Typography variant="caption" sx={{ color: "info.main" }}>
+              {exceeded ? "Target exceeded" : "All difficulty targets met"}
             </Typography>
-          );
-        })}
-        {!gaps.length && (
-          <Typography variant="caption" sx={{ color: "info.main" }}>
-            {exceeded ? "Target exceeded" : "Target met"}
-          </Typography>
-        )}
-        {(goal.unknownDifficulty ?? goal.actual?.unknown ?? 0) > 0 && !compact && (
-          <Typography variant="caption" color="text.secondary">
-            · {goal.unknownDifficulty ?? goal.actual.unknown} with unknown difficulty
-          </Typography>
-        )}
+          )}
+          {(goal.unknownDifficulty ?? goal.actual?.unknown ?? 0) > 0 && (
+            <Typography variant="caption" color="text.secondary">
+              · {goal.unknownDifficulty ?? goal.actual.unknown} with unknown difficulty
+            </Typography>
+          )}
+        </Stack>
       </Stack>
     </Stack>
   );

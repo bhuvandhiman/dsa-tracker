@@ -16,6 +16,23 @@ test('practice strength preserves history, deduplicates imports and replays corr
   await migrate(pool);const repo=createRepository(pool);
   const p=(await repo.createProblem(problemInput({url:'https://leetcode.com/problems/coin-change/',title:'My Coin Change',patternSlugs:['dynamic-programming']}))).problem;
   await repo.importHistory([p.id]);
+  await repo.setGoal({profile:'interview',target:300});
+  const beforeSql=await repo.retention();
+  const sql=(await repo.createProblem(problemInput({
+    url:'https://leetcode.com/problems/employees-earning-more-than-their-managers/',
+    title:'Employees Earning More Than Their Managers',
+    difficulty:'easy',
+    patternSlugs:['database'],
+  }))).problem;
+  await repo.importHistory([sql.id]);
+  const afterSql=await repo.retention();
+  assert.equal(afterSql.excluded.database,1);
+  assert.equal(afterSql.excluded.total,1);
+  assert.equal(afterSql.categories.find(category=>category.slug==='other').count,0);
+  assert.equal(afterSql.goal.actual,beforeSql.goal.actual);
+  assert.equal(afterSql.goal.credited,beforeSql.goal.credited);
+  assert.equal((await repo.library({q:'',category:'other',status:'done',limit:20,offset:0})).total,0);
+  assert.equal((await repo.listProblems({limit:20,offset:0})).some(problem=>problem.id===sql.id),true);
   const attempt=attemptInput({requestId:randomUUID(),problemId:p.id,assistance:'solution',patternSlugs:['dynamic-programming'],notes:'Keep original note',attemptedAt:'2026-01-01T12:00:00.000Z'});
   await repo.createAttempt(attempt);
   const installationId=randomUUID();
@@ -36,14 +53,14 @@ test('practice strength preserves history, deduplicates imports and replays corr
   await repo.setPlacement(p.id,null);
   await repo.removeAttempt(attempt.requestId,2);
   assert.equal((await repo.problemHistory(p.id,{limit:20,offset:0})).attempts[0].imported,true);
-  await repo.importRecent(recentInput({...raw,installationId:randomUUID()}));assert.equal((await repo.summary()).uniqueProblems,1);
+  await repo.importRecent(recentInput({...raw,installationId:randomUUID()}));assert.equal((await repo.summary()).uniqueProblems,2);
   await assert.rejects(repo.importRecent(recentInput({...raw,username:'bob'})),{status:409});
   await repo.setPlacement(p.id,'dynamic-programming-general');assert.equal((await getUnit('knapsack-unbounded')).assessed,false);assert.equal((await getUnit('dynamic-programming-general')).assessed,true);
   assert.equal((await repo.library({q:'',category:'dynamic-programming-general',status:'done',limit:20,offset:0})).total,1);
   await repo.updateProblem(p.id,{...problemInput({url:p.url,title:p.title,patternSlugs:['dynamic-programming'],placement:'dynamic-programming-general'})});
   assert.equal((await getUnit('dynamic-programming-general')).assessed,true);
   await repo.setPlacement(p.id,null);assert.equal((await getUnit('knapsack-unbounded')).assessed,true);
-  await repo.importRecent(recentInput({installationId:randomUUID(),username:'alice',submissions:[{...raw.submissions[0],submissionId:'456',url:'https://leetcode.com/problems/target-sum/',title:'Target Sum'}]}));assert.equal((await repo.summary()).uniqueProblems,2);
+  await repo.importRecent(recentInput({installationId:randomUUID(),username:'alice',submissions:[{...raw.submissions[0],submissionId:'456',url:'https://leetcode.com/problems/target-sum/',title:'Target Sum'}]}));assert.equal((await repo.summary()).uniqueProblems,3);
   server=createApp({repository:repo}).listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
   const origin='http://127.0.0.1:'+server.address().port+'/api';
   assert.equal((await fetch(origin+'/retention')).status,200);

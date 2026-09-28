@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildGoalMatrix, goalCoverage } from '../apps/api/src/goal-policy.js';
+import { applyGoalOrdering, buildGoalMatrix, goalCoverage } from '../apps/api/src/goal-policy.js';
 
 const solved = (id, category, subpattern, difficulty) => ({
   id,
@@ -103,4 +103,65 @@ test('re-solves cannot inflate goal coverage once solved identities are deduplic
   const unit = result.categories.find(category => category.slug === 'dynamic-programming').units.find(value => value.slug === 'dp-1d');
   assert.equal(unit.actual.medium, 1);
   assert.equal(unit.credited, 1);
+});
+
+test('configured goals reorder categories and subpatterns by remaining profile-specific deficit without changing practice priority', () => {
+  const retention = [
+    {
+      slug: 'arrays-hashing', name: 'Arrays & Hashing', priority: 40, order: 0,
+      children: [
+        { slug: 'hashing', priority: 35, order: 0 },
+        { slug: 'prefix-sum', priority: 70, order: 1 },
+        { slug: 'arrays-hashing-general', priority: 20, order: 2 },
+      ],
+    },
+    {
+      slug: 'dynamic-programming', name: 'Dynamic Programming', priority: 55, order: 11,
+      children: [
+        { slug: 'dp-1d', priority: 50, order: 0 },
+        { slug: 'dp-2d', priority: 60, order: 1 },
+        { slug: 'knapsack-01', priority: 30, order: 2 },
+        { slug: 'knapsack-unbounded', priority: 30, order: 3 },
+        { slug: 'sequence-dp', priority: 45, order: 4 },
+        { slug: 'interval-dp', priority: 80, order: 5 },
+        { slug: 'state-machine-dp', priority: 75, order: 6 },
+        { slug: 'multidimensional-dp', priority: 85, order: 7 },
+        { slug: 'dynamic-programming-general', priority: 25, order: 8 },
+      ],
+    },
+    { slug: 'other', name: 'Needs classification', priority: null, order: 99, children: [] },
+  ];
+  const problems = [
+    ...Array.from({ length: 12 }, (_, index) => solved(index + 1, 'arrays-hashing', 'hashing', 'easy')),
+    ...Array.from({ length: 10 }, (_, index) => solved(index + 100, 'dynamic-programming', 'dp-1d', 'medium')),
+  ];
+  const interview = applyGoalOrdering(retention, goalCoverage(problems, { profile: 'interview', target: 300 }));
+  const deep = applyGoalOrdering(retention, goalCoverage(problems, { profile: 'deep', target: 300 }));
+
+  assert.deepEqual(interview.slice(0, 2).map(category => category.slug), ['arrays-hashing', 'dynamic-programming']);
+  assert.deepEqual(deep.slice(0, 2).map(category => category.slug), ['dynamic-programming', 'arrays-hashing']);
+  assert.equal(interview.at(-1).slug, 'other');
+  assert.equal(deep.at(-1).slug, 'other');
+  assert.notDeepEqual(interview.slice(0, 2).map(category => category.dashboardPriority), deep.slice(0, 2).map(category => category.dashboardPriority));
+  assert.deepEqual(
+    interview.flatMap(category => category.children).map(unit => [unit.slug, unit.priority]).sort(),
+    deep.flatMap(category => category.children).map(unit => [unit.slug, unit.priority]).sort(),
+  );
+  const dp = deep.find(category => category.slug === 'dynamic-programming');
+  assert.ok(dp.children[0].goal.deficit >= dp.children[1].goal.deficit);
+});
+
+test('goal ordering uses practice weakness only as a tie-breaker', () => {
+  const goal = {
+    categories: [
+      { slug: 'arrays-hashing', deficit: 8, units: [] },
+      { slug: 'graphs', deficit: 8, units: [] },
+    ],
+  };
+  const ordered = applyGoalOrdering([
+    { slug: 'arrays-hashing', priority: 20, order: 0, children: [] },
+    { slug: 'graphs', priority: 60, order: 10, children: [] },
+  ], goal);
+  assert.equal(ordered[0].slug, 'graphs');
+  assert.equal(ordered[0].priority, 60);
 });

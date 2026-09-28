@@ -15,6 +15,8 @@ Search matches category and subpattern names without altering server ordering. C
 
 Bars are Practice strength, not mastery. Every row has a bar. Legacy-only evidence uses pattern-normalized distinct-problem coverage and is labeled “Previous solves count · dates unavailable”; dated practice adds repeat-work and recency evidence. Each indicator uses one subpattern. No XP, achievements, streaks, global counters, recommendations, or study schedules are introduced. All motion respects reduced-motion preferences.
 
+Goal Coverage is visually separate from Practice Strength: it uses a compact circular target-progress ring with credited/target counts, plus explicit Easy/Medium/Hard target counts in expanded views. Practice Strength remains the only long horizontal progress bar.
+
 ## Maintenance
 
 Global MUI tokens live in apps/web/src/theme.js. PatternCard and PracticeStrength are reusable components; Overview owns selection, filtering, polling and detail navigation. AttemptEditor is loaded on demand. Extension popup, Settings and isolated capture panel share the same palette, with capture behavior unchanged.
