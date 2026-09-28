@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {candidateUnits, classifyProblem, patternInventory, categories} from '../apps/api/src/pattern-catalog.js';
+import {mapTopics} from '../apps/api/src/platforms/leetcode-topics.js';
 const problem = (externalId, patternSlugs=[]) => ({platform:'leetcode',externalId,patternSlugs});
 test('primary patterns override broad provider tags without changing them',()=>{
   const input=problem('3sum',['arrays-hashing','sorting','two-pointers']);
@@ -10,6 +11,32 @@ test('primary patterns override broad provider tags without changing them',()=>{
   assert.equal(classifyProblem(problem('coin-change',['arrays-hashing','dynamic-programming'])).subpattern,'knapsack-unbounded');
   assert.equal(classifyProblem(problem('minimum-genetic-mutation',['graphs'])).subpattern,'graph-bfs');
   assert.equal(classifyProblem(problem('number-of-islands',['matrix','graphs'])).subpattern,'graph-dfs');
+  const interval=problem('minimum-number-of-arrows-to-burst-balloons',['arrays-hashing','greedy','sorting']);
+  assert.equal(classifyProblem(interval).category,'intervals');
+  assert.deepEqual(interval.patternSlugs,['arrays-hashing','greedy','sorting']);
+  assert.equal(candidateUnits(interval)[0].source,'curated');
+  assert.equal(classifyProblem(problem('range-module',['ordered-set','segment-tree'])).category,'intervals');
+});
+test('derived Recall families use reviewed exact identities instead of broad-topic guesses',()=>{
+  assert.equal(classifyProblem(problem('minimum-cost-to-merge-stones',['dynamic-programming'])).subpattern,'interval-dp');
+  assert.equal(classifyProblem(problem('shortest-common-supersequence',['dynamic-programming','strings'])).subpattern,'sequence-dp');
+  assert.equal(classifyProblem(problem('minimum-cost-for-tickets',['arrays-hashing','dynamic-programming'])).subpattern,'dp-1d');
+  assert.equal(classifyProblem(problem('paint-house-iii',['dynamic-programming'])).subpattern,'multidimensional-dp');
+  assert.equal(classifyProblem(problem('unknown-dp',['dynamic-programming'])).subpattern,null);
+});
+test('specific LeetCode provider topics remain specific and compose traversal families only when supported',()=>{
+  assert.deepEqual(mapTopics(['Tree','Breadth-First Search']),['breadth-first-search','trees']);
+  assert.equal(classifyProblem(problem('new-tree-bfs',mapTopics(['Tree','Breadth-First Search']))).subpattern,'tree-bfs');
+  assert.equal(classifyProblem(problem('new-graph-dfs',mapTopics(['Graph','Depth-First Search']))).subpattern,'graph-dfs');
+  assert.equal(classifyProblem(problem('new-bst',mapTopics(['Tree','Binary Search Tree']))).subpattern,'bst');
+  assert.equal(classifyProblem(problem('new-segment-tree',mapTopics(['Array','Segment Tree']))).subpattern,'segment-tree');
+  assert.equal(classifyProblem(problem('new-fenwick',mapTopics(['Array','Binary Indexed Tree']))).subpattern,'fenwick-tree');
+  assert.equal(classifyProblem(problem('new-topo',mapTopics(['Graph','Topological Sort']))).subpattern,'topological-sort');
+  assert.equal(classifyProblem(problem('new-shortest',mapTopics(['Graph','Shortest Path']))).subpattern,'shortest-path');
+  assert.equal(classifyProblem(problem('new-mst',mapTopics(['Graph','Minimum Spanning Tree']))).subpattern,'mst');
+  const ambiguous=candidateUnits(problem('new-tree-traversal',mapTopics(['Tree','Depth-First Search','Breadth-First Search'])));
+  assert.equal(ambiguous[0].unit,'trees-general');
+  assert.deepEqual(ambiguous.slice(1,3).map(value=>value.unit),['tree-dfs','tree-bfs']);
 });
 test('fallback is deterministic and never invents a graph or DP subtype',()=>{
   assert.equal(classifyProblem(problem('unknown',['arrays-hashing','sliding-window'])).category,'sliding-window');

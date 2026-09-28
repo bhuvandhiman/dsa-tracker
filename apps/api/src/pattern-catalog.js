@@ -35,8 +35,8 @@ group('sliding-window',null,'longest-substring-without-repeating-characters long
 group('stack','monotonic-stack','daily-temperatures largest-rectangle-in-histogram next-greater-element-i next-greater-element-ii car-fleet');
 group('stack',null,'valid-parentheses min-stack evaluate-reverse-polish-notation');
 group('binary-search',null,'binary-search search-in-rotated-sorted-array find-minimum-in-rotated-sorted-array koko-eating-bananas median-of-two-sorted-arrays search-a-2d-matrix');
-group('trees','tree-dfs','maximum-depth-of-binary-tree diameter-of-binary-tree balanced-binary-tree same-tree invert-binary-tree subtree-of-another-tree binary-tree-maximum-path-sum');
-group('trees','tree-bfs','binary-tree-level-order-traversal binary-tree-right-side-view');
+group('trees','tree-dfs','maximum-depth-of-binary-tree diameter-of-binary-tree balanced-binary-tree same-tree invert-binary-tree subtree-of-another-tree binary-tree-maximum-path-sum path-sum path-sum-ii path-sum-iii binary-tree-paths sum-root-to-leaf-numbers lowest-common-ancestor-of-a-binary-tree count-good-nodes-in-binary-tree leaf-similar-trees longest-zigzag-path-in-a-binary-tree');
+group('trees','tree-bfs','binary-tree-level-order-traversal binary-tree-level-order-traversal-ii binary-tree-zigzag-level-order-traversal binary-tree-right-side-view average-of-levels-in-binary-tree minimum-depth-of-binary-tree maximum-level-sum-of-a-binary-tree populating-next-right-pointers-in-each-node populating-next-right-pointers-in-each-node-ii');
 group('trees','bst','validate-binary-search-tree kth-smallest-element-in-a-bst lowest-common-ancestor-of-a-binary-search-tree');
 group('graphs','graph-bfs','minimum-genetic-mutation word-ladder rotting-oranges shortest-path-in-binary-matrix open-the-lock');
 group('graphs','graph-dfs','number-of-islands max-area-of-island clone-graph pacific-atlantic-water-flow surrounded-regions');
@@ -44,24 +44,25 @@ group('graphs','topological-sort','course-schedule course-schedule-ii alien-dict
 group('graphs','union-find','redundant-connection number-of-connected-components-in-an-undirected-graph graph-valid-tree');
 group('advanced-graphs','shortest-path','network-delay-time cheapest-flights-within-k-stops swim-in-rising-water');
 group('advanced-graphs','mst','min-cost-to-connect-all-points');
-group('dynamic-programming','dp-1d','climbing-stairs min-cost-climbing-stairs house-robber house-robber-ii decode-ways word-break maximum-product-subarray');
-group('dynamic-programming','dp-2d','unique-paths unique-paths-ii minimum-path-sum triangle dungeon-game');
+group('dynamic-programming','dp-1d','climbing-stairs min-cost-climbing-stairs house-robber house-robber-ii decode-ways word-break maximum-product-subarray fibonacci-number delete-and-earn integer-break arithmetic-slices domino-and-tromino-tiling minimum-cost-for-tickets count-ways-to-build-good-strings solving-questions-with-brainpower');
+group('dynamic-programming','dp-2d','unique-paths unique-paths-ii minimum-path-sum triangle dungeon-game minimum-falling-path-sum minimum-falling-path-sum-ii maximal-square count-square-submatrices-with-all-ones');
 group('dynamic-programming','knapsack-unbounded','coin-change coin-change-ii combination-sum-iv perfect-squares');
 group('dynamic-programming','knapsack-01','partition-equal-subset-sum target-sum last-stone-weight-ii ones-and-zeroes');
 group('trees','segment-tree','range-sum-query-mutable');
-group('dynamic-programming','sequence-dp','longest-increasing-subsequence longest-common-subsequence edit-distance distinct-subsequences interleaving-string longest-palindromic-subsequence');
-group('dynamic-programming','interval-dp','burst-balloons minimum-cost-to-cut-a-stick');
-group('intervals',null,'merge-intervals insert-interval non-overlapping-intervals meeting-rooms meeting-rooms-ii minimum-interval-to-include-each-query');
+group('dynamic-programming','sequence-dp','longest-increasing-subsequence longest-common-subsequence edit-distance distinct-subsequences interleaving-string longest-palindromic-subsequence wildcard-matching regular-expression-matching delete-operation-for-two-strings shortest-common-supersequence minimum-ascii-delete-sum-for-two-strings uncrossed-lines maximum-length-of-repeated-subarray number-of-longest-increasing-subsequence russian-doll-envelopes longest-string-chain');
+group('dynamic-programming','interval-dp','burst-balloons minimum-cost-to-cut-a-stick minimum-cost-to-merge-stones strange-printer guess-number-higher-or-lower-ii minimum-score-triangulation-of-polygon remove-boxes predict-the-winner stone-game stone-game-vii');
+// LeetCode has no Interval topic tag. These exact problem identities are the
+// reviewed derived family; broad Array/Sorting/Greedy tags stay as candidates
+// but cannot displace the interval placement.
+group('intervals',null,'merge-intervals insert-interval non-overlapping-intervals meeting-rooms meeting-rooms-ii minimum-number-of-arrows-to-burst-balloons interval-list-intersections minimum-interval-to-include-each-query find-right-interval remove-covered-intervals my-calendar-i my-calendar-ii my-calendar-iii employee-free-time remove-interval range-module divide-intervals-into-minimum-number-of-groups data-stream-as-disjoint-intervals meeting-scheduler');
 group('greedy',null,'jump-game jump-game-ii gas-station hand-of-straights merge-triplets-to-form-target-triplet partition-labels valid-parenthesis-string maximum-subarray');
 group('heap',null,'top-k-frequent-elements kth-largest-element-in-an-array kth-largest-element-in-a-stream last-stone-weight k-closest-points-to-origin find-median-from-data-stream task-scheduler');
 group('backtracking',null,'subsets subsets-ii permutations combination-sum combination-sum-ii palindrome-partitioning word-search n-queens');
 group('sliding-window',null,'best-time-to-buy-and-sell-stock');
 group('greedy',null,'best-time-to-buy-and-sell-stock-ii minimum-time-to-make-rope-colorful');
-group('dynamic-programming','dp-1d','fibonacci-number delete-and-earn');
-group('dynamic-programming','dp-2d','pascals-triangle minimum-falling-path-sum maximal-square count-square-submatrices-with-all-ones');
-group('dynamic-programming','sequence-dp','wildcard-matching regular-expression-matching delete-operation-for-two-strings');
-group('dynamic-programming','state-machine-dp','best-time-to-buy-and-sell-stock-with-transaction-fee best-time-to-buy-and-sell-stock-with-cooldown best-time-to-buy-and-sell-stock-iii best-time-to-buy-and-sell-stock-iv');
-group('dynamic-programming','multidimensional-dp','cherry-pickup cherry-pickup-ii out-of-boundary-paths');
+group('dynamic-programming','dp-2d','pascals-triangle');
+group('dynamic-programming','state-machine-dp','best-time-to-buy-and-sell-stock-with-transaction-fee best-time-to-buy-and-sell-stock-with-cooldown best-time-to-buy-and-sell-stock-iii best-time-to-buy-and-sell-stock-iv minimum-swaps-to-make-sequences-increasing count-vowels-permutation knight-dialer student-attendance-record-ii');
+group('dynamic-programming','multidimensional-dp','cherry-pickup cherry-pickup-ii out-of-boundary-paths profitable-schemes paint-house-iii paths-in-matrix-whose-sum-is-divisible-by-k');
 group('graphs','graph-dfs','number-of-enclaves keys-and-rooms flood-fill find-if-path-exists-in-graph all-paths-from-source-to-target');
 group('graphs','graph-bfs','is-graph-bipartite 01-matrix');
 group('graphs','union-find','number-of-provinces most-stones-removed-with-same-row-or-column');
@@ -70,10 +71,16 @@ group('advanced-graphs','shortest-path','path-with-minimum-effort');
 // Provider topics describe possible approaches, not the approach a learner used.
 // Keep every supported browsing candidate for correction, then choose one stable
 // default. Specific technique tags precede broad Array and Math families.
-const fallbackPriority = ['trie','linked-list','trees','union-find','graphs','sliding-window','two-pointers','monotonic-stack','intervals','binary-search','heap','backtracking','dynamic-programming','greedy','stack','prefix-sum','bit-manipulation','arrays-hashing','math'];
+const fallbackPriority = ['trie','linked-list','binary-search-tree','segment-tree','binary-indexed-tree','topological-sort','shortest-path','minimum-spanning-tree','union-find','trees','graphs','sliding-window','two-pointers','monotonic-stack','intervals','binary-search','heap','backtracking','dynamic-programming','greedy','stack','prefix-sum','bit-manipulation','arrays-hashing','math'];
 const topicPlacements = {
   'trie': {category:'trie',subpattern:null},
   'linked-list': {category:'linked-list',subpattern:null},
+  'binary-search-tree': {category:'trees',subpattern:'bst'},
+  'segment-tree': {category:'trees',subpattern:'segment-tree'},
+  'binary-indexed-tree': {category:'trees',subpattern:'fenwick-tree'},
+  'topological-sort': {category:'graphs',subpattern:'topological-sort'},
+  'shortest-path': {category:'graphs',subpattern:'shortest-path'},
+  'minimum-spanning-tree': {category:'graphs',subpattern:'mst'},
   'trees': {category:'trees',subpattern:null},
   'union-find': {category:'graphs',subpattern:'union-find'},
   'graphs': {category:'graphs',subpattern:null},
@@ -119,6 +126,21 @@ export function candidateUnits(problem) {
   const exact=problem.platform==='leetcode'&&known[problem.externalId];
   if(exact) add(exact,'curated');
   const tags=new Set(problem.patternSlugs||[]);
+  const addTraversalFamily=(family,dfsPlacement,bfsPlacement)=>{
+    if(!tags.has(family)) return;
+    const hasDfs=tags.has('depth-first-search');
+    const hasBfs=tags.has('breadth-first-search');
+    if(hasDfs&&hasBfs) {
+      add(topicPlacements[family],'topic');
+      add(dfsPlacement,'topic-combination');
+      add(bfsPlacement,'topic-combination');
+      return;
+    }
+    if(hasDfs) add(dfsPlacement,'topic-combination');
+    if(hasBfs) add(bfsPlacement,'topic-combination');
+  };
+  addTraversalFamily('trees',{category:'trees',subpattern:'tree-dfs'},{category:'trees',subpattern:'tree-bfs'});
+  addTraversalFamily('graphs',{category:'graphs',subpattern:'graph-dfs'},{category:'graphs',subpattern:'graph-bfs'});
   for(const tag of fallbackPriority) if(tags.has(tag)) add(topicPlacements[tag],'topic');
   // These provider topics share the broad arrays placement and are deliberately
   // added after named algorithmic patterns.
