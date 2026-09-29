@@ -5,6 +5,7 @@ import {
   Button,
   ButtonBase,
   Chip,
+  Collapse,
   Paper,
   Skeleton,
   Snackbar,
@@ -39,7 +40,7 @@ function DesktopShell({ children, patternSidebar, goalSidebar }) {
           bgcolor: "#0b1118",
         }}
       >
-        <Box sx={{ position: "sticky", top: 72, maxHeight: "calc(100vh - 72px)", overflowY: "auto", p: 2.5 }}>
+        <Box sx={{ position: "sticky", top: 16, maxHeight: "calc(100vh - 32px)", overflowY: "auto", p: 2.5 }}>
           {patternSidebar}
         </Box>
       </Box>
@@ -56,7 +57,7 @@ function DesktopShell({ children, patternSidebar, goalSidebar }) {
           bgcolor: "#0b1118",
         }}
       >
-        <Box sx={{ position: "sticky", top: 72, maxHeight: "calc(100vh - 72px)", overflowY: "auto", p: 2.5 }}>
+        <Box sx={{ position: "sticky", top: 16, maxHeight: "calc(100vh - 32px)", overflowY: "auto", p: 2.5 }}>
           {goalSidebar}
         </Box>
       </Box>
@@ -173,26 +174,57 @@ export default function Overview({ version, query, setQuery }) {
       <Stack spacing={0.25}>
         {sidebarGroups.map((category) => {
           const active = category.slug === selected;
+          const hasSubpatterns = category.children.length > 1;
           return (
-            <ButtonBase
-              key={category.slug}
-              onClick={() => selectPattern(category.slug)}
-              sx={{
-                width: "100%",
-                justifyContent: "flex-start",
-                textAlign: "left",
-                px: 1,
-                py: 0.85,
-                borderRadius: 1.5,
-                color: active ? "primary.main" : "text.secondary",
-                bgcolor: active ? "#15233a" : "transparent",
-                "&:hover": { bgcolor: active ? "#15233a" : "#141c27", color: "text.primary" },
-              }}
-            >
-              <Typography variant="body2" fontWeight={active ? 700 : 500} noWrap>
-                {category.slug === "other" ? "Other" : category.name}
-              </Typography>
-            </ButtonBase>
+            <Box key={category.slug}>
+              <ButtonBase
+                onClick={() => selectPattern(category.slug)}
+                sx={{
+                  width: "100%",
+                  justifyContent: "flex-start",
+                  textAlign: "left",
+                  px: 1,
+                  py: 0.85,
+                  borderRadius: 1.5,
+                  color: active ? "primary.main" : "text.secondary",
+                  bgcolor: active ? "#15233a" : "transparent",
+                  "&:hover": { bgcolor: active ? "#15233a" : "#141c27", color: "text.primary" },
+                }}
+              >
+                <Typography variant="body2" fontWeight={active ? 700 : 500} noWrap>
+                  {category.slug === "other" ? "Other" : category.name}
+                </Typography>
+              </ButtonBase>
+
+              <Collapse in={active && hasSubpatterns} timeout={180} unmountOnExit>
+                <Stack spacing={0.1} sx={{ mt: 0.35, mb: 0.6, pl: 1.25, borderLeft: 1, borderColor: "divider" }}>
+                  {category.children.map((unit) => {
+                    const unitActive = unit.slug === selectedUnit;
+                    return (
+                      <ButtonBase
+                        key={unit.slug}
+                        onClick={() => setSelectedUnit(unit.slug)}
+                        sx={{
+                          width: "100%",
+                          justifyContent: "flex-start",
+                          textAlign: "left",
+                          px: 1,
+                          py: 0.55,
+                          borderRadius: 1,
+                          color: unitActive ? "primary.main" : "text.secondary",
+                          bgcolor: unitActive ? "rgba(91, 140, 255, 0.08)" : "transparent",
+                          "&:hover": { bgcolor: "#141c27", color: "text.primary" },
+                        }}
+                      >
+                        <Typography variant="caption" fontWeight={unitActive ? 700 : 500} noWrap>
+                          {unit.name}
+                        </Typography>
+                      </ButtonBase>
+                    );
+                  })}
+                </Stack>
+              </Collapse>
+            </Box>
           );
         })}
       </Stack>

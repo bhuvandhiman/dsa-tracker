@@ -40,9 +40,6 @@ export default function App() {
           alignItems: "center",
           justifyContent: "space-between",
           gap: 2,
-          position: "sticky",
-          top: 0,
-          zIndex: (theme) => theme.zIndex.appBar,
           bgcolor: "background.default",
         }}
       >
