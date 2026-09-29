@@ -5,13 +5,10 @@ import {
   Button,
   ButtonBase,
   Chip,
-  IconButton,
-  InputAdornment,
   Paper,
   Skeleton,
   Snackbar,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import { requestJson } from "./api.js";
@@ -42,7 +39,7 @@ function DesktopShell({ children, patternSidebar, goalSidebar }) {
           bgcolor: "#0b1118",
         }}
       >
-        <Box sx={{ position: "sticky", top: 0, maxHeight: "100vh", overflowY: "auto", p: 2.5 }}>
+        <Box sx={{ position: "sticky", top: 72, maxHeight: "calc(100vh - 72px)", overflowY: "auto", p: 2.5 }}>
           {patternSidebar}
         </Box>
       </Box>
@@ -59,7 +56,7 @@ function DesktopShell({ children, patternSidebar, goalSidebar }) {
           bgcolor: "#0b1118",
         }}
       >
-        <Box sx={{ position: "sticky", top: 0, maxHeight: "100vh", overflowY: "auto", p: 2.5 }}>
+        <Box sx={{ position: "sticky", top: 72, maxHeight: "calc(100vh - 72px)", overflowY: "auto", p: 2.5 }}>
           {goalSidebar}
         </Box>
       </Box>
@@ -67,18 +64,16 @@ function DesktopShell({ children, patternSidebar, goalSidebar }) {
   );
 }
 
-export default function Overview({ version }) {
+export default function Overview({ version, query, setQuery }) {
   const [result, setResult] = useState(null);
   const [retry, setRetry] = useState(0);
   const [selected, setSelected] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState(null);
-  const [query, setQuery] = useState("");
   const [notice, setNotice] = useState(false);
   const [goalDraft, setGoalDraft] = useState(null);
   const [goalSaving, setGoalSaving] = useState(false);
   const [goalError, setGoalError] = useState("");
   const [editingGoal, setEditingGoal] = useState(false);
-  const searchRef = useRef(null);
   const titleRef = useRef(null);
 
   useEffect(() => {
@@ -96,17 +91,6 @@ export default function Overview({ version }) {
   useEffect(() => {
     const timer = setInterval(() => setRetry((value) => value + 1), 60000);
     return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    function focusSearch(event) {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    }
-    window.addEventListener("keydown", focusSearch);
-    return () => window.removeEventListener("keydown", focusSearch);
   }, []);
 
   useEffect(() => {
@@ -138,6 +122,9 @@ export default function Overview({ version }) {
 
   const groups = result.data.categories;
   const visibleGroups = groups.filter((category) => category.slug !== "other" || category.count > 0);
+  const sidebarGroups = [...visibleGroups].sort(
+    (a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER),
+  );
   const priorityHighlights = visibleGroups.slice(0, 2);
   const highlightedSlugs = new Set(priorityHighlights.map((category) => category.slug));
   const panel = groups.find((category) => category.slug === selected);
@@ -184,7 +171,7 @@ export default function Overview({ version }) {
         PATTERNS
       </Typography>
       <Stack spacing={0.25}>
-        {visibleGroups.map((category) => {
+        {sidebarGroups.map((category) => {
           const active = category.slug === selected;
           return (
             <ButtonBase
@@ -203,7 +190,7 @@ export default function Overview({ version }) {
               }}
             >
               <Typography variant="body2" fontWeight={active ? 700 : 500} noWrap>
-                {category.name}
+                {category.slug === "other" ? "Other" : category.name}
               </Typography>
             </ButtonBase>
           );
@@ -318,31 +305,10 @@ export default function Overview({ version }) {
   return (
     <DesktopShell patternSidebar={patternSidebar} goalSidebar={goalSidebar}>
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
-        <Box>
-          <Typography variant="overline" color="primary">BUILD. PRACTICE. RECALL.</Typography>
-          <Typography component="h1" variant="h4" sx={{ fontSize: { xs: 28, md: 36 }, mt: 0.5 }}>Your practice arena</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Each bar uses the problems you have solved, repeat practice, and recency when dates are available.
-          </Typography>
-          {result.data.excluded?.database > 0 && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
-              {result.data.excluded.database} SQL {result.data.excluded.database === 1 ? "problem is" : "problems are"} stored from LeetCode and excluded from DSA tracking.
-            </Typography>
-          )}
-        </Box>
-        <IconButton aria-label="Refresh practice strength" onClick={() => setRetry((value) => value + 1)} sx={{ display: { xs: "none", sm: "inline-flex" }, border: 1, borderColor: "divider" }}>
-          <ArcadeIcon name="refresh" />
-        </IconButton>
-      </Stack>
-
       <Box sx={{ display: { xs: "block", xl: "none" }, mb: 3 }}>{goalSidebar}</Box>
 
       {priorityHighlights.length > 0 && (
         <Box sx={{ mb: 4 }}>
-          <Typography variant="overline" color="primary" sx={{ display: "block", mb: 1.25 }}>
-            TOP PRIORITIES
-          </Typography>
           <Stack spacing={1.75} sx={{ mx: { xs: 0, md: -2 } }}>
             {priorityHighlights.map((category, index) => (
               <PatternCard
@@ -356,26 +322,6 @@ export default function Overview({ version }) {
           </Stack>
         </Box>
       )}
-
-      <Stack direction={{ xs: "column", sm: "row" }} gap={2} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} sx={{ mb: 2 }}>
-        <Box>
-          <Typography component="h2" variant="h6">Pattern map</Typography>
-          <Typography variant="caption" color="text.secondary">
-            {result.data.goal.configured
-              ? `Ordered by ${result.data.goal.profileName} goal need, adjusted by Practice Strength.`
-              : "Ordered from weakest foundation upward."}
-          </Typography>
-        </Box>
-        <TextField
-          inputRef={searchRef}
-          size="small"
-          placeholder="Search patterns…"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          slotProps={{ htmlInput: { "aria-label": "Search patterns" }, input: { startAdornment: <InputAdornment position="start"><ArcadeIcon name="search" sx={{ fontSize: 18 }} /></InputAdornment> } }}
-          sx={{ width: { xs: "100%", sm: 280 } }}
-        />
-      </Stack>
 
       <Stack spacing={2}>
         {matching.map((category, index) => (

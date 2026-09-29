@@ -1,9 +1,32 @@
-import { useState } from "react";
-import { Box, Button, Chip, Stack, Typography } from "@mui/material";
+import { useEffect, useRef, useState } from "react";
+import {
+  Box,
+  Button,
+  Chip,
+  InputAdornment,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import Overview from "./Overview.jsx";
 import ArcadeIcon from "./ArcadeIcon.jsx";
 export default function App() {
   const [version, setVersion] = useState(0);
+  const [query, setQuery] = useState("");
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    function focusSearch(event) {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
+
   return (
     <Box sx={{ minHeight: "100vh" }}>
       <Box
@@ -17,6 +40,10 @@ export default function App() {
           alignItems: "center",
           justifyContent: "space-between",
           gap: 2,
+          position: "sticky",
+          top: 0,
+          zIndex: (theme) => theme.zIndex.appBar,
+          bgcolor: "background.default",
         }}
       >
         <Stack direction="row" alignItems="center" spacing={1.5}>
@@ -50,16 +77,39 @@ export default function App() {
             }}
           />
         </Stack>
-        <Button
-          size="small"
-          startIcon={<ArcadeIcon name="refresh" fontSize="small" />}
-          onClick={() => setVersion((v) => v + 1)}
-        >
-          Refresh
-        </Button>
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1, justifyContent: "flex-end" }}>
+          <TextField
+            inputRef={searchRef}
+            size="small"
+            placeholder="Search patterns…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            slotProps={{
+              htmlInput: { "aria-label": "Search patterns" },
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <ArcadeIcon name="search" sx={{ fontSize: 18 }} />
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={{
+              width: { xs: 150, sm: 240, md: 320 },
+              "& .MuiOutlinedInput-root": { bgcolor: "#0f161f" },
+            }}
+          />
+          <Button
+            size="small"
+            startIcon={<ArcadeIcon name="refresh" fontSize="small" />}
+            onClick={() => setVersion((v) => v + 1)}
+          >
+            Refresh
+          </Button>
+        </Stack>
       </Box>
       <Box component="main" sx={{ maxWidth: 1800, mx: "auto" }}>
-        <Overview version={version} />
+        <Overview version={version} query={query} setQuery={setQuery} />
       </Box>
     </Box>
   );
