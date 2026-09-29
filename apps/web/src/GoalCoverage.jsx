@@ -117,7 +117,7 @@ export function GoalCoverage({ goal, compact = false }) {
   );
 }
 
-export function GoalSetup({ goal, onSave, onCancel, saving = false, error = "" }) {
+export function GoalSetup({ goal, onSave, onCancel, saving = false, error = "", compact = false }) {
   const profiles = goal.profiles || [
     { id: "interview", name: "Interview Focused", description: "Prioritizes common coding-interview patterns." },
     { id: "deep", name: "Deep Understanding", description: "Reserves more coverage for advanced and lower-frequency patterns." },
@@ -130,22 +130,24 @@ export function GoalSetup({ goal, onSave, onCancel, saving = false, error = "" }
     <Paper
       variant="outlined"
       sx={{
-        p: { xs: 2.5, md: 3 },
-        mb: 4,
-        borderColor: "#31527e",
-        bgcolor: "#111a27",
+        p: compact ? 2 : { xs: 2.5, md: 3 },
+        mb: compact ? 0 : 4,
+        borderColor: compact ? "transparent" : "#31527e",
+        bgcolor: compact ? "transparent" : "#111a27",
+        boxShadow: "none",
+        ...(compact && { p: 0 }),
       }}
     >
-      <Stack spacing={2.5}>
+      <Stack spacing={compact ? 2 : 2.5}>
         <Box>
           <Typography variant="overline" color="info.main">SET A COVERAGE GOAL</Typography>
-          <Typography variant="h6" sx={{ mt: 0.35 }}>What are you optimizing your practice for?</Typography>
+          <Typography variant={compact ? "subtitle1" : "h6"} sx={{ mt: 0.35 }}>What are you optimizing your practice for?</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, maxWidth: 760 }}>
             This does not change Practice Strength. It only compares your distinct solved problems with a profile-specific target, including separate Easy, Medium, and Hard coverage.
           </Typography>
         </Box>
 
-        <Stack direction={{ xs: "column", md: "row" }} gap={1.25}>
+        <Stack direction={compact ? "column" : { xs: "column", md: "row" }} gap={1.25}>
           {profiles.map((profile) => (
             <Paper
               key={profile.id}
@@ -170,7 +172,7 @@ export function GoalSetup({ goal, onSave, onCancel, saving = false, error = "" }
           ))}
         </Stack>
 
-        <Stack direction={{ xs: "column", sm: "row" }} gap={2} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }}>
+        <Stack direction={compact ? "column" : { xs: "column", sm: "row" }} gap={2} justifyContent="space-between" alignItems={compact ? "stretch" : { xs: "stretch", sm: "center" }}>
           <Stack direction="row" gap={1} flexWrap="wrap">
             {targets.map((target) => (
               <Chip
@@ -189,10 +191,11 @@ export function GoalSetup({ goal, onSave, onCancel, saving = false, error = "" }
               />
             ))}
           </Stack>
-          <Stack direction="row" gap={1} justifyContent="flex-end">
+          <Stack direction="row" gap={1} justifyContent={compact ? "stretch" : "flex-end"}>
             {onCancel && <Button color="inherit" onClick={onCancel}>Cancel</Button>}
             <Button
               variant="contained"
+              fullWidth={compact}
               disabled={saving}
               onClick={() => onSave({ profile: selectedProfile, target: selectedTarget })}
             >

@@ -2,7 +2,7 @@ import { Box, ButtonBase, Paper, Stack, Typography } from "@mui/material";
 import PracticeStrength from "./PracticeStrength.jsx";
 import { GoalCoverage } from "./GoalCoverage.jsx";
 import ArcadeIcon from "./ArcadeIcon.jsx";
-export default function PatternCard({ category, onSelect, index }) {
+export default function PatternCard({ category, onSelect, index, featured = false }) {
   const unit = category.summary;
   const gap = !unit?.experienced;
   return (
@@ -10,9 +10,11 @@ export default function PatternCard({ category, onSelect, index }) {
       variant="outlined"
       sx={{
         overflow: "hidden",
-        borderColor: "divider",
+        width: "100%",
+        borderColor: featured ? "rgba(91, 140, 255, 0.42)" : "divider",
         bgcolor: "background.paper",
-        transition: "transform 180ms ease, border-color 180ms ease",
+        boxShadow: featured ? "0 10px 28px rgba(0, 0, 0, 0.18)" : "none",
+        transition: "transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
         animation: "appear 300ms ease both",
         animationDelay: Math.min(index, 8) * 35 + "ms",
         "@keyframes appear": {
@@ -29,7 +31,7 @@ export default function PatternCard({ category, onSelect, index }) {
         onClick={onSelect}
         aria-label={"Open " + category.name}
         sx={{
-          p: { xs: 2, sm: 2.5 },
+          p: featured ? { xs: 2.25, sm: 2.75 } : { xs: 2, sm: 2.5 },
           width: "100%",
           height: "100%",
           display: "flex",
@@ -37,7 +39,7 @@ export default function PatternCard({ category, onSelect, index }) {
           alignItems: { xs: "stretch", sm: "center" },
           textAlign: "left",
           gap: { xs: 2, sm: 3 },
-          minHeight: 142,
+          minHeight: featured ? 156 : 142,
         }}
       >
         <Stack direction="row" alignItems="center" spacing={2} sx={{ minWidth: { sm: 280 } }}>
