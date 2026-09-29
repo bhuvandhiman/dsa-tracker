@@ -21,7 +21,6 @@ import PracticeInsights from "./PracticeInsights.jsx";
 import PracticeStrength from "./PracticeStrength.jsx";
 import { GoalCoverage, GoalSetup } from "./GoalCoverage.jsx";
 import ArcadeIcon from "./ArcadeIcon.jsx";
-import { matchesRetentionFilter } from "./retentionFilters.js";
 
 export default function Overview({ version }) {
   const [result, setResult] = useState(null);
@@ -29,7 +28,6 @@ export default function Overview({ version }) {
   const [selected, setSelected] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all");
   const [notice, setNotice] = useState(false);
   const [goalDraft, setGoalDraft] = useState(null);
   const [goalSaving, setGoalSaving] = useState(false);
@@ -100,17 +98,8 @@ export default function Overview({ version }) {
     const matchesQuery = (category.name + " " + category.children.map((unit) => unit.name).join(" "))
       .toLowerCase()
       .includes(query.toLowerCase().trim());
-    const matchesGoal = filter !== "goal" || (category.goal?.deficit ?? 0) > 0;
-    const matchesPractice = filter === "goal" || matchesRetentionFilter(category, filter, new Date(result.data.asOf).getTime());
-    return matchesQuery && matchesGoal && matchesPractice;
+    return matchesQuery;
   });
-  const weakestCategory = visibleGroups
-    .filter((category) => category.priority !== null)
-    .sort((a, b) => b.priority - a.priority || a.order - b.order)[0];
-  const attentionCategory = result.data.goal.configured
-    ? visibleGroups.find((category) => category.slug !== "other" && (category.goal?.deficit ?? 0) > 0)
-    : weakestCategory;
-  const attentionSummary = attentionCategory?.summary;
 
   function saved() {
     setRetry((value) => value + 1);
@@ -260,28 +249,6 @@ export default function Overview({ version }) {
         </Paper>
       )}
 
-      {attentionCategory && attentionSummary && (
-        <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 4, borderColor: "#30476f", background: "linear-gradient(110deg, #15233a 0%, #161d27 78%)" }}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={3} alignItems={{ xs: "stretch", sm: "center" }}>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="overline" color="primary">
-                {result.data.goal.configured ? "HIGHEST ATTENTION FOR YOUR GOAL" : "LOWEST PRACTICE FOUNDATION"}
-              </Typography>
-              <Typography variant="h5" sx={{ mt: 0.5 }}>{attentionCategory.name}</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                {result.data.goal.configured && attentionCategory.goal ? `${attentionCategory.goal.deficit} goal ${attentionCategory.goal.deficit === 1 ? "problem" : "problems"} remaining · ` : ""}
-                {attentionSummary.reason}
-              </Typography>
-              <Stack direction={{ xs: "column", sm: "row" }} gap={2.5} alignItems={{ xs: "stretch", sm: "center" }} sx={{ mt: 1.5, maxWidth: 760 }}>
-                <Box sx={{ flex: 1 }}><PracticeStrength unit={attentionSummary} /></Box>
-                {result.data.goal.configured && attentionCategory.goal && <GoalCoverage goal={attentionCategory.goal} compact />}
-              </Stack>
-            </Box>
-            <Button endIcon={<ArcadeIcon name="arrow" />} onClick={() => { setSelected(attentionCategory.slug); setSelectedUnit(null); }}>View pattern</Button>
-          </Stack>
-        </Paper>
-      )}
-
       <Stack direction={{ xs: "column", sm: "row" }} gap={2} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} sx={{ mb: 2 }}>
         <Box>
           <Typography component="h2" variant="h6">Pattern map</Typography>
@@ -302,26 +269,6 @@ export default function Overview({ version }) {
         />
       </Stack>
 
-      <Stack direction="row" spacing={1} sx={{ mb: 2.5, flexWrap: "wrap", gap: 0.5 }}>
-        {[
-          ["all", "All patterns"],
-          ["recent", "Practiced recently"],
-          ["stale", "Not practiced recently"],
-          ["legacy", "Mostly legacy data"],
-          ["never", "Never practiced"],
-          ...(result.data.goal.configured ? [["goal", "Goal gaps"]] : []),
-        ].map(([value, label]) => (
-          <Chip
-            key={value}
-            label={label}
-            onClick={() => setFilter(value)}
-            aria-pressed={filter === value}
-            variant={filter === value ? "filled" : "outlined"}
-            sx={{ bgcolor: filter === value ? "#5b8cff20" : undefined, color: filter === value ? "primary.main" : "text.secondary" }}
-          />
-        ))}
-      </Stack>
-
       <Stack spacing={2}>
         {matching.map((category, index) => (
           <PatternCard key={category.slug} category={category} index={index} onSelect={() => { setSelected(category.slug); setSelectedUnit(null); }} />
@@ -331,8 +278,8 @@ export default function Overview({ version }) {
         <Paper variant="outlined" sx={{ textAlign: "center", p: 5 }}>
           <ArcadeIcon name="search" sx={{ color: "text.secondary", mb: 1 }} />
           <Typography>No matching patterns</Typography>
-          <Typography variant="body2" color="text.secondary">Try another name or show all patterns.</Typography>
-          <Button onClick={() => { setQuery(""); setFilter("all"); }} sx={{ mt: 1 }}>Clear filters</Button>
+          <Typography variant="body2" color="text.secondary">Try another pattern name.</Typography>
+          <Button onClick={() => setQuery("")} sx={{ mt: 1 }}>Clear search</Button>
         </Paper>
       )}
 
