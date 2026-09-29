@@ -1,6 +1,6 @@
 import { navigationCategories, unitsFor, unitForPlacement } from './pattern-catalog.js';
 
-export const GOAL_POLICY_VERSION = '2026-09-26.v2';
+export const GOAL_POLICY_VERSION = '2026-09-30.v3';
 export const GOAL_TARGETS = Object.freeze([300, 500, 1000]);
 
 export const GOAL_PROFILES = Object.freeze({
@@ -269,18 +269,37 @@ function remainingGoalGap(item) {
   return Math.max(0, Number(item?.goal?.deficit) || 0);
 }
 
+// Goal deficit remains the main attention signal because it already reflects
+// the selected profile's category/subpattern weight and the user's remaining
+// difficulty-aware coverage. Practice weakness then adjusts that need by up to
+// 35%, so a neglected rare topic cannot dominate a much larger core-topic gap.
+const PRACTICE_ATTENTION_SHARE = 0.35;
+
+function practiceNeed(item) {
+  const priority = practicePriority(item);
+  if (priority < 0) return 1;
+  return Math.min(1, Math.max(0, priority / 95));
+}
+
+function attentionScore(item) {
+  const gap = remainingGoalGap(item);
+  if (!gap) return 0;
+  const practiceModifier = (1 - PRACTICE_ATTENTION_SHARE) + PRACTICE_ATTENTION_SHARE * practiceNeed(item);
+  return gap * practiceModifier;
+}
+
 function compareGoalAttention(a, b) {
   if (a.slug === 'other') return b.slug === 'other' ? 0 : 1;
   if (b.slug === 'other') return -1;
-  return remainingGoalGap(b) - remainingGoalGap(a)
+  return attentionScore(b) - attentionScore(a)
+    || remainingGoalGap(b) - remainingGoalGap(a)
     || practicePriority(b) - practicePriority(a)
     || (a.order ?? 0) - (b.order ?? 0);
 }
 
-// Goal ordering is intentionally separate from Practice Strength. The remaining
-// problem deficit is used directly so the profile's target weights still express
-// which areas deserve more of the user's finite goal. Practice weakness only
-// breaks ties between equally sized goal gaps.
+// Practice Strength itself remains independent from Goal Coverage. This ordering
+// only combines the two signals to decide which existing gap deserves more
+// attention on the dashboard.
 export function applyGoalOrdering(categories, goal) {
   const byCategory = new Map(goal.categories.map(category => [category.slug, category]));
   return categories.map(category => {
@@ -294,7 +313,7 @@ export function applyGoalOrdering(categories, goal) {
       goal: categoryGoal,
       children,
       attention: children[0]?.slug || null,
-      dashboardPriority: categoryGoal?.deficit ?? 0,
+      dashboardPriority: attentionScore({ ...category, goal: categoryGoal }),
     };
   }).sort(compareGoalAttention);
 }

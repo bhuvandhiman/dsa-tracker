@@ -25,6 +25,10 @@ test('derived Recall families use reviewed exact identities instead of broad-top
   assert.equal(classifyProblem(problem('unknown-dp',['dynamic-programming'])).subpattern,null);
 });
 test('specific LeetCode provider topics remain specific and compose traversal families only when supported',()=>{
+  assert.deepEqual(mapTopics(['Array','Hash Table']),['arrays-hashing','hash-table']);
+  assert.equal(classifyProblem(problem('new-hash-table',mapTopics(['Array','Hash Table']))).subpattern,'hashing');
+  assert.equal(classifyProblem(problem('new-array-only',mapTopics(['Array']))).unit,'arrays-hashing-general');
+  assert.deepEqual(candidateUnits(problem('new-window-hash',mapTopics(['Array','Hash Table','Sliding Window']))).map(value=>value.unit),['sliding-window','hashing','arrays-hashing-general']);
   assert.deepEqual(mapTopics(['Tree','Breadth-First Search']),['breadth-first-search','trees']);
   assert.equal(classifyProblem(problem('new-tree-bfs',mapTopics(['Tree','Breadth-First Search']))).subpattern,'tree-bfs');
   assert.equal(classifyProblem(problem('new-graph-dfs',mapTopics(['Graph','Depth-First Search']))).subpattern,'graph-dfs');

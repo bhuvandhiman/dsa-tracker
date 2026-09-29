@@ -107,7 +107,10 @@ export default function Overview({ version }) {
   const weakestCategory = visibleGroups
     .filter((category) => category.priority !== null)
     .sort((a, b) => b.priority - a.priority || a.order - b.order)[0];
-  const weakestUnit = weakestCategory?.summary;
+  const attentionCategory = result.data.goal.configured
+    ? visibleGroups.find((category) => category.slug !== "other" && (category.goal?.deficit ?? 0) > 0)
+    : weakestCategory;
+  const attentionSummary = attentionCategory?.summary;
 
   function saved() {
     setRetry((value) => value + 1);
@@ -257,16 +260,24 @@ export default function Overview({ version }) {
         </Paper>
       )}
 
-      {weakestUnit && (
+      {attentionCategory && attentionSummary && (
         <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 4, borderColor: "#30476f", background: "linear-gradient(110deg, #15233a 0%, #161d27 78%)" }}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={3} alignItems={{ xs: "stretch", sm: "center" }}>
             <Box sx={{ flex: 1 }}>
-              <Typography variant="overline" color="primary">LOWEST PRACTICE FOUNDATION</Typography>
-              <Typography variant="h5" sx={{ mt: 0.5 }}>{weakestUnit.name}</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{weakestCategory.name} · {weakestUnit.reason}</Typography>
-              <Box sx={{ mt: 1.5, maxWidth: 620 }}><PracticeStrength unit={weakestUnit} /></Box>
+              <Typography variant="overline" color="primary">
+                {result.data.goal.configured ? "HIGHEST ATTENTION FOR YOUR GOAL" : "LOWEST PRACTICE FOUNDATION"}
+              </Typography>
+              <Typography variant="h5" sx={{ mt: 0.5 }}>{attentionCategory.name}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {result.data.goal.configured && attentionCategory.goal ? `${attentionCategory.goal.deficit} goal ${attentionCategory.goal.deficit === 1 ? "problem" : "problems"} remaining · ` : ""}
+                {attentionSummary.reason}
+              </Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} gap={2.5} alignItems={{ xs: "stretch", sm: "center" }} sx={{ mt: 1.5, maxWidth: 760 }}>
+                <Box sx={{ flex: 1 }}><PracticeStrength unit={attentionSummary} /></Box>
+                {result.data.goal.configured && attentionCategory.goal && <GoalCoverage goal={attentionCategory.goal} compact />}
+              </Stack>
             </Box>
-            <Button endIcon={<ArcadeIcon name="arrow" />} onClick={() => { setSelected(weakestCategory.slug); setSelectedUnit(null); }}>View pattern</Button>
+            <Button endIcon={<ArcadeIcon name="arrow" />} onClick={() => { setSelected(attentionCategory.slug); setSelectedUnit(null); }}>View pattern</Button>
           </Stack>
         </Paper>
       )}
@@ -276,7 +287,7 @@ export default function Overview({ version }) {
           <Typography component="h2" variant="h6">Pattern map</Typography>
           <Typography variant="caption" color="text.secondary">
             {result.data.goal.configured
-              ? `Ordered by remaining ${result.data.goal.profileName} goal gaps; weaker Practice Strength breaks ties.`
+              ? `Ordered by ${result.data.goal.profileName} goal need, adjusted by Practice Strength.`
               : "Ordered from weakest foundation upward."}
           </Typography>
         </Box>

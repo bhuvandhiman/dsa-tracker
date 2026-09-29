@@ -45,6 +45,8 @@ test('resuming under another account does not write anything',async()=>{
 test('legacy API bounds batch size, maps standard topics and rejects invented dates',()=>{
   const valid={installationId,username:'alice',problems:[{url:'https://leetcode.com/problems/two-sum/',title:'Two Sum',difficulty:'easy',topics:['Array']}],complete:false};
   assert.deepEqual(legacyInput(valid).problems[0].patternSlugs,['arrays-hashing']);
+  const hashTable={...valid,problems:[{...valid.problems[0],topics:['Array','Hash Table']}]};
+  assert.deepEqual(legacyInput(hashTable).problems[0].patternSlugs,['arrays-hashing','hash-table']);
   const database={...valid,problems:[{url:'https://leetcode.com/problems/employees-earning-more-than-their-managers/',title:'Employees Earning More Than Their Managers',difficulty:'easy',topics:['Database']}]};
   assert.deepEqual(legacyInput(database).problems[0].patternSlugs,['database']);
   for(const bad of [{...valid,installationId:'bad'},{...valid,problems:Array(11).fill(valid.problems[0])},{...valid,problems:[]},{...valid,problems:[{...valid.problems[0],attemptedAt:'2020-01-01'}]}])assert.throws(()=>legacyInput(bad),{status:400});

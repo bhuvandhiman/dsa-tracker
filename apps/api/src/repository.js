@@ -103,7 +103,9 @@ export function createRepository(pool) {
           await requirePatterns(client,p.patternSlugs);
           const created=await client.query('INSERT INTO problems(platform,external_id,title,url,difficulty) VALUES($1,$2,$3,$4,$5) ON CONFLICT(platform,external_id) DO NOTHING RETURNING id',[p.platform,p.externalId,p.title,p.url,p.difficulty]);
           const id=created.rows[0]?.id||(await client.query('SELECT id FROM problems WHERE platform=$1 AND external_id=$2',[p.platform,p.externalId])).rows[0].id;
-          if(created.rowCount) for(const slug of p.patternSlugs) await client.query('INSERT INTO problem_patterns VALUES($1,$2)',[id,slug]);
+          // Reimports can reveal more specific provider evidence. Merge it for
+          // existing problems without replacing user-entered tags or placement.
+          for(const slug of p.patternSlugs) await client.query('INSERT INTO problem_patterns VALUES($1,$2) ON CONFLICT DO NOTHING',[id,slug]);
           const saved=await client.query('INSERT INTO imported_submissions VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING submission_id',[username,p.submissionId,id,p.submittedAt]);
           if(!saved.rowCount) {
             const old=(await client.query('SELECT problem_id,submitted_at FROM imported_submissions WHERE username=$1 AND submission_id=$2',[username,p.submissionId])).rows[0];
@@ -131,8 +133,9 @@ export function createRepository(pool) {
           const created=await client.query(`INSERT INTO problems(platform,external_id,title,url,difficulty) VALUES($1,$2,$3,$4,$5)
             ON CONFLICT(platform,external_id) DO NOTHING RETURNING id`,[p.platform,p.externalId,p.title,p.url,p.difficulty]);
           const id=created.rowCount?created.rows[0].id:(await client.query('SELECT id FROM problems WHERE platform=$1 AND external_id=$2',[p.platform,p.externalId])).rows[0].id;
-          // Existing recorded details and possible approaches stay exactly as entered.
-          if(created.rowCount) for(const slug of p.patternSlugs) await client.query('INSERT INTO problem_patterns VALUES($1,$2)',[id,slug]);
+          // Reimports can add newly preserved provider topics while keeping all
+          // existing metadata, attempts, notes, assistance, and manual placement.
+          for(const slug of p.patternSlugs) await client.query('INSERT INTO problem_patterns VALUES($1,$2) ON CONFLICT DO NOTHING',[id,slug]);
           added+=(await client.query('INSERT INTO historical_solves(problem_id) VALUES($1) ON CONFLICT DO NOTHING',[id])).rowCount;
         }
         if(complete) await client.query('UPDATE legacy_imports SET completed=true WHERE installation_id=$1',[installationId]);

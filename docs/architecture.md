@@ -7,7 +7,7 @@ Recall is a single local workspace. React/Vite/Material UI renders a single-colu
 1. A fresh Accepted transition opens the extension prompt. The worker obtains the catalog and suggested approach from POST /api/practice-context.
 2. The user supplies assistance and confirms one approach. Optional LeetCode topics are metadata only. The worker persists a frozen payload locally before POST /api/capture.
 3. Capture atomically creates or reuses the problem and records an idempotent attempt. Confirmed success closes the prompt; uncertain failures preserve the UUID and payload.
-4. GET /api/retention calculates independent subpattern strength. GET /api/pattern-problems and per-problem history supply contextual details and corrections.
+4. GET /api/retention calculates independent subpattern strength. When a goal is configured, dashboard attention starts from the profile-specific remaining coverage deficit and is adjusted by Practice Strength; the two underlying metrics remain independent. GET /api/pattern-problems and per-problem history supply contextual details and corrections.
 5. Extension setup imports all accepted problems, then available recent accepted dates. Settings creates a fresh resumable run for later reimports.
 
 ## Storage and boundaries

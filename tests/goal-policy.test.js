@@ -105,7 +105,7 @@ test('re-solves cannot inflate goal coverage once solved identities are deduplic
   assert.equal(unit.credited, 1);
 });
 
-test('configured goals reorder categories and subpatterns by remaining profile-specific deficit without changing practice priority', () => {
+test('configured goals combine profile-specific deficits with practice weakness without changing practice strength', () => {
   const retention = [
     {
       slug: 'arrays-hashing', name: 'Arrays & Hashing', priority: 40, order: 0,
@@ -148,20 +148,34 @@ test('configured goals reorder categories and subpatterns by remaining profile-s
     deep.flatMap(category => category.children).map(unit => [unit.slug, unit.priority]).sort(),
   );
   const dp = deep.find(category => category.slug === 'dynamic-programming');
-  assert.ok(dp.children[0].goal.deficit >= dp.children[1].goal.deficit);
+  assert.ok(dp.children[0].goal.deficit > 0);
 });
 
-test('goal ordering uses practice weakness only as a tie-breaker', () => {
+test('practice weakness can move a slightly smaller goal gap ahead', () => {
   const goal = {
     categories: [
       { slug: 'arrays-hashing', deficit: 8, units: [] },
-      { slug: 'graphs', deficit: 8, units: [] },
+      { slug: 'graphs', deficit: 7, units: [] },
     ],
   };
   const ordered = applyGoalOrdering([
-    { slug: 'arrays-hashing', priority: 20, order: 0, children: [] },
-    { slug: 'graphs', priority: 60, order: 10, children: [] },
+    { slug: 'arrays-hashing', priority: 10, order: 0, children: [] },
+    { slug: 'graphs', priority: 95, order: 10, children: [] },
   ], goal);
   assert.equal(ordered[0].slug, 'graphs');
-  assert.equal(ordered[0].priority, 60);
+  assert.equal(ordered[0].priority, 95);
+});
+
+test('a rare completely weak topic cannot outrank a much larger profile gap', () => {
+  const goal = {
+    categories: [
+      { slug: 'dynamic-programming', deficit: 20, units: [] },
+      { slug: 'bit-manipulation', deficit: 6, units: [] },
+    ],
+  };
+  const ordered = applyGoalOrdering([
+    { slug: 'dynamic-programming', priority: 25, order: 11, children: [] },
+    { slug: 'bit-manipulation', priority: 95, order: 15, children: [] },
+  ], goal);
+  assert.equal(ordered[0].slug, 'dynamic-programming');
 });

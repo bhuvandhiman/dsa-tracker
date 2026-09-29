@@ -79,7 +79,7 @@ test('pattern details: browsing, corrections, conflicts, removal and imports', {
   const capture = { requestId: randomUUID(), url: 'https://leetcode.com/problems/capture-fixture/', title: 'Capture fixture', topics: ['Array','Hash Table'], selectedTopics: [], assistance: 'hint', attemptedAt: '2025-01-01T12:00:00.000Z' };
   const captured = (await api('/capture','POST',capture,201)).attempt;
   assert.equal(captured.patternSource,'inferred');
-  assert.deepEqual(captured.patternSlugs,['arrays-hashing']);
+  assert.deepEqual(captured.patternSlugs,['arrays-hashing','hash-table']);
   assert.equal((await api('/capture','POST',capture)).created,false);
   assert.equal((await repository.summary()).attempts,1);
   assert.equal((await repository.summary()).patterns.find(p=>p.slug==='arrays-hashing').practiced,0);

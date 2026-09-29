@@ -71,7 +71,7 @@ group('advanced-graphs','shortest-path','path-with-minimum-effort');
 // Provider topics describe possible approaches, not the approach a learner used.
 // Keep every supported browsing candidate for correction, then choose one stable
 // default. Specific technique tags precede broad Array and Math families.
-const fallbackPriority = ['trie','linked-list','binary-search-tree','segment-tree','binary-indexed-tree','topological-sort','shortest-path','minimum-spanning-tree','union-find','trees','graphs','sliding-window','two-pointers','monotonic-stack','intervals','binary-search','heap','backtracking','dynamic-programming','greedy','stack','prefix-sum','bit-manipulation','arrays-hashing','math'];
+const fallbackPriority = ['trie','linked-list','binary-search-tree','segment-tree','binary-indexed-tree','topological-sort','shortest-path','minimum-spanning-tree','union-find','trees','graphs','sliding-window','two-pointers','monotonic-stack','intervals','binary-search','heap','backtracking','dynamic-programming','greedy','stack','prefix-sum','hash-table','bit-manipulation','arrays-hashing','math'];
 const topicPlacements = {
   'trie': {category:'trie',subpattern:null},
   'linked-list': {category:'linked-list',subpattern:null},
@@ -95,6 +95,7 @@ const topicPlacements = {
   'greedy': {category:'greedy',subpattern:null},
   'stack': {category:'stack',subpattern:null},
   'prefix-sum': {category:'arrays-hashing',subpattern:'prefix-sum'},
+  'hash-table': {category:'arrays-hashing',subpattern:'hashing'},
   'arrays-hashing': {category:'arrays-hashing',subpattern:null},
   'strings': {category:'arrays-hashing',subpattern:null},
   'sorting': {category:'arrays-hashing',subpattern:null},

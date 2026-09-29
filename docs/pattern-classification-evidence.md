@@ -41,6 +41,8 @@ If both DFS and BFS are supplied, the major family remains the default and both 
 
 ## Direct provider mappings
 
-These Recall children already have a matching LeetCode topic and should not be maintained as invented derived lists: Binary Search Tree, Segment Tree, Binary Indexed Tree (Fenwick), Union Find, Topological Sort, Shortest Path, Minimum Spanning Tree, Monotonic Stack, Prefix Sum, Trie, Sliding Window, Two Pointers, Binary Search, Heap, Backtracking, Greedy and Bit Manipulation.
+These Recall children already have a matching LeetCode topic and should not be maintained as invented derived lists: Hash maps & sets (`Hash Table` / `Hash Function`), Binary Search Tree, Segment Tree, Binary Indexed Tree (Fenwick), Union Find, Topological Sort, Shortest Path, Minimum Spanning Tree, Monotonic Stack, Prefix Sum, Trie, Sliding Window, Two Pointers, Binary Search, Heap, Backtracking, Greedy and Bit Manipulation.
+
+For Arrays & hashing, `Array` stays broad and maps to General / unspecified. `Hash Table` and `Hash Function` are preserved as the specific `hash-table` provider slug and map directly to Hash maps & sets. More specific algorithm tags such as Sliding Window or Two Pointers can still be the primary browsing placement while hashing remains available as a correction candidate.
 
 Provider topics are evidence about possible techniques. They remain stored independently from the problem's one browsing placement and from the approach recorded on an attempt.

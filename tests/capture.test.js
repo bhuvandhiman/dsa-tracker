@@ -18,10 +18,12 @@ function worker(fetcher,storage={}) {
 }
 test('capture maps only problem topics; skipped selections use inferred defaults',()=>{
   const input=captureInput(payload);
-  assert.deepEqual(input.attempt.patternSlugs,['arrays-hashing']);
+  assert.deepEqual(input.attempt.patternSlugs,['arrays-hashing','hash-table']);
   assert.equal(input.attempt.patternSource,'inferred');
   assert.equal(input.problem.difficulty,'easy');
-  assert.equal(captureInput({...payload,selectedTopics:['Hash Table']}).attempt.patternSource,'explicit');
+  const selectedHash=captureInput({...payload,selectedTopics:['Hash Table']});
+  assert.equal(selectedHash.attempt.patternSource,'explicit');
+  assert.deepEqual(selectedHash.attempt.patternSlugs,['hash-table']);
   assert.deepEqual(captureInput({...payload,topics:[]}).problem.patternSlugs,['uncategorized']);
   assert.throws(()=>captureInput({...payload,selectedTopics:['Trees']}),{status:400});
   assert.throws(()=>captureInput({...payload,url:'https://evil.test/'}),{status:400});

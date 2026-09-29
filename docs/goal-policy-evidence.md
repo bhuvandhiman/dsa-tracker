@@ -1,6 +1,6 @@
 # Goal Coverage policy evidence
 
-Policy version: `2026-09-26.v2`
+Policy version: `2026-09-30.v3`
 
 Evidence last checked against the linked official sources: `2026-09-26`
 
@@ -75,6 +75,7 @@ The following values are deliberate, versioned Recall policy. They are **not** c
 - Advanced tree, graph and DP subpatterns receive a smaller share in a 300-problem Interview Focused goal and progressively more room in larger or Deep Understanding goals.
 - Every positively weighted subpattern receives at least one target slot when its parent category has enough capacity. Rare techniques can therefore stay low-priority without disappearing from the goal entirely.
 - Integer quotas use deterministic largest-remainder allocation so every generated matrix totals exactly the selected 300/500/1000 target.
+- Dashboard attention starts from the remaining profile-specific problem deficit, then Practice Strength adjusts that need by up to 35%. This keeps the selected goal profile as the main signal while allowing stale or weak practice to matter among comparable gaps. The 35% bound is Recall product policy, not an externally published interview statistic.
 - Unknown-difficulty solves remain visible but receive no guessed difficulty credit.
 - `Other / needs classification` has no target and stays outside Goal Coverage.
 
@@ -91,3 +92,4 @@ The exact weights are intentionally stored in code rather than copied from a sou
 - Imported accepted problems count even when their solve date is unavailable.
 - Difficulty buckets are independent: extra Easy solves cannot compensate for missing Medium or Hard coverage.
 - Primary-placement corrections re-attribute Goal Coverage without rewriting confirmed attempt approaches.
+- A rare pattern with a small profile target cannot become the top dashboard attention item solely because its Practice Strength is very low; substantially larger core-topic deficits remain ahead.

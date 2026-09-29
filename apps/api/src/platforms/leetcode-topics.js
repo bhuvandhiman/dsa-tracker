@@ -1,6 +1,6 @@
 // LeetCode topic names map to our standard pattern inventory. Keep provider vocabulary here.
 export const topicPatterns = {
-  'Array': 'arrays-hashing', 'Hash Table': 'arrays-hashing', 'String': 'strings',
+  'Array': 'arrays-hashing', 'Hash Table': 'hash-table', 'String': 'strings',
   'Two Pointers': 'two-pointers', 'Sliding Window': 'sliding-window', 'Binary Search': 'binary-search',
   'Stack': 'stack', 'Monotonic Stack': 'monotonic-stack', 'Linked List': 'linked-list',
   'Tree': 'trees', 'Binary Tree': 'trees', 'Binary Search Tree': 'binary-search-tree',
@@ -15,7 +15,7 @@ export const topicPatterns = {
   'Enumeration': 'enumeration', 'Number Theory': 'math', 'Combinatorics': 'math', 'Geometry': 'math',
   'Probability and Statistics': 'math', 'Game Theory': 'math', 'Bitmask': 'bit-manipulation',
   'Memoization': 'dynamic-programming', 'String Matching': 'strings', 'Rolling Hash': 'strings',
-  'Hash Function': 'arrays-hashing', 'Bucket Sort': 'sorting', 'Radix Sort': 'sorting', 'Counting Sort': 'sorting',
+  'Hash Function': 'hash-table', 'Bucket Sort': 'sorting', 'Radix Sort': 'sorting', 'Counting Sort': 'sorting',
   'Merge Sort': 'sorting', 'Quickselect': 'sorting', 'Randomized': 'randomized', 'Database': 'database',
   'Concurrency': 'concurrency', 'Iterator': 'design', 'Data Stream': 'design',
 };
