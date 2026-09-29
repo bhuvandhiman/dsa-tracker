@@ -78,7 +78,9 @@ globalThis.DsaCapture = {
       const result=current.adapter.submissionResult(doc);
       if(result.pending)submission.sawPending=true;
       const newIdentity=result.submissionId&&result.submissionId!==submission.initial.submissionId;
-      if(!result.terminal||(!submission.sawPending&&!newIdentity))return;
+      const changedNode=result.node&&result.node!==submission.initial.node;
+      const changedText=result.text&&result.text!==submission.initial.text;
+      if(!result.terminal||(!submission.sawPending&&!newIdentity&&!changedNode&&!changedText))return;
       submission=null;
       if(result.accepted)void open({captureSource:'accepted',submissionId:result.submissionId});
     }

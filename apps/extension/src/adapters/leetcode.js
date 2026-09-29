@@ -47,13 +47,33 @@ globalThis.DsaAdapters.push({
     return topics;
   },
   submissionResult(doc) {
-    const node=doc.querySelector('[data-e2e-locator="submission-result"], [data-e2e-locator="submission-result-status"], [data-e2e-locator="console-result"]');
-    const text=node?.textContent?.trim()||'';
+    const verdict=/^(Pending|Judging|Running|Submitting|Accepted|Wrong Answer|Time Limit Exceeded|Runtime Error|Compile Error|Memory Limit Exceeded|Output Limit Exceeded|Internal Error)(\b|…|$)/i;
+    let node=doc.querySelector('[data-e2e-locator="submission-result"], [data-e2e-locator="submission-result-status"], [data-e2e-locator="console-result"]');
+    let text=node?.textContent?.trim()||'';
+    if(!verdict.test(text)) {
+      node=[...doc.querySelectorAll('span, div')].find(candidate=>{
+        const value=candidate.textContent?.trim()||'';
+        if(!value||value.length>40||!verdict.test(value))return false;
+        const className=typeof candidate.className==='string'?candidate.className:'';
+        return /(text-(green|red|yellow|orange)|font-(medium|semibold))/i.test(className);
+      })||null;
+      text=node?.textContent?.trim()||'';
+    }
     const link=doc.querySelector('a[href*="/submissions/detail/"]');
     const submissionId=link?.getAttribute('href')?.match(/\/submissions\/detail\/(\d+)/)?.[1]||null;
     return {node,text,submissionId,pending:/^(Pending|Judging|Running|Submitting)(\b|…)/i.test(text),accepted:/^Accepted(\b|$)/.test(text),terminal:/^(Accepted|Wrong Answer|Time Limit Exceeded|Runtime Error|Compile Error|Memory Limit Exceeded|Output Limit Exceeded|Internal Error)(\b|$)/.test(text)};
   },
-  isRun(target) { return Boolean(target.closest?.('[data-e2e-locator="console-run-button"]')); },
-  isSubmit(target) { return Boolean(target.closest?.('[data-e2e-locator="console-submit-button"]:not([disabled])')); },
+  isRun(target) {
+    const direct=target.closest?.('[data-e2e-locator="console-run-button"]');
+    if(direct)return !direct.disabled;
+    const button=target.closest?.('button');
+    return Boolean(button&&!button.disabled&&button.textContent?.trim()==='Run');
+  },
+  isSubmit(target) {
+    const direct=target.closest?.('[data-e2e-locator="console-submit-button"]');
+    if(direct)return !direct.disabled;
+    const button=target.closest?.('button');
+    return Boolean(button&&!button.disabled&&button.textContent?.trim()==='Submit');
+  },
   isSubmitShortcut(event) { return !event.repeat && !event.altKey && !event.shiftKey && (event.ctrlKey || event.metaKey) && event.key === 'Enter'; },
 });
