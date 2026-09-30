@@ -5,5 +5,6 @@
 <div><button id="import" disabled>Import previously solved problems</button><button id="skip" disabled>Start without importing</button></div>
 <section><h2>Recent practice dates</h2><p>Use up to 20 available recent accepted submissions to establish practice dates. Assistance remains unknown.</p><button id="initialize-retention" hidden>Retry recent dates</button><p id="retention-status" role="status" aria-live="polite"></p></section>
 <p id="help">Keep a signed-in LeetCode tab open and the local Recall API running. Keep this setup tab open until import finishes.</p>
+<section><h2>Local recordings</h2><p>Editable drafts, unfinished saves and queued Accepted submissions remain in this Chrome profile. Open their problem to resume. Uninstalling the extension clears this storage.</p><button id="refresh-recordings">Refresh recordings</button><div id="recordings" role="status"></div></section>
 <a href="https://leetcode.com/problemset/" target="_blank" rel="noopener noreferrer">Open LeetCode</a> · <a href="http://127.0.0.1:5173/" target="_blank" rel="noopener noreferrer">Open dashboard</a>
-</main><script type="module" src="src/setup.js"></script><script type="module" src="src/setup-retention.js"></script></body></html>
+</main><script type="module" src="src/setup.js"></script><script type="module" src="src/setup-retention.js"></script><script type="module" src="src/setup-recordings.js"></script></body></html>

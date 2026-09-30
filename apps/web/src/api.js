@@ -6,14 +6,14 @@ export async function getHealth(signal) {
   return health;
 }
 
-export async function requestJson(path, { body, signal, method } = {}) {
+export async function requestJson(path, { body, signal, method, timeout = 10000 } = {}) {
   let response;
   try {
     response = await fetch(`/api${path}`, {
       method: method ?? (body === undefined ? 'GET' : 'POST'),
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(10000)]) : AbortSignal.timeout(10000),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout),
     });
   } catch (cause) {
     if (signal?.aborted) throw cause;

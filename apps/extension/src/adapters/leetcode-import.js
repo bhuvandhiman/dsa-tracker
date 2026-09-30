@@ -1,5 +1,10 @@
 // Signed-in reads stay on leetcode.com. Session cookies never leave the browser.
 globalThis.DsaLegacy = {
+  async account() {
+    const data = await this.graphql('query { userStatus { isSignedIn username } }');
+    if (!data.userStatus?.isSignedIn || !data.userStatus.username) throw new Error('Sign in to LeetCode before saving practice.');
+    return data.userStatus.username;
+  },
   async json(path, options = {}) {
     const response = await fetch('https://leetcode.com'+path, {credentials:'include',redirect:'error',signal:AbortSignal.timeout(20000),...options});
     if(!response.ok) throw new Error(response.status===429?'LeetCode is rate limiting requests. Wait a little, then resume.':'Could not read LeetCode. Check that you are signed in and the page loads normally.');

@@ -9,6 +9,16 @@ export function dataRoutes(repository) {
     if (!repository) return next(new DomainError(503, 'Database is not configured. Set DATABASE_URL and run npm run db:migrate.'));
     next();
   });
+  router.get('/ready',async(_request,response)=>response.json(await repository.readiness()));
+  router.get('/workspace/backup',async(_request,response)=>response.json(await repository.backup()));
+  router.post('/workspace/restore',async(request,response)=>response.json(await repository.restoreBackup(request.body)));
+  router.get('/attempts/removed',async(request,response)=>response.json({attempts:await repository.removedAttempts(pageInput(request.query))}));
+  router.post('/attempts/:id/restore',async(request,response)=>response.json(await repository.restoreAttempt(uuid(request.params.id),revisionInput(request.body))));
+  router.post('/capture/reconcile',async(request,response)=>response.json(await repository.captureStatus(captureInput(request.body))));
+  router.put('/problems/:id/difficulty',async(request,response)=>{
+    if(!request.body || Object.keys(request.body).some(key=>key!=='difficulty') || !['easy','medium','hard'].includes(request.body.difficulty))throw new DomainError(400,'Choose Easy, Medium or Hard.');
+    response.json(await repository.repairDifficulty(positiveId(request.params.id),request.body.difficulty));
+  });
   router.get('/imports/legacy/:id',async(request,response)=>response.json(await repository.legacyStatus(uuid(request.params.id))));
   router.post('/imports/legacy',async(request,response)=>response.json(await repository.importLegacy(legacyInput(request.body))));
   router.get('/problems/:id/history',async(request,response)=>response.json(await repository.problemHistory(positiveId(request.params.id),pageInput(request.query))));

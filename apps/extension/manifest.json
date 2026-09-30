@@ -1,13 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Recall — DSA Tracker",
-  "version": "0.7.0",
+  "version": "0.8.0",
+  "icons": {"16":"icons/recall-16.png","32":"icons/recall-32.png","48":"icons/recall-48.png","128":"icons/recall-128.png"},
   "description": "Record practice in a compact LeetCode side panel after Accepted.",
   "background": {
     "service_worker": "src/service-worker.js",
     "type": "module"
   },
   "action": {
+    "default_icon": {"16":"icons/recall-16.png","32":"icons/recall-32.png"},
     "default_popup": "popup.html",
     "default_title": "Recall DSA Tracker"
   },

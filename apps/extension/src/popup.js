@@ -28,6 +28,24 @@ async function checkExtension() {
   launchStatus.textContent = '';
   worker.textContent = 'Checking extension…';
   problem.textContent = 'Checking this tab…';
+  const apiStatus=document.querySelector('#api');
+  const accountStatus=document.querySelector('#account');
+  if(accountStatus){
+    accountStatus.textContent='Checking LeetCode sign-in…';
+    chrome.tabs.query({url:'https://leetcode.com/*'}).then(async tabs=>{
+      const tab=tabs.find(item=>item.active)||tabs[0];if(!tab)throw new Error('Open a signed-in LeetCode tab.');
+      const data=await chrome.tabs.sendMessage(tab.id,{type:'GET_ACCOUNT_STATUS'});
+      if(!data.username)throw new Error(data.error||'Refresh LeetCode after reloading Recall.');
+      accountStatus.textContent='LeetCode signed in as '+data.username;
+    }).catch(error=>{accountStatus.textContent=error.message;});
+  }
+  if(apiStatus){
+    apiStatus.textContent='Checking local API and database…';
+    fetch('http://127.0.0.1:3001/api/ready',{signal:AbortSignal.timeout(10000),credentials:'omit',redirect:'error'}).then(async response=>{
+      const data=await response.json();if(!response.ok||data.status!=='ready')throw new Error(data.error||'Database is not ready.');
+      apiStatus.textContent=`API ready · database connected · ${data.account?'workspace account: '+data.account:'account binds on first recording or import'}`;
+    }).catch(error=>{apiStatus.textContent='Local API/database unavailable. Start Recall, then Check again. '+error.message;});
+  }
   try {
     const response = await chrome.runtime.sendMessage({ type: 'PING' });
     worker.textContent = response?.status === 'worker-ready' ? `Extension loaded · v${response.version}` : 'Service worker did not respond as expected.';

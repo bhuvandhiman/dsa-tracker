@@ -57,6 +57,35 @@ test('invalid senders cannot read drafts or ask the worker to write',async()=>{
     assert.equal((await ui.send({type:'SAVE_CAPTURE',problem,payload},sender)).saved,false);
   }
 });
+test('editable choices and distinct Accepted events persist across worker restarts',async()=>{
+  const storage={},ui=worker(()=>assert.fail('Drafts do not use the network'),storage);
+  const draft={assistance:'hint',practiceUnit:'hashing',attemptedAt:payload.attemptedAt};
+  assert.equal((await ui.send({type:'SAVE_EDITABLE_DRAFT',problem,draft})).kept,true);
+  const evidence={captureSource:'accepted',eventId:'123',submissionId:'123',attemptedAt:payload.attemptedAt};
+  await ui.send({type:'QUEUE_CAPTURE',problem,evidence});await ui.send({type:'QUEUE_CAPTURE',problem,evidence});
+  await ui.send({type:'QUEUE_CAPTURE',problem,evidence:{...evidence,eventId:'124',submissionId:'124'}});
+  const restarted=worker(()=>assert.fail('No network'),storage),state=await restarted.send({type:'GET_PENDING_CAPTURE',problem});
+  assert.equal(state.draft.assistance,'hint');assert.equal(state.queue.length,2);
+  assert.equal((await restarted.send({type:'SHIFT_CAPTURE',problem})).queue[0].submissionId,'124');
+});
+test('reconciliation clears only a confirmed identical saved request',async()=>{
+  for(const status of ['saved','conflict','removed','missing']){
+    const storage={['recall-pending:'+problem.url]:payload};
+    const ui=worker(async(url)=>{assert.equal(url,'http://127.0.0.1:3001/api/capture/reconcile');return {ok:true,json:async()=>({status})};},storage);
+    assert.equal((await ui.send({type:'RECONCILE_CAPTURE',problem})).status,status);
+    assert.equal(Boolean(storage['recall-pending:'+problem.url]),status!=='saved');
+  }
+});
+test('starting a separate recording requires a confirmed conflict and retains the old choices',async()=>{
+  for(const status of ['saved','missing','conflict']){
+    const storage={['recall-pending:'+problem.url]:payload};
+    const ui=worker(async()=>({ok:true,json:async()=>({status})}),storage);
+    const result=await ui.send({type:'RELEASE_CONFLICT',problem});
+    assert.equal(Boolean(result.released),status==='conflict');
+    assert.equal(Boolean(storage['recall-conflict:'+payload.requestId]),status==='conflict');
+    assert.equal(Boolean(storage['recall-pending:'+problem.url]),status!=='conflict');
+  }
+});
 test('definitive validation failures unlock editing; uncertain failures retain the draft',async()=>{
   for(const status of [400,503,409]) {
     const ui=worker(async()=>({ok:false,status,json:async()=>({error:'test failure'})}));

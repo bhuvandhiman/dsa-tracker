@@ -9,7 +9,9 @@ test('corrections validate editable fields and reject identity or revision mista
   assert.throws(() => uuid('not-a-uuid'), { status: 400 });
 });
 test('library filtering remains bounded and rejects unexpected query shapes', () => {
-  assert.deepEqual(libraryInput({}), { limit: 50, offset: 0, q: '', pattern: '', category: '', status: 'all' });
+  assert.deepEqual(libraryInput({}), { limit: 50, offset: 0, q: '', pattern: '', category: '', status: 'all',difficulty:'',dates:'all',sort:'newest' });
   assert.equal(libraryInput({ q: '  Two Sum  ', status: 'historical' }).q, 'Two Sum');
+  assert.equal(libraryInput({difficulty:'unknown',dates:'older30',sort:'oldest-practice'}).difficulty,'unknown');
+  for(const query of [{difficulty:'extreme'},{dates:'yesterday'},{sort:'title;DROP TABLE problems'}])assert.throws(()=>libraryInput(query),{status:400});
   for (const query of [{ limit: '101' }, { offset: '-1' }, { q: ['a', 'b'] }, { q: 'x'.repeat(201) }, { pattern: {} }, { category: [] }, { category: 'x'.repeat(101) }, { status: 'solved' }, { unknown: 'yes' }]) assert.throws(() => libraryInput(query), { status: 400 });
 });

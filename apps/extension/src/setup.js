@@ -14,7 +14,7 @@ function render() {
   // Once an import has started, keep its checkpoint instead of silently abandoning it.
   skip.hidden=!pending||Boolean(state?.snapshot);
   start.textContent=state?.snapshot?'Resume import':pending?'Import previously solved problems':'Reimport accepted problems';
-  if(state?.decision==='complete')status.textContent='Import complete. Your previously solved problems are ready in Recall.';
+  if(state?.decision==='complete')status.textContent=`Import complete${state.username?' for '+state.username:''}${state.count!==undefined?' · '+state.count+' problems':''}${state.completedAt?' · '+new Date(state.completedAt).toLocaleString():''}. Your previously solved problems are ready in Recall.`;
   if(state?.decision==='skipped')status.textContent='Setup complete. New practice will be recorded through the LeetCode panel.';
 }
 async function sourceTab() {
@@ -41,7 +41,7 @@ start.addEventListener('click',async()=>{
       if(result?.error)throw new Error(result.error);
       if(!result?.data)throw new Error('LeetCode did not provide the expected data.');return result.data;
     }
-    await runLegacyImport({state,scan:()=>read('SCAN_LEGACY_PROBLEMS'),topics:(slugs,username)=>read('READ_LEGACY_TOPICS',{slugs,username}),writeBatch:body=>api('/imports/legacy',body),saveState:store,onProgress:s=>{status.textContent=`${s.username}: imported ${s.offset} of ${s.snapshot.length} problems…`;}});
+    await runLegacyImport({state,scan:()=>read('SCAN_LEGACY_PROBLEMS'),topics:(slugs,username)=>read('READ_LEGACY_TOPICS',{slugs,username}),writeBatch:body=>api('/imports/legacy',body),saveState:store,onPhase:s=>{status.textContent=s.phase==='scanning'?'Scanning accepted problems…':`${s.username}: ${s.phase==='metadata'?'Fetching topics and difficulty':'Saving batch'} · ${s.offset} of ${s.total} saved…`;},onProgress:s=>{status.textContent=`${s.username}: imported ${s.offset} of ${s.snapshot.length} problems… Latest batch: ${s.lastBatch?.added??0} added, ${s.lastBatch?.alreadyPresent??0} already present, ${s.lastBatch?.excluded??0} Database problems preserved outside DSA.`;}});
     });
   }catch(error){failure=error.message;}
   finally{busy=false;render();if(failure)status.textContent=failure;if(state?.decision==='complete')document.dispatchEvent(new Event('legacy-completed'));}

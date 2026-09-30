@@ -9,14 +9,19 @@ const simulatedPage = {
   setTimeout: window.setTimeout.bind(window), clearTimeout: window.clearTimeout.bind(window),
   addEventListener: window.addEventListener.bind(window),
 };
-let pending = null; let saves = 0;
+let pending = null; let saves = 0; let draft = null; const queue=[];
+globalThis.DsaLegacy={account:async()=> 'fixture-account'};
 const simulatedRuntime = { async sendMessage(message) {
   if (message.type === 'GET_PRACTICE_CONTEXT') return {units:[{slug:'hashing',name:'Hash maps & sets'},{slug:'two-pointers',name:'Two pointers'},{slug:'other',name:'Needs classification'}],practiceUnit:'hashing'};
-  if (message.type === 'GET_PENDING_CAPTURE') return { pending };
+  if (message.type === 'GET_PENDING_CAPTURE') return { pending,draft,queue };
+  if(message.type==='SAVE_EDITABLE_DRAFT'){draft=message.draft;return {kept:true};}
+  if(message.type==='QUEUE_CAPTURE'){queue.push(message.evidence);return {queue};}
+  if(message.type==='SHIFT_CAPTURE'){queue.shift();return {queue};}
   pending = message.payload;
   if (document.querySelector('#offline').checked) return { saved: false, error: 'API offline. Retry save.' };
   document.querySelector('#opened').textContent = 'Saved ' + (++saves) + ' recording: ' + JSON.stringify(pending);
   pending = null;
+  draft = null;
   return { saved: true };
 } };
 DsaCapture.start(document, simulatedPage, simulatedRuntime);

@@ -5,6 +5,14 @@ import { dataRoutes } from './data-routes.js';
 export function createApp({ repository = null } = {}) {
   const app = express();
   app.disable('x-powered-by');
+  app.use((request,response,next)=>{
+    if(!['127.0.0.1','localhost','[::1]','::1'].includes(request.hostname)) return response.status(403).json({error:'Recall accepts loopback hosts only.'});
+    const origin=request.get('Origin');
+    if(origin && !/^https?:\/\/(127\.0\.0\.1|localhost)(:(5173|4173|3001))?$/.test(origin) && !/^chrome-extension:\/\/[a-p]{32}$/.test(origin)) return response.status(403).json({error:'This origin is not allowed to access Recall.'});
+    response.set('X-Content-Type-Options','nosniff');
+    next();
+  });
+  app.use('/api/workspace/restore',express.json({limit:'20mb'}));
   app.use(express.json({ limit: '16kb' }));
 
   // Liveness only: this does not claim that PostgreSQL is connected.
@@ -15,7 +23,7 @@ export function createApp({ repository = null } = {}) {
   // Match known data resources only, so unrelated URLs retain a JSON 404 even without a database.
   const routes = dataRoutes(repository);
   app.use('/api', (request, response, next) => {
-    if (!/^\/(patterns|problems|attempts|imports|pattern-problems|practice-context|capture|retention|goal)(\/|$)/.test(request.path)) return next();
+    if (!/^\/(patterns|problems|attempts|imports|pattern-problems|practice-context|capture|retention|goal|workspace|ready)(\/|$)/.test(request.path)) return next();
     return routes(request, response, next);
   });
 

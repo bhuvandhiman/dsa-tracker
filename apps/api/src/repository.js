@@ -4,6 +4,7 @@ import { DomainError } from './domain.js';
 import { candidateUnits, classifyProblem, patternInventory, unitForPlacement, retentionUnits } from './pattern-catalog.js';
 import { GOAL_POLICY_VERSION, applyGoalOrdering, goalCoverage, unconfiguredGoal } from './goal-policy.js';
 import { isDsaTrackingProblem, splitDsaTrackingProblems } from './problem-scope.js';
+import { exportBackup, restoreBackup } from './backup.js';
 
 const problemSelect = `SELECT p.id, p.platform, p.external_id AS "externalId", p.title, p.url, p.difficulty,
   (SELECT unit_slug FROM problem_placements WHERE problem_id=p.id) AS "placementOverride",
@@ -45,6 +46,37 @@ export function createRepository(pool) {
     return rows.map(problem => ({...problem, placement:classifyProblem(problem)}));
   }
   return {
+    async readiness() {
+      await pool.query('SELECT 1 FROM workspace_goal LIMIT 1');
+      const account = (await pool.query('SELECT username FROM workspace_account')).rows[0]?.username || null;
+      return { status:'ready', database:'connected', account, storage:'Local PostgreSQL workspace', timeZone:'Asia/Calcutta' };
+    },
+    async backup() { return transaction(async client => { await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY'); return exportBackup(client); }); },
+    async restoreBackup(backup) {
+      try { return await transaction(async client => { await client.query('LOCK TABLE workspace_account,problems,attempts IN EXCLUSIVE MODE'); return restoreBackup(client,backup); }); }
+      catch(error){if(/^22|^23/.test(error.code||''))throw new DomainError(400,'Backup records are invalid or inconsistent. No records were changed.');throw error;}
+    },
+    async restoreAttempt(id, revision) {
+      const result=await pool.query('UPDATE attempts SET deleted_at=NULL,revision=revision+1 WHERE id=$1 AND revision=$2 AND deleted_at IS NOT NULL RETURNING id',[id,revision]);
+      if(!result.rowCount) throw new DomainError(409,'This recording changed. Refresh removed recordings before restoring.');
+      return {restored:true};
+    },
+    async removedAttempts({limit,offset}) {
+      return (await pool.query(attemptSelect+' WHERE a.deleted_at IS NOT NULL ORDER BY a.deleted_at DESC LIMIT $1 OFFSET $2',[limit,offset])).rows;
+    },
+    async repairDifficulty(id, difficulty) {
+      const result=await pool.query('UPDATE problems SET difficulty=$2 WHERE id=$1 RETURNING id',[id,difficulty]);
+      if(!result.rowCount)throw new DomainError(404,'Problem not found.');
+      return {saved:true};
+    },
+    async captureStatus(input) {
+      const row=(await pool.query('SELECT id,deleted_at,request_hash FROM attempts WHERE id=$1',[input.attempt.requestId])).rows[0];
+      if(!row)return {status:'missing'};
+      const hash=createHash('sha256').update(JSON.stringify({problem:input.problem,attempt:input.attempt})).digest('hex');
+      const a=input.attempt;
+      const oldHash=!a.practiceUnit&&a.approachSource==='inferred'&&a.captureSource==='manual'&&!a.submissionId ? createHash('sha256').update(JSON.stringify({problem:input.problem,attempt:{requestId:a.requestId,assistance:a.assistance,attemptedAt:a.attemptedAt,patternSlugs:a.patternSlugs,notes:a.notes,patternSource:a.patternSource}})).digest('hex') : null;
+      return {status:row.deleted_at?'removed':[hash,oldHash].includes(row.request_hash)?'saved':'conflict',id:row.id};
+    },
     async practiceContext(problem) {
       const saved=(await pool.query(problemSelect+' WHERE p.platform=$1 AND p.external_id=$2',[problem.platform,problem.externalId])).rows[0];
       return {units:retentionUnits,practiceUnit:classifyProblem(saved||problem).unit};
@@ -105,6 +137,7 @@ export function createRepository(pool) {
           const id=created.rows[0]?.id||(await client.query('SELECT id FROM problems WHERE platform=$1 AND external_id=$2',[p.platform,p.externalId])).rows[0].id;
           // Reimports can reveal more specific provider evidence. Merge it for
           // existing problems without replacing user-entered tags or placement.
+          await client.query('UPDATE problems SET difficulty=COALESCE(difficulty,$2) WHERE id=$1',[id,p.difficulty]);
           for(const slug of p.patternSlugs) await client.query('INSERT INTO problem_patterns VALUES($1,$2) ON CONFLICT DO NOTHING',[id,slug]);
           const saved=await client.query('INSERT INTO imported_submissions VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING submission_id',[username,p.submissionId,id,p.submittedAt]);
           if(!saved.rowCount) {
@@ -114,7 +147,7 @@ export function createRepository(pool) {
           added+=saved.rowCount;
         }
         await client.query('UPDATE recent_imports SET completed=true WHERE installation_id=$1',[installationId]);
-        return {completed:true,added};
+        return {completed:true,added,alreadyPresent:submissions.length-added,excluded:submissions.filter(p=>!isDsaTrackingProblem(p)).length};
       });
     },
     async legacyStatus(id) {
@@ -133,13 +166,14 @@ export function createRepository(pool) {
           const created=await client.query(`INSERT INTO problems(platform,external_id,title,url,difficulty) VALUES($1,$2,$3,$4,$5)
             ON CONFLICT(platform,external_id) DO NOTHING RETURNING id`,[p.platform,p.externalId,p.title,p.url,p.difficulty]);
           const id=created.rowCount?created.rows[0].id:(await client.query('SELECT id FROM problems WHERE platform=$1 AND external_id=$2',[p.platform,p.externalId])).rows[0].id;
+          await client.query('UPDATE problems SET difficulty=COALESCE(difficulty,$2) WHERE id=$1',[id,p.difficulty]);
           // Reimports can add newly preserved provider topics while keeping all
           // existing metadata, attempts, notes, assistance, and manual placement.
           for(const slug of p.patternSlugs) await client.query('INSERT INTO problem_patterns VALUES($1,$2) ON CONFLICT DO NOTHING',[id,slug]);
           added+=(await client.query('INSERT INTO historical_solves(problem_id) VALUES($1) ON CONFLICT DO NOTHING',[id])).rowCount;
         }
         if(complete) await client.query('UPDATE legacy_imports SET completed=true WHERE installation_id=$1',[installationId]);
-        return {completed:complete,added};
+        return {completed:complete,added,alreadyPresent:problems.length-added,excluded:problems.filter(p=>!isDsaTrackingProblem(p)).length};
       });
     },
     async problemHistory(id,{limit,offset}) {
@@ -151,20 +185,24 @@ export function createRepository(pool) {
       const seen=new Set();
       const imported=(await pool.query('SELECT submission_id AS id,submitted_at AS "attemptedAt" FROM imported_submissions WHERE problem_id=$1 ORDER BY submitted_at DESC',[id])).rows.filter(a=>{const day=practiceDay(a.attemptedAt);if(recordedDays.has(day)||seen.has(day))return false;seen.add(day);return true;}).map(a=>({...a,id:'import-'+a.id,assistance:'unknown',imported:true,practiceUnit:importedUnit,approachSource:'inferred',patternSlugs:[],notes:''}));
       const history=[...attempts,...imported].sort((a,b)=>new Date(b.attemptedAt)-new Date(a.attemptedAt)||String(b.id).localeCompare(String(a.id)));
-      return {problem,attempts:history.slice(offset,offset+limit),more:history.length>offset+limit,legacy:problem.historicallySolved};
+      return {problem,attempts:history.slice(offset,offset+limit),more:history.length>offset+limit,legacy:problem.historicallySolved,units:retentionUnits};
     },
     async capture(input) {
-      const hash = createHash('sha256').update(JSON.stringify(input)).digest('hex');
+      const hash = createHash('sha256').update(JSON.stringify({problem:input.problem,attempt:input.attempt})).digest('hex');
       // Older extension drafts must still recover a committed save after an upgrade.
       const a = input.attempt;
       const legacyHash = !a.practiceUnit && a.approachSource === 'inferred' && a.captureSource === 'manual' && !a.submissionId
         ? createHash('sha256').update(JSON.stringify({problem:input.problem,attempt:{requestId:a.requestId,assistance:a.assistance,attemptedAt:a.attemptedAt,patternSlugs:a.patternSlugs,notes:a.notes,patternSource:a.patternSource}})).digest('hex') : null;
       return transaction(async client => {
         const p = input.problem, a = input.attempt;
+        const existing=(await client.query('SELECT request_hash,deleted_at FROM attempts WHERE id=$1',[a.requestId])).rows[0];
+        if(input.username) await lockAccount(client,input.username);
+        else if(!existing && (await client.query('SELECT username FROM workspace_account')).rowCount) throw new DomainError(409,'Verify the signed-in LeetCode account before recording. Reload the updated extension and refresh LeetCode.');
         await requirePatterns(client, [...new Set([...p.patternSlugs, ...a.patternSlugs])]);
         await client.query(`INSERT INTO problems(platform,external_id,title,url,difficulty) VALUES($1,$2,$3,$4,$5)
           ON CONFLICT(platform,external_id) DO NOTHING`,[p.platform,p.externalId,p.title,p.url,p.difficulty]);
         const id=(await client.query('SELECT id FROM problems WHERE platform=$1 AND external_id=$2',[p.platform,p.externalId])).rows[0].id;
+        await client.query('UPDATE problems SET difficulty=COALESCE(difficulty,$2) WHERE id=$1',[id,p.difficulty]);
         const inserted=await client.query(`INSERT INTO attempts(id,problem_id,assistance,notes,attempted_at,request_hash,pattern_source,practice_unit,approach_source,capture_source,submission_id,selected_topics)
           VALUES($1,$2,$3,'',$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(id) DO NOTHING RETURNING id`,[a.requestId,id,a.assistance,a.attemptedAt,hash,a.patternSource,a.practiceUnit||classifyProblem(p).unit,a.approachSource,a.captureSource,a.submissionId,JSON.stringify(a.selectedTopics)]);
         if (!inserted.rowCount) {
@@ -193,7 +231,7 @@ export function createRepository(pool) {
       const inventory = patternInventory(await classifiedProblems());
       return { ...stats, patterns, inventory };
     },
-    async library({ limit, offset, q, pattern = '', status, category = '' }) {
+    async library({ limit, offset, q = '', pattern = '', status='all', category = '', difficulty='', dates='all', sort='newest' }) {
       const classified = await classifiedProblems();
       const details = new Map(classified.map(p=>[p.id,p]));
       const dsaProblems = classified.filter(isDsaTrackingProblem);
@@ -204,6 +242,7 @@ export function createRepository(pool) {
         const practiced=(await pool.query('SELECT DISTINCT problem_id FROM attempts WHERE deleted_at IS NULL AND practice_unit=ANY($1::text[])',[unitSlugs])).rows;
         categoryIds.push(...practiced.map(r=>r.problem_id).filter(id=>dsaIds.has(id)));
       }
+      const order = {newest:'id DESC',title:'lower(title),id', 'oldest-practice':'"lastPracticedAt" ASC NULLS FIRST,id', 'recent-practice':'"lastPracticedAt" DESC NULLS LAST,id'}[sort] || 'id DESC';
       const result = await pool.query(`WITH catalog AS (
         SELECT p.*,
           (EXISTS(SELECT 1 FROM attempts a WHERE a.problem_id=p.id AND a.deleted_at IS NULL) OR EXISTS(SELECT 1 FROM imported_submissions i WHERE i.problem_id=p.id)) AS practiced,
@@ -216,9 +255,11 @@ export function createRepository(pool) {
         FROM problems p WHERE ($6::text='' OR p.id=ANY($7::int[])) AND ($1::text='' OR strpos(lower(p.title || ' ' || p.external_id),lower($1))>0)
           AND ($2::text='' OR EXISTS(SELECT 1 FROM problem_patterns pp WHERE pp.problem_id=p.id AND pp.pattern_slug=$2)
             OR EXISTS(SELECT 1 FROM attempts a JOIN attempt_patterns ap ON ap.attempt_id=a.id WHERE a.problem_id=p.id AND a.deleted_at IS NULL AND ap.pattern_slug=$2))
-      ), matching AS (SELECT * FROM catalog WHERE $3='all' OR ($3='done' AND (practiced OR historical)) OR ($3='practiced' AND practiced) OR ($3='unpracticed' AND NOT practiced) OR ($3='historical' AND historical))
+      ), matching AS (SELECT * FROM catalog WHERE ($3='all' OR ($3='done' AND (practiced OR historical)) OR ($3='practiced' AND practiced) OR ($3='unpracticed' AND NOT practiced) OR ($3='historical' AND historical))
+        AND ($8='' OR difficulty=$8 OR ($8='unknown' AND difficulty IS NULL))
+        AND ($9='all' OR ($9='dated' AND "lastPracticedAt" IS NOT NULL) OR ($9='undated' AND "lastPracticedAt" IS NULL) OR ($9='older30' AND "lastPracticedAt" < now()-interval '30 days')))
       SELECT (SELECT count(*)::int FROM matching) AS total,
-        COALESCE((SELECT json_agg(page ORDER BY page.id DESC) FROM (SELECT * FROM matching ORDER BY id DESC LIMIT $4 OFFSET $5) page),'[]') AS problems`, [q, pattern, status, limit, offset, category, categoryIds]);
+        COALESCE((SELECT json_agg(page) FROM (SELECT * FROM matching ORDER BY ${order} LIMIT $4 OFFSET $5) page),'[]') AS problems`, [q, pattern, status, limit, offset, category, categoryIds,difficulty,dates]);
       const resultPage = result.rows[0];
       resultPage.problems = resultPage.problems.map(p=>{
         const detail=details.get(p.id);

@@ -58,7 +58,7 @@
   },
   "constraints": {
     "must": [
-      "Preserve API ordering and existing data",
+      "Preserve existing data; selectable dashboard views may reorder API results for presentation",
       "Legacy-only evidence has a visible bar and an unknown-date label",
       "JavaScript only",
       "Keyboard access and reduced motion"
@@ -95,6 +95,11 @@
       "date": "2026-09-28",
       "direction": "Strength bar plus target ring",
       "reason": "Practice Strength remains the single continuous bar, while Goal Coverage uses a LeetCode-style circular target indicator so the two metrics no longer read as competing scores."
+    },
+    {
+      "date": "2026-09-30",
+      "direction": "Selectable Coverage and Retention perspectives",
+      "reason": "User chose both perspectives. Coverage emphasizes strict remaining goal gaps; Retention emphasizes weaker dated Practice Strength. Both metrics remain visible, dates-unknown experience is separated from retention assessment, and the choice persists locally."
     }
   ],
   "evidence": [

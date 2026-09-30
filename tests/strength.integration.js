@@ -14,6 +14,37 @@ async function database(t) {
   t.after(async()=>{await pool.end();await admin.query('DROP SCHEMA '+schema+' CASCADE');await admin.end();});
   return pool;
 }
+test('backup round trip, conflicts, removal recovery, account checks and difficulty repair are atomic',async t=>{
+  const pool=await database(t);await migrate(pool);const repo=createRepository(pool);
+  const raw={username:'alice',requestId:randomUUID(),url:'https://leetcode.com/problems/two-sum/',title:'Two Sum',topics:['Array','Hash Table'],selectedTopics:[],assistance:'independent',attemptedAt:'2025-01-01T00:00:00.123Z',practiceUnit:'hashing',approachSource:'confirmed'};
+  const saved=await repo.capture(captureInput(raw)),id=saved.attempt.problem.id;
+  assert.equal((await repo.captureStatus(captureInput(raw))).status,'saved');
+  assert.equal((await repo.captureStatus(captureInput({...raw,assistance:'hint'}))).status,'conflict');
+  await assert.rejects(repo.capture(captureInput({...raw,username:'bob',requestId:randomUUID()})),{status:409});
+  await assert.rejects(repo.capture(captureInput({...raw,username:undefined,requestId:randomUUID()})),{status:409});
+  await repo.importLegacy(legacyInput({runId:randomUUID(),username:'alice',problems:[{url:raw.url,title:'Provider title',topics:raw.topics,difficulty:'easy'}],complete:true}));
+  assert.equal((await repo.problemHistory(id,{limit:6,offset:0})).problem.difficulty,'easy');
+  assert.equal((await repo.library({limit:10,offset:0,difficulty:'easy',dates:'dated',sort:'title'})).total,1);
+  assert.equal((await repo.library({limit:10,offset:0,difficulty:'hard'})).total,0);
+  await repo.removeAttempt(saved.attempt.id,1);
+  assert.equal((await repo.captureStatus(captureInput(raw))).status,'removed');
+  const removed=(await repo.removedAttempts({limit:10,offset:0}))[0];
+  await repo.restoreAttempt(removed.id,removed.revision);
+  await assert.rejects(repo.restoreAttempt(removed.id,removed.revision),{status:409});
+  const backup=JSON.parse(JSON.stringify(await repo.backup()));
+  await repo.restoreBackup(backup); // Exact existing records, including PostgreSQL microseconds.
+  const target=await database(t);await migrate(target);const recovered=createRepository(target);
+  await recovered.restoreBackup(backup);
+  const history=await recovered.problemHistory(id,{limit:6,offset:0});
+  assert.equal(history.attempts.length,1);assert.equal(history.attempts[0].revision,3);
+  assert.equal(new Date(history.attempts[0].attemptedAt).toISOString(),raw.attemptedAt);
+  assert.equal((await recovered.readiness()).account,'alice');
+  const conflict=structuredClone(backup);conflict.tables.problems[0].title='Changed';
+  await assert.rejects(recovered.restoreBackup(conflict),{status:409});
+  assert.equal((await recovered.problemHistory(id,{limit:6,offset:0})).problem.title,'Two Sum');
+  const incomplete=structuredClone(backup);delete incomplete.tables.attempts;
+  await assert.rejects(recovered.restoreBackup(incomplete),{status:400});
+});
 test('upgrade snapshots old approaches without rewriting assistance, notes, tags or timestamps',async t=>{
   const pool=await database(t);
   await pool.query('CREATE TABLE schema_migrations(name TEXT PRIMARY KEY,checksum TEXT NOT NULL)');

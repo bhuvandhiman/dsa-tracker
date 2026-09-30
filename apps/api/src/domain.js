@@ -74,16 +74,20 @@ export function correctionInput(body) {
   return { revision: positiveId(revision), assistance, patternSlugs, notes, attemptedAt, ...(practiceUnit !== undefined ? {practiceUnit: placementInput({unit:practiceUnit})} : {}) };
 }
 export function libraryInput(query) {
-  const { q = '', pattern = '', category = '', status = 'all', ...pagination } = query;
+  const { q = '', pattern = '', category = '', status = 'all', difficulty = '', dates = 'all', sort = 'newest', ...pagination } = query;
   if (typeof category !== 'string' || category.length > 100) invalid('Invalid category filter.');
   if (typeof q !== 'string' || q.length > 200) invalid('Search must be at most 200 characters.');
   if (typeof pattern !== 'string' || pattern.length > 100) invalid('Invalid pattern filter.');
   if (!['all', 'done', 'practiced', 'unpracticed', 'historical'].includes(status)) invalid('Invalid library status.');
-  return { ...pageInput(pagination), q: q.trim(), pattern, category, status };
+  if (!['', 'easy', 'medium', 'hard', 'unknown'].includes(difficulty)) invalid('Invalid difficulty filter.');
+  if (!['all', 'dated', 'undated', 'older30'].includes(dates)) invalid('Invalid practice-date filter.');
+  if (!['newest', 'title', 'oldest-practice', 'recent-practice'].includes(sort)) invalid('Invalid problem sort.');
+  return { ...pageInput(pagination), q: q.trim(), pattern, category, status, difficulty, dates, sort };
 }
 
 export function captureInput(body) {
-  object(body, ['requestId', 'url', 'title', 'difficulty', 'topics', 'selectedTopics', 'assistance', 'attemptedAt', 'practiceUnit', 'approachSource', 'captureSource', 'submissionId']);
+  object(body, ['requestId', 'url', 'title', 'difficulty', 'topics', 'selectedTopics', 'assistance', 'attemptedAt', 'practiceUnit', 'approachSource', 'captureSource', 'submissionId', 'username']);
+  if (body.username !== undefined && (typeof body.username !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(body.username))) invalid('A valid signed-in LeetCode username is required.');
   const topicList = value => {
     if (!Array.isArray(value) || value.length > 30 || value.some(t => typeof t !== 'string' || !t.trim() || t.length > 100)) invalid('Topics must contain up to 30 short names.');
     return [...new Set(value.map(t => t.trim()))].sort();
@@ -102,7 +106,7 @@ export function captureInput(body) {
   if (body.approachSource !== undefined && !['inferred','confirmed'].includes(body.approachSource)) invalid('Invalid approach source.');
   if (body.captureSource !== undefined && !['manual','accepted'].includes(body.captureSource)) invalid('Invalid capture source.');
   if (body.submissionId != null && !/^\d{1,30}$/.test(body.submissionId)) invalid('Invalid submission identity.');
-  return { problem, attempt: { ...fields, practiceUnit:body.practiceUnit??null, approachSource:body.approachSource||'inferred', captureSource:body.captureSource||'manual', submissionId:body.submissionId??null, selectedTopics:selected, patternSource: selected.length ? 'explicit' : 'inferred' } };
+  return { ...(body.username ? {username:body.username} : {}), problem, attempt: { ...fields, practiceUnit:body.practiceUnit??null, approachSource:body.approachSource||'inferred', captureSource:body.captureSource||'manual', submissionId:body.submissionId??null, selectedTopics:selected, patternSource: selected.length ? 'explicit' : 'inferred' } };
 }
 
 export function goalInput(body) {

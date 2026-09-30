@@ -5,6 +5,14 @@ import {classifyProblem} from '../apps/api/src/pattern-catalog.js';
 const now=Date.parse('2026-01-01T12:00:00Z'),day=86400000;
 const event=(assistance='independent',at=now,problemId=1,practiceUnit)=>({problemId,assistance,at:new Date(at).toISOString(),practiceUnit});
 const problem=(id,slug,historicallySolved=false)=>{const p={id,platform:'leetcode',externalId:slug,patternSlugs:[],historicallySolved};return {...p,placement:classifyProblem(p)};};
+test('the first dated event adds evidence without lowering the undated experience baseline',()=>{
+  for(const assistance of ['unknown','independent','hint','solution']){
+    const baseline=retentionFor([],now,100,20);
+    const dated=retentionFor([event(assistance)],now,100,20);
+    assert.ok(dated.displayStrength>=baseline.displayStrength);
+    assert.ok(retentionFor([event(assistance)],now+365*day,100,20).displayStrength>=baseline.displayStrength);
+  }
+});
 test('only recency decays; breadth and reinforcement persist and the bar stays below full',()=>{
   const events=[event(),event('independent',now-day)];
   const fresh=retentionFor(events,now),old=retentionFor(events,now+365*day);

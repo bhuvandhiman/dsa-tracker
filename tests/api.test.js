@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { once } from 'node:events';
+import {get as httpGet} from 'node:http';
 import { createApp } from '../apps/api/src/app.js';
 import { createPool } from '../apps/api/src/db.js';
 
@@ -17,6 +18,12 @@ test('health responds over HTTP without a database', async () => {
   const response = await fetch(`${base}/api/health`);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { status: 'ok', service: 'dsa-tracker-api' });
+});
+test('remote origins and rebinding hosts are rejected before reading or mutating data',async()=>{
+  for(const headers of [{Origin:'https://untrusted.example'},{Origin:'http://localhost:6666'}])assert.equal((await fetch(`${base}/api/health`,{headers})).status,403);
+  const hostStatus=await new Promise((resolve,reject)=>httpGet(`${base}/api/health`,{headers:{Host:'untrusted.example'}},response=>{response.resume();resolve(response.statusCode);}).on('error',reject));
+  assert.equal(hostStatus,403);
+  for(const Origin of ['http://127.0.0.1:5173','http://localhost:4173','chrome-extension://'+'a'.repeat(32)])assert.equal((await fetch(`${base}/api/health`,{headers:{Origin}})).status,200);
 });
 test('data routes explicitly require database configuration', async () => {
   const response = await fetch(`${base}/api/attempts`);

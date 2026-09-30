@@ -88,6 +88,8 @@ export function GoalCoverage({ goal, compact = false }) {
       <Stack spacing={0.75} sx={{ minWidth: 0 }}>
         <Box>
           <Typography variant="caption" color="text.secondary">Target progress</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{display:'block'}}>Credit is capped for each subpattern and difficulty. Extra Easy problems do not replace missing Medium or Hard problems.</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{display:'block'}}>{totalKnown} solved · {goal.credited} credited{(goal.unknownDifficulty??goal.actual?.unknown??0)>0?' · unknown difficulty excluded':''}</Typography>
           <Typography variant="body2" fontWeight={700}>
             {goal.deficit > 0 ? `${goal.deficit} problems remaining` : (exceeded ? "Target exceeded" : "Target met")}
           </Typography>
@@ -97,7 +99,7 @@ export function GoalCoverage({ goal, compact = false }) {
             const above = value.actual > value.target;
             return (
               <Typography key={bucket} variant="caption" sx={{ color: value.deficit > 0 ? "text.secondary" : DIFFICULTY_COLOR[bucket] }}>
-                {LABELS[bucket]} {value.actual}/{value.target}{above ? " · Above target" : ""}
+                {LABELS[bucket]}: {value.actual} solved / {value.target} target · {value.deficit} remaining{above ? " · Surplus" : ""}
               </Typography>
             );
           })}
@@ -112,6 +114,7 @@ export function GoalCoverage({ goal, compact = false }) {
             </Typography>
           )}
         </Stack>
+        {goal.units?.length>0&&<Box component="details" sx={{fontSize:12,maxWidth:'100%',overflowX:'auto'}}><summary>Subpattern quota breakdown</summary><table><caption>Solved, credited and remaining by difficulty</caption><thead><tr><th scope="col">Subpattern</th><th scope="col">Difficulty</th><th scope="col">Solved</th><th scope="col">Credited</th><th scope="col">Target</th><th scope="col">Remaining</th></tr></thead><tbody>{goal.units.flatMap(unit=>['easy','medium','hard'].map(bucket=><tr key={`${unit.slug}-${bucket}`}><th scope="row">{unit.name}</th><td>{LABELS[bucket]}</td><td>{unit.actual[bucket]}</td><td>{unit.creditedByDifficulty[bucket]}</td><td>{unit.difficulty[bucket]}</td><td>{unit.deficitByDifficulty[bucket]}</td></tr>))}</tbody></table></Box>}
       </Stack>
     </Stack>
   );
@@ -153,6 +156,8 @@ export function GoalSetup({ goal, onSave, onCancel, saving = false, error = "", 
               key={profile.id}
               component="button"
               type="button"
+              aria-pressed={selectedProfile===profile.id}
+              disabled={saving}
               onClick={() => onSave({ preview: true, profile: profile.id, target: selectedTarget })}
               variant="outlined"
               sx={{
@@ -179,6 +184,7 @@ export function GoalSetup({ goal, onSave, onCancel, saving = false, error = "", 
                 key={target}
                 label={`${target} solved`}
                 onClick={() => onSave({ preview: true, profile: selectedProfile, target })}
+                disabled={saving}
                 aria-pressed={selectedTarget === target}
                 variant={selectedTarget === target ? "filled" : "outlined"}
                 sx={{
@@ -192,7 +198,7 @@ export function GoalSetup({ goal, onSave, onCancel, saving = false, error = "", 
             ))}
           </Stack>
           <Stack direction="row" gap={1} justifyContent={compact ? "stretch" : "flex-end"}>
-            {onCancel && <Button color="inherit" onClick={onCancel}>Cancel</Button>}
+            {onCancel && <Button color="inherit" disabled={saving} onClick={onCancel}>Cancel</Button>}
             <Button
               variant="contained"
               fullWidth={compact}
@@ -203,7 +209,7 @@ export function GoalSetup({ goal, onSave, onCancel, saving = false, error = "", 
             </Button>
           </Stack>
         </Stack>
-        {error && <Typography variant="caption" color="error.main">{error}</Typography>}
+        {error && <Typography role="alert" variant="caption" color="error.main">{error}</Typography>}
         <Typography variant="caption" color="text.secondary">
           Exact quotas are Recall product policy informed by published interview-prep and algorithms curricula; they are not claimed as universal industry frequencies.
         </Typography>

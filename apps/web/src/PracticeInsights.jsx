@@ -2,6 +2,7 @@ import { useState } from "react";
 import { alpha } from "@mui/material/styles";
 import { Box, Button, Collapse, Paper, Stack, Typography } from "@mui/material";
 import ArcadeIcon from "./ArcadeIcon.jsx";
+import { relativePractice } from './dates.js';
 
 const DAY = 86400000;
 
@@ -19,17 +20,6 @@ function dayString(value, timeZone) {
 function addDays(value, amount) {
   const [year, month, date] = value.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, date) + amount * DAY).toISOString().slice(0, 10);
-}
-
-function relativePractice(value, asOf) {
-  if (!value) return "No dated practice";
-  const reference = new Date(asOf).getTime();
-  const days = Math.floor(Math.max(0, reference - new Date(value).getTime()) / DAY);
-  if (days === 0) return "Today";
-  if (days === 1) return "1 day ago";
-  if (days < 14) return days + " days ago";
-  if (days < 70) return Math.floor(days / 7) + " weeks ago";
-  return Math.floor(days / 30) + " months ago";
 }
 
 function evidenceCopy(unit) {
@@ -65,7 +55,7 @@ function ActivityStrip({ activity = [], asOf, timeZone }) {
       </Stack>
       {hasActivity ? (
         <Box sx={{ overflowX: "auto", pb: 0.5 }}>
-          <Box sx={{ display: "grid", gridAutoFlow: "column", gridTemplateRows: "repeat(7, 8px)", gridAutoColumns: "8px", gap: "4px", width: "max-content" }}>
+          <Box aria-hidden="true" sx={{ display: "grid", gridAutoFlow: "column", gridTemplateRows: "repeat(7, 8px)", gridAutoColumns: "8px", gap: "4px", width: "max-content" }}>
             {days.map((date) => {
               const count = activityByDay.get(date) || 0;
               const opacity = count === 0 ? 0.08 : Math.min(0.35 + count * 0.18, 0.95);
@@ -88,6 +78,7 @@ function ActivityStrip({ activity = [], asOf, timeZone }) {
       ) : (
         <Typography variant="caption" color="text.secondary">No dated activity is available to plot yet.</Typography>
       )}
+      <Box component="details" sx={{mt:1,fontSize:12}}><summary>Activity dates and counts ({timeZone})</summary><table><caption>Dated activity in the last 12 weeks</caption><thead><tr><th scope="col">Date</th><th scope="col">Practices</th></tr></thead><tbody>{days.filter(date=>(activityByDay.get(date)||0)>0).map(date=><tr key={date}><th scope="row">{date}</th><td>{activityByDay.get(date)}</td></tr>)}</tbody></table>{!hasActivity&&<p>No dated activity.</p>}</Box>
     </Box>
   );
 }

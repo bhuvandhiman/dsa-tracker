@@ -1,5 +1,9 @@
 const recorder = DsaCapture.start(document, window, chrome.runtime);
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if(message?.type==='GET_ACCOUNT_STATUS'){
+    if(_sender.id!==chrome.runtime.id||_sender.url!==chrome.runtime.getURL('popup.html')){sendResponse({error:'Invalid popup sender'});return;}
+    DsaLegacy.account().then(username=>sendResponse({username}),error=>sendResponse({error:error.message}));return true;
+  }
   if (['SCAN_LEGACY_PROBLEMS','READ_LEGACY_TOPICS','READ_RECENT_SUBMISSIONS'].includes(message?.type)) {
     if (_sender.id!==chrome.runtime.id||_sender.url!==chrome.runtime.getURL('setup.html')) {sendResponse({error:'Invalid setup sender'});return;}
     const task=message.type==='SCAN_LEGACY_PROBLEMS'?DsaLegacy.scan():message.type==='READ_RECENT_SUBMISSIONS'?DsaLegacy.recent():DsaLegacy.topics(message.slugs,message.username);

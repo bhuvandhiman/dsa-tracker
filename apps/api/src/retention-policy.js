@@ -65,9 +65,10 @@ export function retentionFor(events,now=Date.now(),distinctProblems,breadthTarge
   const breadth=1-Math.exp(-(distinctProblems??seen.size)/breadthTarget);
   const reinforcement=1-Math.exp(-weightedRevisits/policy.depthScale);
   const {breadth:breadthWeight,reinforcement:reinforcementWeight,recency:recencyWeight}=policy.weights;
-  const strength=previous===null?null:Math.min(policy.cap,policy.ceiling*(breadthWeight*breadth+reinforcementWeight*reinforcement+recencyWeight*recency));
   const persistentWeight=breadthWeight+reinforcementWeight;
   const experienceScore=Math.min(policy.cap,policy.ceiling*(breadthWeight*breadth+reinforcementWeight*reinforcement)/persistentWeight);
+  // The first dated event adds recency to the existing experience baseline.
+  const strength=previous===null?null:Math.min(policy.cap,experienceScore+(policy.ceiling-experienceScore)*recencyWeight*recency);
   const totalDistinct=distinctProblems??seen.size;
   const datedDistinctSolved=seen.size;
   return {

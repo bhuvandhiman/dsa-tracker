@@ -7,9 +7,9 @@ async function api(path,body) {
 }
 async function render() {
   const stored=await chrome.storage.local.get(['legacySetup','retentionSetup']);
-  button.hidden=stored.legacySetup?.decision!=='complete'||stored.retentionSetup?.complete===true;
+  button.hidden=!stored.legacySetup||stored.legacySetup.decision==='pending'||stored.retentionSetup?.complete===true;
   button.disabled=busy;
-  if(stored.retentionSetup?.complete)status.textContent='Available recent dates imported. Other patterns stay unassessed until you record practice.';
+  if(stored.retentionSetup?.complete)status.textContent=`Recent dates imported${stored.retentionSetup.username?' for '+stored.retentionSetup.username:''}${stored.retentionSetup.count!==undefined?' · '+stored.retentionSetup.count+' submissions':''}${stored.retentionSetup.completedAt?' · '+new Date(stored.retentionSetup.completedAt).toLocaleString():''}. Other patterns stay unassessed until you record practice.`;
 }
 async function initialize() {
   if(busy)return;busy=true;button.disabled=true;status.textContent='Reading available recent accepted submissions…';
@@ -41,8 +41,8 @@ async function initialize() {
       })};
       await chrome.storage.local.set({retentionSetup:{snapshot}});
     }
-    await api('/imports/recent',snapshot);
-    await chrome.storage.local.set({retentionSetup:{complete:true}});
+    const result=await api('/imports/recent',snapshot);
+    await chrome.storage.local.set({retentionSetup:{complete:true,username:snapshot.username,count:snapshot.submissions.length,added:result.added,alreadyPresent:result.alreadyPresent,excluded:result.excluded,completedAt:new Date().toISOString()}});
   });}catch(error){status.textContent=error.message+' Your existing history is unchanged; retry when ready.';}
   finally{busy=false;await render();}
 }

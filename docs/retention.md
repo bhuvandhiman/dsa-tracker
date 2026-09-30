@@ -7,7 +7,7 @@ Practice strength is a product heuristic for experience and recency, not a measu
 - Breadth B = 1 - exp(-distinctProblems / 20), weight 0.5. Legacy problems count once within their primary subpattern; dated attempts count under their stored practiced approach.
 - Reinforcement D = 1 - exp(-weightedRevisits / 10), weight 0.3. A revisit requires an earlier dated practice day for the same problem and subpattern. Independent revisits add 1, hints 0.5, solution-assisted 0.2, imported unknown 0.
 - Recency R decays with a 30-day half-life. Each practice adds (1-R) times 0.6 independent, 0.4 hints, 0.2 solution-assisted, or 0.3 imported unknown.
-- Strength = min(94, 95 * (0.5B + 0.3D + 0.2R)). Only R decays. Nothing another subpattern does changes this bar.
+- Experience baseline E = min(94, 95 * (0.5B + 0.3D) / 0.8). Dated strength = min(94, E + (95 - E) * 0.2R). Recency boosts the remaining headroom rather than replacing the baseline. Adding the first dated event cannot lower previous experience. Only R decays. Nothing another subpattern does changes this bar.
 
 Daily grouping uses Asia/Calcutta. Within a problem/subpattern/day, explicit evidence wins over imported unknown; otherwise use the strongest assistance, then latest time. All attempts remain in history. Imported evidence matching a recorded problem/day or submission identity is suppressed while that recording exists, so uncertain imported approaches do not refresh extra patterns.
 
@@ -15,7 +15,7 @@ Without dated evidence, the visible bar uses the experience-only score 95 * (0.5
 
 Breadth uses a centralized target per subpattern. Broad patterns such as hashing need more distinct problems; narrow or advanced patterns such as segment trees and minimum spanning trees need fewer. This makes the coverage component comparable without treating raw problem counts as equivalent across patterns.
 
-Within a detail screen, experienced subpatterns sort weakest first and untouched children follow. Major dashboard rows use a separate category summary: distinct solved problems and dated evidence are aggregated across that category, then normalized with a category breadth target. This prevents one narrow child with a single solve from making a heavily practiced category appear nearly empty. Needs classification remains outside priority ranking. Ties use catalog order.
+The selectable Coverage perspective orders remaining goal deficits; Retention orders dated strength and age, with unknown dates and unpracticed patterns separated. Major dashboard rows use a separate category summary: distinct solved problems and dated evidence are aggregated across that category, then normalized with a category breadth target. Needs classification remains last within its evidence group. Ties use catalog order.
 
 ## Evidence and correction
 

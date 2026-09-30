@@ -1,4 +1,5 @@
 import { Box, LinearProgress, Stack, Typography } from "@mui/material";
+import { dayString } from './dates.js';
 export default function PracticeStrength({
   unit,
   compact = false,
@@ -51,7 +52,7 @@ export default function PracticeStrength({
           {unit.distinctSolved} distinct problems ·{" "}
           {unit.lastPracticedAt
             ? "Last practiced " +
-              new Date(unit.lastPracticedAt).toLocaleDateString()
+              dayString(unit.lastPracticedAt)
             : unit.distinctSolved
               ? "Previous solves count · dates unavailable"
               : "No solved problems yet"}

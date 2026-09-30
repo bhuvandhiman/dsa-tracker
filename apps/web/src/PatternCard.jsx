@@ -2,7 +2,7 @@ import { Box, ButtonBase, Paper, Stack, Typography } from "@mui/material";
 import PracticeStrength from "./PracticeStrength.jsx";
 import { GoalCoverage } from "./GoalCoverage.jsx";
 import ArcadeIcon from "./ArcadeIcon.jsx";
-export default function PatternCard({ category, onSelect, index, featured = false }) {
+export default function PatternCard({ category, onSelect, index, featured = false, view = "coverage", highlight }) {
   const unit = category.summary;
   const gap = !unit?.experienced;
   return (
@@ -28,6 +28,7 @@ export default function PatternCard({ category, onSelect, index, featured = fals
       }}
     >
       <ButtonBase
+        id={`pattern-${category.slug}`}
         onClick={onSelect}
         aria-label={"Open " + category.name}
         sx={{
@@ -35,17 +36,18 @@ export default function PatternCard({ category, onSelect, index, featured = fals
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
-          alignItems: { xs: "stretch", sm: "center" },
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: { xs: "stretch", md: "center" },
           textAlign: "left",
           gap: { xs: 2, sm: 3 },
           minHeight: featured ? 156 : 142,
         }}
       >
-        <Stack direction="row" alignItems="center" spacing={2} sx={{ minWidth: { sm: 280 } }}>
+        <Stack direction="row" alignItems="center" spacing={2} sx={{ width: { md: 230 }, flexShrink: 0 }}>
           <Box
             sx={{
               width: 34,
+              flexShrink: 0,
               height: 34,
               borderRadius: 2,
               display: "grid",
@@ -59,19 +61,20 @@ export default function PatternCard({ category, onSelect, index, featured = fals
               fontSize="small"
             />
           </Box>
-          <Box>
+          <Box sx={{ minWidth: 0 }}>
             <Typography component="h3" variant="h6">{category.name}</Typography>
             <Typography variant="caption" color="text.secondary">Across all subpatterns</Typography>
+            {highlight && <Typography variant="caption" color="primary.main" sx={{ display: "block", mt: 0.75 }}>{highlight}</Typography>}
           </Box>
         </Stack>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ flex: 1, minWidth: 0, order: view === "coverage" && category.goal ? 3 : 2 }}>
           <PracticeStrength unit={unit} compact />
-          <Typography variant="caption" sx={{ display: "block", mt: 1, color: unit.assessed ? "secondary.main" : "text.secondary" }}>{unit.reason}</Typography>
+          <Typography variant="caption" sx={{ display: "block", mt: 1, color: unit.assessed ? "secondary.main" : "text.secondary" }}>{view === "retention" && !unit.assessed ? unit.experienced ? "Previous solves · dates unavailable" : "No retention assessment yet" : unit.reason}</Typography>
         </Box>
-        <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={2} sx={{ minWidth: { sm: category.goal ? 190 : 135 } }}>
+        <Stack direction="row" alignItems="center" justifyContent={view === "coverage" ? "flex-start" : "flex-end"} spacing={2} sx={{ minWidth: { md: category.goal ? 175 : 110 }, order: view === "coverage" && category.goal ? 2 : 3 }}>
           {category.goal ? <GoalCoverage goal={category.goal} compact /> : <Typography variant="caption" color="text.secondary">{unit.distinctSolved} solved</Typography>}
-          <ArcadeIcon name="arrow" sx={{ fontSize: 18, color: "primary.main" }} />
         </Stack>
+        <ArcadeIcon name="arrow" sx={{ order: 4, alignSelf: { xs: "flex-end", md: "center" }, fontSize: 18, color: "primary.main" }} />
       </ButtonBase>
     </Paper>
   );
