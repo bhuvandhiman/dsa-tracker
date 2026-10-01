@@ -39,7 +39,7 @@ test('display preserves API priority order for categories, subpatterns and searc
 });
 
 test('frontend keeps goal-policy priorities even when they differ from catalog order',()=>{
-  const goal={categories:[{slug:'arrays-hashing',deficit:2,units:[{slug:'hashing',deficit:0},{slug:'prefix-sum',deficit:2}]},{slug:'graphs',deficit:30,units:[]}]};
+  const goal={categories:[{slug:'arrays-hashing',deficit:4,units:[{slug:'hashing',deficit:0},{slug:'prefix-sum',deficit:4}]},{slug:'graphs',deficit:30,units:[]}]};
   const ranked=applyGoalOrdering([{slug:'arrays-hashing',order:0,priority:30,children:[{slug:'hashing',order:0,priority:95},{slug:'prefix-sum',order:1,priority:10}]},{slug:'graphs',order:10,priority:40,children:[]},{slug:'other',order:16,children:[]}],goal);
   assert.deepEqual(prioritizedPatterns(ranked).map(row=>row.slug),['graphs','arrays-hashing','other']);
   assert.deepEqual(prioritizedPatterns(ranked[1].children).map(row=>row.slug),['prefix-sum','hashing']);
@@ -71,7 +71,8 @@ test('difficulty coverage keeps pattern-specific credits and excludes zero-targe
 
 test('priority progress uses the API balance and preserves unscored states', () => {
   assert.equal(priorityProgress({slug:'graphs',priorityProgress:42.5,priority:95}),42.5);
-  assert.equal(priorityProgress({slug:'graphs',priority:47.5}),50);
+  assert.equal(priorityProgress({slug:'graphs',summary:{displayStrength:50}}),50);
+  assert.equal(priorityProgress({slug:'bfs',displayStrength:50}),50);
   assert.equal(priorityProgress({slug:'new',priority:null}),null);
   assert.equal(priorityProgress({slug:'other',priorityProgress:80,priority:20}),null);
 });

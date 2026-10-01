@@ -8,6 +8,20 @@ const solved = (id, category, subpattern, difficulty) => ({
   placement: { category, subpattern },
 });
 
+test('partial coverage grows readiness but queue coverage changes in four-credit blocks', () => {
+  const categories=[{slug:'a',order:0,priority:100,queuePriority:100,displayStrength:0,children:[]},{slug:'b',order:1,priority:100,queuePriority:100,displayStrength:0,children:[]}];
+  const ranked=credited=>applyGoalOrdering(categories,{categories:[{slug:'a',target:20,credited,deficit:20-credited,units:[]},{slug:'b',target:20,credited:0,deficit:20,units:[]}]});
+  const initial=ranked(0),partial=ranked(1),complete=ranked(4);
+  assert.equal(partial[0].slug,'a');
+  assert.equal(partial[0].dashboardPriority,initial[0].dashboardPriority);
+  assert.ok(partial[0].priorityProgress>initial[0].priorityProgress);
+  assert.equal(complete[0].slug,'b');
+});
+test('small score differences use catalog order and siblings cannot pool partial coverage blocks', () => {
+  const result=applyGoalOrdering([{slug:'a',order:0,priority:100,children:[]},{slug:'b',order:1,priority:100,children:[]}],{categories:[{slug:'a',target:20,deficit:16,units:[{target:5,deficit:4},{target:5,deficit:4},{target:5,deficit:4},{target:5,deficit:4}]},{slug:'b',target:21,deficit:21,units:[]}]});
+  assert.equal(result[0].slug,'a');
+  assert.equal(result[0].dashboardPriority,20);
+});
 test('every goal matrix allocates exactly the selected total', () => {
   for (const profile of ['interview', 'deep']) {
     for (const target of [300, 500, 1000]) {
@@ -180,7 +194,7 @@ test('a rare completely weak topic cannot outrank a much larger profile gap', ()
   assert.equal(ordered[0].slug, 'dynamic-programming');
 });
 
-test('priority bars follow ranking and grow on a fixed profile scale when coverage improves', () => {
+test('readiness grows with own coverage and unrelated readiness stays unchanged', () => {
   const categories=[{slug:'graphs',priority:70,children:[{slug:'bfs',priority:70}]},{slug:'dp',priority:80,children:[]}];
   const makeGoal=gap=>({categories:[{slug:'graphs',target:50,deficit:gap,units:[{slug:'bfs',target:50,deficit:gap}]},{slug:'dp',target:50,deficit:25,units:[]}]});
   const before=applyGoalOrdering(categories,makeGoal(40));
@@ -188,7 +202,6 @@ test('priority bars follow ranking and grow on a fixed profile scale when covera
   assert.equal(before[0].slug,'graphs');assert.equal(after[0].slug,'dp');
   assert.ok(after.find(item=>item.slug==='graphs').priorityProgress>before[0].priorityProgress);
   assert.equal(after.find(item=>item.slug==='dp').priorityProgress,before.find(item=>item.slug==='dp').priorityProgress);
-  for(const list of [before,after]) for(let i=1;i<list.length;i++) assert.ok(list[i].priorityProgress>=list[i-1].priorityProgress);
   assert.ok(after.find(item=>item.slug==='graphs').children[0].priorityProgress>before[0].children[0].priorityProgress);
 });
 
@@ -204,10 +217,21 @@ test('recent practice cannot erase an important solve gap and complete patterns 
   assert.ok(neglected[0].dashboardPriority>0);
 });
 
-test('subpattern bars use the same attention order and Other stays unscored', () => {
+test('subpattern readiness reflects own coverage and strength while Other stays unscored', () => {
   const goal={categories:[{slug:'graphs',target:100,deficit:50,units:[{slug:'dfs',target:70,deficit:45},{slug:'bfs',target:30,deficit:5}]}]};
   const result=applyGoalOrdering([{slug:'graphs',priority:10,children:[{slug:'dfs',priority:5},{slug:'bfs',priority:80}]},{slug:'other',priority:null,children:[]}],goal);
   const children=result[0].children;
   assert.equal(children[0].slug,'dfs');assert.ok(children[0].priorityProgress<children[1].priorityProgress);
   assert.equal(result.at(-1).priorityProgress,null);
+});
+
+test('untouched goals start empty regardless of size and complete strong goals can reach full', () => {
+  const categories=[{slug:'large',priority:100,children:[]},{slug:'small',priority:100,children:[]}];
+  const goal={categories:[{slug:'large',target:75,deficit:75,units:[]},{slug:'small',target:8,deficit:8,units:[]}]};
+  const unfinished=applyGoalOrdering(categories,goal);
+  assert.equal(unfinished[0].priorityProgress,0);
+  assert.equal(unfinished[1].priorityProgress,0);
+  const completed=applyGoalOrdering(categories.map(item=>({...item,priority:0})),{categories:goal.categories.map(item=>({...item,deficit:0}))});
+  assert.ok(completed.every(item=>item.priorityProgress===100));
+  assert.equal(unfinished[1].dashboardPriority,8);
 });

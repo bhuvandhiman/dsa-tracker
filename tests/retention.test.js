@@ -5,6 +5,49 @@ import {classifyProblem} from '../apps/api/src/pattern-catalog.js';
 const now=Date.parse('2026-01-01T12:00:00Z'),day=86400000;
 const event=(assistance='independent',at=now,problemId=1,practiceUnit)=>({problemId,assistance,at:new Date(at).toISOString(),practiceUnit});
 const problem=(id,slug,historicallySolved=false)=>{const p={id,platform:'leetcode',externalId:slug,patternSlugs:[],historicallySolved};return {...p,placement:classifyProblem(p)};};
+const block=(at=now,assistance='independent',count=4,unit='hashing')=>Array.from({length:count},(_,i)=>event(assistance,at,i+1,unit));
+test('four independent distinct solves earn a three-day hold then gradual decay resumes',()=>{
+  const events=block(),fresh=retentionFor(events,now);
+  assert.equal(fresh.completedPracticeBlocks,1);
+  assert.equal(retentionFor(events,now+3*day).strength,fresh.strength);
+  assert.ok(retentionFor(events,now+4*day).strength<fresh.strength);
+  assert.equal(retentionFor(events.slice(0,3),now).completedPracticeBlocks,0);
+});
+test('partial practice grows the bar without changing committed queue evidence or extending the hold',()=>{
+  const events=block(),partial=[...events,event('independent',now+2*day,5,'hashing')];
+  const before=retentionFor(events,now+2*day),after=retentionFor(partial,now+2*day);
+  assert.ok(after.strength>before.strength);
+  assert.equal(after.queueStrength,before.queueStrength);
+  assert.equal(after.completedPracticeBlocks,1);
+  assert.ok(retentionFor(partial,now+4*day).strength<retentionFor(partial,now+3*day).strength);
+  assert.equal(retentionFor([event()],now).queueStrength,retentionFor([],now).queueStrength);
+  assert.ok(retentionFor(events,now).queueStrength>retentionFor(events.slice(0,3),now).queueStrength);
+});
+test('holds require weighted distinct practice in one subpattern, never a repeated single problem',()=>{
+  assert.equal(retentionFor(block(now,'hint'),now).completedPracticeBlocks,0);
+  assert.equal(retentionFor(block(now,'hint',8),now).completedPracticeBlocks,1);
+  assert.equal(retentionFor(block(now,'solution',20),now).completedPracticeBlocks,1);
+  assert.equal(retentionFor(block(now,'unknown',20),now).completedPracticeBlocks,0);
+  const repeated=Array.from({length:20},(_,i)=>event('independent',now-i*day,1,'hashing'));
+  assert.equal(retentionFor(repeated,now).completedPracticeBlocks,0);
+  assert.ok(retentionFor(repeated,now).strength<50);
+  assert.equal(retentionFor(block().map((e,i)=>({...e,practiceUnit:i<2?'hashing':'prefix-sum'})),now).completedPracticeBlocks,0);
+});
+test('spaced blocks extend the hold, same-day blocks do not, and corrections recalculate it',()=>{
+  const spaced=[...block(now-day),...block(now)],fresh=retentionFor(spaced,now);
+  assert.equal(fresh.completedPracticeBlocks,2);
+  assert.equal(retentionFor(spaced,now+5*day).strength,fresh.strength);
+  assert.ok(retentionFor(spaced,now+6*day).strength<fresh.strength);
+  const sameDay=block(now,'independent',8);
+  assert.equal(retentionFor(sameDay,now).completedPracticeBlocks,2);
+  assert.ok(retentionFor(sameDay,now+4*day).strength<retentionFor(sameDay,now).strength);
+  const corrected=spaced.slice(0,-1);
+  assert.equal(retentionFor(corrected,now).completedPracticeBlocks,1);
+  assert.ok(retentionFor(corrected,now+3*day).strength<retentionFor(corrected,now+2*day).strength);
+  const many=Array.from({length:10},(_,i)=>block(now-i*day)).flat();
+  assert.equal(retentionFor(many,now+14*day).strength,retentionFor(many,now).strength);
+  assert.ok(retentionFor(many,now+15*day).strength<retentionFor(many,now).strength);
+});
 test('the first dated event adds evidence without lowering the undated experience baseline',()=>{
   for(const assistance of ['unknown','independent','hint','solution']){
     const baseline=retentionFor([],now,100,20);
@@ -13,12 +56,13 @@ test('the first dated event adds evidence without lowering the undated experienc
     assert.ok(retentionFor([event(assistance)],now+365*day,100,20).displayStrength>=baseline.displayStrength);
   }
 });
-test('only recency decays; breadth and reinforcement persist and the bar stays below full',()=>{
+test('only recency decays; substantial breadth and reinforcement can exceed the old artificial cap',()=>{
   const events=[event(),event('independent',now-day)];
   const fresh=retentionFor(events,now),old=retentionFor(events,now+365*day);
   assert.equal(old.breadth,fresh.breadth);assert.equal(old.reinforcement,fresh.reinforcement);assert.ok(old.strength>0);assert.ok(old.strength<fresh.strength);
   assert.equal(decay(0.6,30),0.3);
-  assert.ok(retentionFor(Array.from({length:400},(_,i)=>event('independent',now-i*day)),now,10000).strength<=94);
+  const strong=retentionFor(Array.from({length:400},(_,i)=>event('independent',now-i*day)),now,10000).strength;
+  assert.ok(strong>94&&strong<=100);
   assert.equal(retentionFor([],now,12).strength,null);
 });
 test('local-day dedup favors explicit assistance; only separate-day revisits reinforce',()=>{

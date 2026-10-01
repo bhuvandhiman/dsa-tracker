@@ -1,26 +1,35 @@
-# Practice strength
+# Practice strength and readiness
 
-Practice strength is a product heuristic for experience and recency, not a measurement of memory or mastery. Constants live in apps/api/src/retention-policy.js.
+Scores are product heuristics, not measured recall probabilities. Research and limitations are documented in retention-research.md. Numeric defaults live in retention-policy.js, practice-policy.js, and goal-policy.js.
 
-## Calculation
+## Visible progress
 
-- Breadth B = 1 - exp(-distinctProblems / 20), weight 0.5. Legacy problems count once within their primary subpattern; dated attempts count under their stored practiced approach.
-- Reinforcement D = 1 - exp(-weightedRevisits / 10), weight 0.3. A revisit requires an earlier dated practice day for the same problem and subpattern. Independent revisits add 1, hints 0.5, solution-assisted 0.2, imported unknown 0.
-- Recency R decays with a 30-day half-life. Each practice adds (1-R) times 0.6 independent, 0.4 hints, 0.2 solution-assisted, or 0.3 imported unknown.
-- Experience baseline E = min(94, 95 * (0.5B + 0.3D) / 0.8). Dated strength = min(94, E + (95 - E) * 0.2R). Recency boosts the remaining headroom rather than replacing the baseline. Adding the first dated event cannot lower previous experience. Only R decays. Nothing another subpattern does changes this bar.
+Breadth B = 1 - exp(-distinctProblems / patternBreadthTarget). Reinforcement D = 1 - exp(-weightedRevisits / 10). Independent revisits contribute 1, hints 0.5, solution-assisted 0.2, and imported unknown assistance 0. Each identity contributes breadth once; reinforcement requires separate practice days.
 
-Daily grouping uses Asia/Calcutta. Within a problem/subpattern/day, explicit evidence wins over imported unknown; otherwise use the strongest assistance, then latest time. All attempts remain in history. Imported evidence matching a recorded problem/day or submission identity is suppressed while that recording exists, so uncertain imported approaches do not refresh extra patterns.
+Experience E = 100 * (0.5B + 0.3D) / 0.8. Dated strength = E + (100 - E) * 0.2R, bounded to 0–100. Practice adds (1-R) times 0.6 for independent work, 0.4 for hints, 0.2 for solutions, or 0.3 for imported unknown assistance. Only recency R decays, with a default 30-day half-life outside earned holds. Breadth and reinforcement persist. Strong sustained practice can exceed the former artificial 94% cap.
 
-Without dated evidence, the visible bar uses the experience-only score 95 * (0.5B + 0.3D) / 0.8 and is labeled “Prior solves · date unknown.” The assessed flag remains false and recency remains null, so the API does not invent practice dates. Every subpattern, including untouched ones, has a bar.
+Without dates, the experience baseline remains visible but retention is unassessed. Imported solves never acquire invented practice dates or assistance labels.
 
-Breadth uses a centralized target per subpattern. Broad patterns such as hashing need more distinct problems; narrow or advanced patterns such as segment trees and minimum spanning trees need fewer. This makes the coverage component comparable without treating raw problem counts as equivalent across patterns.
+With a configured goal, the main pattern bar is Estimated readiness: 65% of actual coverage against that pattern's own difficulty quotas plus 35% of current practice strength (or undated experience baseline). Without a goal, it shows practice strength alone. Readiness is separate from queue importance; high readiness does not erase a large interview-relevant coverage gap. Other remains unscored. Difficulty bars continue to show exact credits.
 
-The selectable Coverage perspective orders remaining goal deficits; Retention orders dated strength and age, with unknown dates and unpracticed patterns separated. Major dashboard rows use a separate category summary: distinct solved problems and dated evidence are aggregated across that category, then normalized with a category breadth target. Needs classification remains last within its evidence group. Ties use catalog order.
+## Meaningful blocks and holds
+
+A block requires at least four distinct problems within one practiced subpattern and four evidence credits: independent = 1, hint = 0.5, solution = 0.2, unknown = 0. The strongest assistance evidence for each problem counts once within a pending block. Repeating one problem cannot complete a block. Partial work carries forward and clears when its block completes. Subsequent blocks may revisit the same set on later days.
+
+The first completed block holds recency steady for three days. Each later block completed on a different local date from that subpattern's preceding block extends its hold by two days, capped at fourteen. Multiple same-day blocks do not extend the duration. After the hold, gradual decay resumes. Partial blocks improve the visible score without extending the earned hold. These are adjustable product defaults, not scientifically established DSA intervals.
+
+Daily grouping uses Asia/Calcutta. Explicit evidence wins over imported unknown; otherwise the strongest assistance and latest time win within a problem/day. Child summaries are separate. Category summaries aggregate distinct identities while checking blocks separately by practiced subpattern, preventing unrelated partial practice from earning a combined hold.
+
+## Stable attention queue
+
+Queue practice weakness uses evidence committed through its last completed practice block, plus legacy solved identities. Later partial practice grows the visible bar immediately but does not refresh queue evidence. Committed evidence still decays after its earned hold.
+
+Coverage affects queue attention in four-credit increments within each subpattern; completing a target releases any final smaller remainder. Actual coverage and difficulty bars always update immediately. Coverage counts accepted identities regardless of assistance; dated practice blocks apply separate assistance weighting.
+
+Attention = 0.65 * committed remaining goal credits + 0.35 * profile target * committed practice weakness. Two-credit score bands use catalog order for ties. This reduces small reorders through deterministic bucketing, not persisted hysteresis. Profile-specific targets preserve interview/deep-understanding emphasis. Without a goal, ranking uses committed practice weakness in two-point bands. Other stays last.
 
 ## Evidence and correction
 
-Attempts store one practice_unit and approach_source (confirmed or inferred), independently of browsing placement and raw topic tags. Migration 006 uses an unambiguous specific recorded approach when possible; otherwise it snapshots the primary classification as inferred. New captures prefill an approach that the user can correct or confirm.
+Attempts retain their stored practice_unit and approach_source independently of browsing placement. Placement corrections move coverage and legacy classification without rewriting recorded approaches. Editing or deleting practice recalculates blocks, holds, readiness, and ranking from remaining evidence. Imported evidence overlapping a recorded problem/day or submission is suppressed while the recording exists.
 
-Changing browsing placement affects legacy/imported classification but cannot rewrite stored attempts. Correcting an attempt changes its own approach and recalculates the bars. Removing an attempt may reveal independently imported dated evidence again. History, notes, assistance and original tags are preserved.
-
-No scheduler or persisted countdown is needed: the API calculates strength from evidence at request time. The dashboard refreshes periodically and after corrections.
+No scheduler, daily check-in, countdown, or schema migration is required. Scores are calculated at request time and refreshed by the dashboard. Original attempts, notes, tags, and settings are preserved.

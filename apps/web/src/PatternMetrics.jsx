@@ -27,7 +27,7 @@ export function DifficultyMetrics({ goal, name, goalConfigured }) {
 
 function PriorityMetric({ item, priorityItem, name }) {
   const progress = priorityProgress(priorityItem);
-  return <div className="pattern-retention"><div className="pattern-retention-label"><strong>{priorityItem.slug === 'other' ? 'Needs classification' : 'Priority balance'}</strong><span>{progress === null ? '—' : `${Math.round(progress)}%`}</span></div>{progress !== null && <div className="pattern-retention-track" role="img" aria-label={`${name}: ${Math.round(progress)}% priority balance. Less filled means more attention needed.`}><span style={{width:`${progress}%`}} /></div>}<small>{item.assessed ? `Retention ${Math.round(percent(item.strength))}%` : item.distinctSolved > 0 ? 'Retention undated' : 'Retention not assessed'} · {item.distinctSolved} distinct solves</small></div>;
+  return <div className="pattern-retention"><div className="pattern-retention-label"><strong>{priorityItem.slug === 'other' ? 'Needs classification' : 'Estimated readiness'}</strong><span>{progress === null ? '—' : `${Math.round(progress)}%`}</span></div>{progress !== null && <div className="pattern-retention-track" role="img" aria-label={`${name}: ${Math.round(progress)}% estimated readiness.`}><span style={{width:`${progress}%`}} /></div>}<small>{item.assessed ? `Practice strength ${Math.round(percent(item.strength))}%` : item.distinctSolved > 0 ? 'Retention undated' : 'Retention not assessed'} · {item.distinctSolved} distinct solves</small></div>;
 }
 
 export default function PatternMetrics({ item, priorityItem = item, goal, name, goalConfigured }) {

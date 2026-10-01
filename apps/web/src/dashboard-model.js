@@ -29,7 +29,8 @@ export function priorityProgress(item) {
   if (item.slug === 'other') return null;
   if (Number.isFinite(item.priorityProgress)) return percent(item.priorityProgress);
   // Unconfigured workspaces retain the API's practice-only ranking.
-  return Number.isFinite(item.priority) ? percent(100 * (1 - item.priority / 95)) : null;
+  const strength = item.summary?.displayStrength ?? item.displayStrength;
+  return Number.isFinite(strength) ? percent(strength) : null;
 }
 
 export function retentionOverview(categories) {

@@ -1,6 +1,7 @@
 import { navigationCategories, unitsFor, unitForPlacement } from './pattern-catalog.js';
+import { practicePolicy } from './practice-policy.js';
 
-export const GOAL_POLICY_VERSION = '2026-10-01.v4';
+export const GOAL_POLICY_VERSION = '2026-10-02.v5';
 export const GOAL_TARGETS = Object.freeze([300, 500, 1000]);
 
 export const GOAL_PROFILES = Object.freeze({
@@ -262,11 +263,21 @@ export function goalCoverage(problems, { profile, target }) {
 }
 
 function practicePriority(item) {
-  return Number.isFinite(item?.priority) ? item.priority : -1;
+  return Number.isFinite(item?.queuePriority) ? item.queuePriority : Number.isFinite(item?.priority) ? item.priority : -1;
 }
 
 function remainingGoalGap(item) {
-  return Math.max(0, Number(item?.goal?.deficit) || 0);
+  const goal = item?.goal;
+  if (goal?.units?.length) return goal.units.reduce((sum, unit) => sum + committedGap(unit), 0);
+  return committedGap(goal);
+}
+
+function committedGap(goal) {
+  const deficit = Math.max(0, Number(goal?.deficit) || 0);
+  const target = Number(goal?.target);
+  if (!Number.isFinite(target) || deficit === 0) return deficit;
+  const credited = Math.max(0, Number(goal.credited ?? target - deficit));
+  return Math.max(0, target - Math.floor(credited / practicePolicy.blockWeight) * practicePolicy.blockWeight);
 }
 
 // Profile-weighted targets keep important patterns prominent. Coverage accounts
@@ -277,7 +288,7 @@ const PRACTICE_ATTENTION_SHARE = 0.35;
 function practiceNeed(item) {
   const priority = practicePriority(item);
   if (priority < 0) return 1;
-  return Math.min(1, Math.max(0, priority / 95));
+  return Math.min(1, Math.max(0, priority / 100));
 }
 
 function attentionScore(item) {
@@ -286,17 +297,20 @@ function attentionScore(item) {
   return (1 - PRACTICE_ATTENTION_SHARE) * gap + PRACTICE_ATTENTION_SHARE * target * practiceNeed(item);
 }
 
-function withPriorityProgress(item, scale) {
+function withPriorityProgress(item) {
   const score = attentionScore(item);
-  return {...item, dashboardPriority:score, priorityProgress:item.slug === 'other' || !item.goal ? null : Math.max(0, Math.min(100, 100 * (1 - score / scale)))};
+  const target = Number(item.goal?.target) || 0;
+  const coverage = item.goal?.coverage ?? (target ? 100 * (1 - item.goal.deficit / target) : 0);
+  const strength = item.summary?.displayStrength ?? item.displayStrength ?? (Number.isFinite(item.priority) ? 100 - item.priority : 0);
+  // Readiness uses this pattern's actual progress. Queue importance is separate.
+  const readiness = 0.65 * coverage + 0.35 * strength;
+  return {...item, dashboardPriority:score, priorityProgress:item.slug === 'other' || !item.goal ? null : Math.max(0, Math.min(100, readiness))};
 }
 
 function compareGoalAttention(a, b) {
   if (a.slug === 'other') return b.slug === 'other' ? 0 : 1;
   if (b.slug === 'other') return -1;
-  return attentionScore(b) - attentionScore(a)
-    || remainingGoalGap(b) - remainingGoalGap(a)
-    || practicePriority(b) - practicePriority(a)
+  return Math.floor(attentionScore(b) / practicePolicy.bufferCredits) - Math.floor(attentionScore(a) / practicePolicy.bufferCredits)
     || (a.order ?? 0) - (b.order ?? 0);
 }
 
@@ -305,20 +319,18 @@ function compareGoalAttention(a, b) {
 // attention on the dashboard.
 export function applyGoalOrdering(categories, goal) {
   const byCategory = new Map(goal.categories.map(category => [category.slug, category]));
-  const categoryScale = Math.max(1, ...goal.categories.map(category => Number(category.target) || category.deficit || 0));
   return categories.map(category => {
     const categoryGoal = byCategory.get(category.slug) || null;
     const byUnit = new Map((categoryGoal?.units || []).map(unit => [unit.slug, unit]));
-    const unitScale = Math.max(1, ...(categoryGoal?.units || []).map(unit => Number(unit.target) || unit.deficit || 0));
     const children = category.children
-      .map(unit => withPriorityProgress({ ...unit, goal: byUnit.get(unit.slug) || null }, unitScale))
+      .map(unit => withPriorityProgress({ ...unit, goal: byUnit.get(unit.slug) || null }))
       .sort(compareGoalAttention);
     return withPriorityProgress({
       ...category,
       goal: categoryGoal,
       children,
       attention: children[0]?.slug || null,
-    }, categoryScale);
+    });
   }).sort(compareGoalAttention);
 }
 
