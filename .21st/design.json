@@ -1,115 +1,82 @@
 {
   "version": 1,
   "project": {
-    "name": "Recall — Developer Arcade",
+    "name": "Recall",
     "productType": "Local DSA practice retention tracker",
     "stack": [
       "JavaScript",
       "React",
       "Vite",
-      "Material UI",
-      "Emotion",
       "Chrome MV3"
     ]
   },
   "sources": {
     "tokens": [
-      "apps/web/src/theme.js"
+      "apps/web/src/styles.css"
     ],
     "components": [
-      "apps/web/src/PatternCard.jsx",
-      "apps/web/src/PracticeStrength.jsx"
+      "apps/web/src/App.jsx"
     ],
     "assets": [],
-    "instructions": []
+    "instructions": [
+      ".21st/DESIGN.md"
+    ]
   },
   "design": {
-    "colorMode": "dark",
+    "colorMode": "light",
     "colors": {
-      "canvas": "#0d1117",
-      "surface": "#161d27",
-      "arcadeBlue": "#5b8cff",
-      "arcadeBlueBright": "#7aa2ff",
-      "arcadeBlueDark": "#416fe0",
-      "semanticGreen": "#45d483",
-      "amber": "#f3b562"
+      "canvas": "#fafbe9",
+      "coral": "#e96586",
+      "mustard": "#f2b632",
+      "teal": "#2c8075",
+      "ink": "#202720"
     },
-    "density": "compact",
-    "motion": {
-      "hover": "180ms",
-      "progress": "600ms",
-      "reducedMotion": true
-    }
+    "typography": "Trebuchet MS / Segoe UI",
+    "density": "comfortable"
   },
   "components": {
     "installed": [
       "Material UI"
     ],
-    "preferredPrimitives": [
-      "MUI"
-    ],
+    "preferredPrimitives": [],
     "patterns": [
-      "Single-column pattern navigation",
-      "Independent strength bars",
-      "Compact LeetCode-linked problem rows",
-      "Topic-scoped pencil correction",
-      "Full-width pattern details"
+      "Rounded pattern cards",
+      "Coverage and Retention switch",
+      "Floating topic labels"
     ]
   },
   "constraints": {
     "must": [
-      "Preserve existing data; selectable dashboard views may reorder API results for presentation",
-      "Legacy-only evidence has a visible bar and an unknown-date label",
-      "JavaScript only",
-      "Keyboard access and reduced motion"
+      "Preserve existing practice data, API, and extension",
+      "JavaScript only"
     ],
-    "avoid": [
-      "Mastery claims",
-      "Global question counters",
-      "XP and study recommendations",
-      "Standalone problem library"
-    ]
+    "avoid": []
   },
   "decisions": [
     {
-      "date": "2026-09-24",
-      "direction": "Developer Arcade",
-      "reason": "User approved dark developer-tool surfaces, restrained game-like interactions and a single pattern explorer."
+      "date": "2026-10-01",
+      "direction": "Blank website frontend pending new inspiration",
+      "reason": "User rejected the previous UI and requested a complete frontend reset before rebuilding from inspiration photos."
     },
     {
-      "date": "2026-09-24",
-      "direction": "Bar-first single-column dashboard",
-      "reason": "Every pattern needs a visible strength bar; the sidebar and split panel diluted the primary retention signal."
+      "date": "2026-10-01",
+      "direction": "Warm playful visual language, original DSA layout",
+      "reason": "User selected reference 2 palette and typography, both references card styling, and phased implementation with review checkpoints."
     },
     {
-      "date": "2026-09-25",
-      "direction": "Subpattern bars with a focused problem list",
-      "reason": "Pattern details expose independent strength first, then show one compact problem list with corrections limited to LeetCode-supported candidates."
-    },
-    {
-      "date": "2026-09-25",
-      "direction": "Arcade Blue palette",
-      "reason": "User selected blue as the primary interaction color because the previous green accent felt visually off. Difficulty colors remain semantic green, amber, and red."
-    },
-    {
-      "date": "2026-09-28",
-      "direction": "Strength bar plus target ring",
-      "reason": "Practice Strength remains the single continuous bar, while Goal Coverage uses a LeetCode-style circular target indicator so the two metrics no longer read as competing scores."
-    },
-    {
-      "date": "2026-09-30",
-      "direction": "Selectable Coverage and Retention perspectives",
-      "reason": "User chose both perspectives. Coverage emphasizes strict remaining goal gaps; Retention emphasizes weaker dated Practice Strength. Both metrics remain visible, dates-unknown experience is separated from retention assessment, and the choice persists locally."
+      "date": "2026-10-01",
+      "direction": "Full-page ivory canvas",
+      "reason": "User requested the website cover the whole page instead of appearing as an outer card. Preserve inner cards and responsive content gutters."
     }
   ],
   "evidence": [
     {
-      "url": "https://21st.dev/community/components/educalvolpz/animated-progress-bar/default",
-      "use": "Animated progress inspiration"
+      "url": "https://21st.dev/@uiable/components/card-tabs",
+      "use": "Catalog reference only; no code installed"
     },
     {
-      "url": "https://21st.dev/@dillionverma/components/animated-circular-progress-bar",
-      "use": "Single-subpattern circular indicator inspiration"
+      "url": "https://21st.dev/@cnippet-dev/components/tabs-with-icons",
+      "use": "Catalog reference only; native buttons used for two independent pressed states"
     }
   ]
 }

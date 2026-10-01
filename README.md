@@ -1,14 +1,8 @@
-# Recall — DSA practice strength
+# Recall — DSA practice tracker
 
-Recall shows which patterns have less practice or have been neglected. It leaves the study decision to you.
+The website is being rebuilt in phases. Phase 1 introduces the warm ivory, coral, mustard, and teal visual foundation, responsive dashboard shell, and Coverage/Retention presentation switch. Pattern cards are illustrative; live metrics and detailed workflows come next. Track progress in [the rebuild checklist](docs/frontend-rebuild.md) and see [.21st/DESIGN.md](.21st/DESIGN.md).
 
-- Select Coverage to explore remaining goal gaps, or Retention to review weaker dated practice. The choice is remembered after reload and applies to category and subpattern ordering. Both metrics remain visible; undated prior solves and unpracticed patterns stay distinct from assessed retention.
-- Independent subpattern bars with a persistent breadth/reinforcement baseline and a smaller recent-practice boost. The first dated recording cannot lower an undated experience score. Breadth is normalized by each pattern's scope.
-- A pattern dashboard and detail screens with scoped problems, expandable history, and primary-pattern corrections. Desktop sidebars provide pattern navigation and goal context; smaller screens use a compact inline goal summary. There is no standalone library, global counter, or dashboard recording form.
-- A compact LeetCode prompt after a fresh Accepted submission: assistance, one practiced approach, optional topic checkboxes, then Save practice. Manual recording remains available in the extension.
-- Accepted-problem imports preserve existing practice and add legacy experience without inventing dates or assistance. Available recent dates initialize assessed bars. Reimport and retry live in extension Settings.
-
-The Developer Arcade interface uses a dark Arcade Blue theme, full-width pattern rows, pattern and scoped problem search, and reduced-motion-aware transitions. Every row has a Practice strength bar. Legacy solves produce an experience-based bar while remaining clearly marked as date unknown. Ctrl/Cmd+K focuses pattern search. Design references and verification are documented in [.21st/DESIGN.md](.21st/DESIGN.md).
+The API, PostgreSQL practice data, coverage and retention policies, and Chrome extension remain available.
 
 ## Run
 
@@ -30,13 +24,13 @@ Migration 006 snapshots existing attempt approaches conservatively and preserves
 2. When updating, restart the API, reload the extension and refresh LeetCode. The current version is 0.8.0.
 3. During setup, import previously accepted problems or skip. Keep a signed-in LeetCode tab and the local API available.
 4. After a new Accepted result, record practice in the small prompt. A successful save closes it; failed saves retain the same recording for retry.
-5. Open extension Settings to resume, reimport, or retry available recent dates. These actions do not appear on the dashboard.
+5. Open extension Settings to resume, reimport, or retry available recent dates. These actions remain available through the extension.
 
 The extension uses the LeetCode account signed in to the website, not Chrome sync. Credentials remain on LeetCode. One local workspace belongs to one LeetCode account; changing accounts is rejected during imports and new recordings. Recent submission availability is limited and is not a complete historical timeline.
 
-Problem history now supports editing, soft removal, notes, earlier recordings, filters and sorting. Workspace Settings shows the database/account, exports a JSON backup, restores compatible missing records without overwriting conflicts, and restores removed recordings. Back up before moving or rebuilding your database; restore requires the same migration version.
+The API supports history editing, soft removal, notes, earlier recordings, filters, sorting, JSON backups, compatible missing-record restore, and removed-record recovery. Website controls for these features will be rebuilt. Back up before moving or rebuilding your database; restore requires the same migration version.
 
-The recording panel keeps editable choices when closed and freezes uncertain saves for identical retries. Additional Accepted submissions are queued. Extension Settings lists drafts, pending saves, queued submissions and archived conflict choices. Manual dates use labelled browser time; the dashboard and scoring use Asia/Calcutta.
+The recording panel keeps editable choices when closed and freezes uncertain saves for identical retries. Additional Accepted submissions are queued. Extension Settings lists drafts, pending saves, queued submissions and archived conflict choices. Manual dates use labelled browser time; API scoring uses Asia/Calcutta.
 
 ## Validation
 
