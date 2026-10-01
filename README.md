@@ -1,6 +1,6 @@
 # Recall — DSA practice tracker
 
-The website is being rebuilt in phases. Phase 1 introduces the warm ivory, coral, mustard, and teal visual foundation, responsive dashboard shell, and Coverage/Retention presentation switch. Pattern cards are illustrative; live metrics and detailed workflows come next. Track progress in [the rebuild checklist](docs/frontend-rebuild.md) and see [.21st/DESIGN.md](.21st/DESIGN.md).
+The website is being rebuilt in phases. Phase 2 connects the warm, responsive dashboard to live coverage and retention data, the complete pattern catalog, subpattern search, and goal controls. Detailed problem/history workflows come in Phase 3. Track progress in [the rebuild checklist](docs/frontend-rebuild.md) and see [.21st/DESIGN.md](.21st/DESIGN.md).
 
 The API, PostgreSQL practice data, coverage and retention policies, and Chrome extension remain available.
 

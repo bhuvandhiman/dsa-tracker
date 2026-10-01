@@ -1,11 +1,7 @@
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import './styles.css';
-
-const patterns = [
-  { name: 'Arrays & hashing', symbol: '[ ]', color: 'coral', topics: 'Two pointers · Sliding window', coverage: 'Start with the building blocks.', retention: 'Keep the fundamentals close.' },
-  { name: 'Trees & graphs', symbol: '↗', color: 'teal', topics: 'Traversal · Search · Connections', coverage: 'Find your way through new ideas.', retention: 'Revisit the paths you know.' },
-  { name: 'Dynamic programming', symbol: '↻', color: 'mustard', topics: 'Subproblems · States · Decisions', coverage: 'Make a big problem feel smaller.', retention: 'Reconnect the steps that matter.' },
-];
+import LiveDashboard from './LiveDashboard.jsx';
+import { readRoute } from './navigation.js';
 
 function Icon({ name, ...props }) {
   const paths = {
@@ -40,7 +36,17 @@ function PracticeIllustration() {
 }
 
 export default function App() {
-  const [view, setView] = useState('coverage');
+  const [route, setRoute] = useState(() => readRoute(window.location.hash));
+  useEffect(() => {
+    function navigate() {
+      setRoute(readRoute(window.location.hash));
+      requestAnimationFrame(() => { document.getElementById('main')?.focus({preventScroll:true}); window.scrollTo(0,0); });
+    }
+    window.addEventListener('hashchange', navigate);
+    return () => window.removeEventListener('hashchange', navigate);
+  }, []);
+  const [view, setView] = useState(() => { try { return localStorage.getItem('recall-view') === 'retention' ? 'retention' : 'coverage'; } catch { return 'coverage'; } });
+  useLayoutEffect(() => { try { localStorage.setItem('recall-view', view); } catch { /* The view still works without storage. */ } }, [view]);
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('recall-theme') === 'dark' ? 'dark' : 'light'; }
     catch { return 'light'; }
@@ -52,12 +58,12 @@ export default function App() {
   }, [theme]);
   const themeAction = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
   return <div className="workspace">
-    <a className="skip-link" href="#main">Skip to content</a>
+    <a className="skip-link" href="#main" onClick={event => {event.preventDefault(); document.getElementById('main')?.focus();}}>Skip to content</a>
     <header className="topbar">
-      <a className="brand" href="#main" aria-label="Recall home"><span className="brand-mark"><Icon name="book" /></span><span>recall<span className="brand-dot">.</span></span></a>
+      <a className="brand" href="#/dashboard" aria-label="Recall home"><span className="brand-mark"><Icon name="book" /></span><span>recall<span className="brand-dot">.</span></span></a>
       <nav className="navigation" aria-label="Main navigation">
-        <a className="nav-link active" href="#main"><Icon name="home" />Dashboard</a>
-        <a className="nav-link" href="#patterns"><Icon name="grid" />Patterns</a>
+        <a className={`nav-link ${route.page === 'dashboard' ? 'active' : ''}`} aria-current={route.page === 'dashboard' ? 'page' : undefined} href="#/dashboard"><Icon name="home" />Dashboard</a>
+        <a className={`nav-link ${route.page === 'patterns' ? 'active' : ''}`} aria-current={route.page === 'patterns' ? 'page' : undefined} href="#/patterns"><Icon name="grid" />Patterns</a>
       </nav>
       <div className="topbar-actions">
         <span className="workspace-label"><span className="status-dot" />Your learning space</span>
@@ -65,16 +71,16 @@ export default function App() {
       </div>
     </header>
 
-    <main id="main">
-      <section className="hero" aria-labelledby="welcome-title">
+    <main id="main" tabIndex={-1}>
+      {route.page === 'dashboard' ? <section className="hero" aria-labelledby="welcome-title">
         <div className="hero-copy">
           <p className="eyebrow"><span />A little progress, every day</p>
           <h1 id="welcome-title">Learn something.<br />Make it <span>stay.</span></h1>
           <p className="hero-description">Your DSA journey, with room to grow.<br className="desktop-break" /> Explore your coverage. Stay close to what you’ve learned.</p>
-          <a className="primary-button" href="#patterns">Explore your patterns<Icon name="arrow" /></a>
+          <a className="primary-button" href="#/patterns">Explore your patterns<Icon name="arrow" /></a>
         </div>
         <PracticeIllustration />
-      </section>
+      </section> : <div className="page-intro"><p className="eyebrow">Your practice, pattern by pattern</p><h1>Patterns.</h1><p>Explore your coverage and the practice behind each idea.</p></div>}
 
       <section className="perspective" aria-labelledby="perspective-title">
         <div><p className="eyebrow">Two ways to see your progress</p><h2 id="perspective-title">The bigger picture.</h2></div>
@@ -84,19 +90,13 @@ export default function App() {
         </div>
       </section>
 
-      <section className="perspective-card" aria-live="polite" aria-atomic="true">
+      {route.page === 'dashboard' && <section className="perspective-card" aria-live="polite" aria-atomic="true">
         <div className={`perspective-symbol ${view === 'coverage' ? 'coral' : 'teal'}`}><Icon name={view === 'coverage' ? 'grid' : 'spark'} /></div>
         <div className="perspective-copy"><h3>{view === 'coverage' ? 'How far have you explored?' : 'What’s staying with you?'}</h3><p>{view === 'coverage' ? 'See the patterns you’ve practiced and the ground still left to cover.' : 'See how dated practice holds up over time, with undated experience kept separate.'}</p></div>
         <span className="perspective-label">{view === 'coverage' ? 'Breadth of practice' : 'Practice over time'}<Icon name={view === 'coverage' ? 'book' : 'clock'} /></span>
-      </section>
+      </section>}
 
-      <section id="patterns" className="patterns-section" aria-labelledby="patterns-title">
-        <div className="section-heading"><div><p className="eyebrow">One idea at a time</p><h2 id="patterns-title">A world of patterns.</h2></div><span className="section-note">Small steps. Strong foundations.</span></div>
-        <div className="pattern-grid">{patterns.map(pattern => <article className={`pattern-card ${pattern.color}`} key={pattern.name}>
-          <div className="pattern-card-top"><span className="pattern-icon">{pattern.symbol}</span><span className="pattern-type">DSA pattern</span></div>
-          <h3>{pattern.name}</h3><p>{pattern[view]}</p><div className="pattern-card-footer"><span>{pattern.topics}</span><Icon name="spark" /></div>
-        </article>)}</div>
-      </section>
+      <LiveDashboard view={view} route={route} />
       <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><span className="footer-flower" aria-hidden="true">✳</span></footer>
     </main>
   </div>;

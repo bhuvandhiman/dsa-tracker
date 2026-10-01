@@ -17,18 +17,22 @@ copying either reference's layout. Coverage and Retention remain central.
 - [x] User revision: top-bar moon/sun control, dark palette, and persisted theme preference.
 - [x] Lint, existing tests, and production build.
 - [x] Browser verification at 320, 376, 769, 1024, and 1440 CSS pixels: no horizontal overflow, click/keyboard perspective changes, and pattern anchor navigation. No browser errors or warnings.
-- [ ] User feedback checkpoint before expanding the interface.
+- [x] User reviewed Phase 1, revised the frame and theme control, and requested Phase 2.
 
 This phase is a visual shell. Cards are illustrative categories, not the complete
 API catalog; they are not yet clickable. The switch changes explanatory content,
 not practice ordering. No metrics or activity are fabricated.
 
 ## Phase 2 — live coverage and retention
-- [ ] Connect existing read-only APIs.
-- [ ] Render the complete pattern catalog, goal coverage, and practice strength.
-- [ ] Add loading, error, empty, and undated-experience states.
-- [ ] Implement ordering, search, and goal controls.
+- [x] Connect the existing retention API, with cancellation, timeout, retry, and visibility-aware refresh.
+- [x] Render all 17 categories and their subpatterns, goal coverage rings, practice strength, and difficulty credit.
+- [x] Add loading, first-load errors, stale snapshots, retry recovery, empty workspaces, no-goal, undated-experience, and unpracticed states.
+- [x] Implement remembered perspective ordering, category/subpattern search with expansion, and goal save controls. Other stays outside coverage and last in ordering.
 - [ ] Review checkpoint.
+
+Validation: lint, 125 tests, and production build pass. Browser verification covers search/clear, subpattern expansion, perspective persistence, saving the unchanged current goal, isolated empty/error/recovery cases, both palettes, and responsive widths near 320/375/768/1024/1440 CSS pixels (one-pixel rounding tolerance).
+
+Phase 2 layout revision: the main dashboard now keeps overview and goals only. A dedicated Patterns route displays full-width rows; opening a row navigates to a separate subpattern detail panel. Detail URLs survive reload, and returning preserves search context. No inline subpattern accordion or tiled pattern grid remains.
 
 ## Phase 3 — detailed website workflows
 - [ ] Pattern details and scoped problems.

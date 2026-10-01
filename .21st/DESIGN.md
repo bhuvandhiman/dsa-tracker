@@ -14,9 +14,12 @@ Tokens live in apps/web/src/styles.css: ivory #fafbe9, coral #e96586,
 mustard #f2b632, teal #2c8075, and ink #202720. Typography uses the locally
 available Trebuchet MS / Segoe UI stack. No external font service is required.
 
-Phase 1 is a visual shell with a working Coverage/Retention presentation switch
-and illustrative pattern cards, without fabricated scores. Live API data and
-detailed workflows are planned in docs/frontend-rebuild.md.
+Phase 2 connects live practice and goal data. Coverage orders by remaining goal
+gaps; Retention separates dated practice (weakest first), undated experience,
+and unpracticed patterns. Search includes subpattern names; matching categories open into a separate detail screen.
+Coverage rings and strength bars remain separately labelled, without mastery claims
+or invented scores. Goal controls change only the existing goal. Detailed problem
+and history workflows remain Phase 3 in docs/frontend-rebuild.md.
 
 21st catalog search found Card Tabs, Tabs with Icons, and Card primitives.
 The references informed component discovery; no catalog source code was retrieved
@@ -25,3 +28,7 @@ adding a parallel shadcn dependency stack.
 
 Preserve the API, database, scoring and coverage policies, and Chrome extension.
 The old frontend remains recoverable through Git history.
+
+Phase 2 catalog search found Progress primitives. Native progress elements and CSS coverage rings fit the established JavaScript/CSS foundation; no catalog code was installed.
+
+User layout revision: Dashboard shows overview and goals. Patterns is a separate route with long, full-width neutral rows and coral/teal/mustard accents. Each row opens a separate routed subpattern detail panel. Avoid tiled pattern cards and inline subpattern expansion.

@@ -13,3 +13,7 @@ Capture worker tests cover editable draft persistence, queued distinct Accepted 
 Trigger regressions cover Run, stale Accepted, failed verdicts, navigation, repeated keyboard shortcuts, fresh Submit/Accepted, and duplicate result renders. Worker tests cover frozen pending payloads, restart recovery, invalid senders and uncertain save retries.
 
 Browser verification covers the prompt after Accepted, no prompt after Run, offline retry preservation, and close-on-save. Previous dashboard browser results describe the UI before its reset. The signed-in Chrome profile is not available through the current browser connection; live LeetCode compatibility remains a manual verification step. See app-review.md for the user-facing checks.
+
+Phase 2: npm check passes all 125 tests. New regressions cover evidence grouping, stable gap ordering, child-name search, progress bounds, API error messages and cancellation. Browser checks cover real goal save without changing the configured values, persisted perspective, search/empty results, matching-child expansion, both themes and five responsive widths. An isolated static-build fixture covers empty/unconfigured workspaces, initial errors, stale-data errors and retry recovery without database writes.
+
+Patterns routing revision: tests cover independent dashboard/list/detail routes, malformed URLs, and search context in detail/return links. Browser checks verify dashboard/list separation, keyboard detail navigation, direct-detail reload, return search preservation, and responsive detail rows.

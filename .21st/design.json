@@ -15,7 +15,8 @@
       "apps/web/src/styles.css"
     ],
     "components": [
-      "apps/web/src/App.jsx"
+      "apps/web/src/App.jsx",
+      "apps/web/src/LiveDashboard.jsx"
     ],
     "assets": [],
     "instructions": [
@@ -40,7 +41,8 @@
     ],
     "preferredPrimitives": [],
     "patterns": [
-      "Rounded pattern cards",
+      "Full-width pattern rows",
+      "Separate subpattern detail panels",
       "Coverage and Retention switch",
       "Floating topic labels"
     ]
@@ -72,6 +74,16 @@
       "date": "2026-10-01",
       "direction": "Moon/sun theme control",
       "reason": "User requested dark and light mode in the top bar. Default to light; persist the explicit choice. Dark surfaces use warm charcoal with cream text and colorful cards."
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "Live coverage and retention dashboard",
+      "reason": "Phase 2 connects real metrics and goals, separates dated and undated evidence, supports search, and preserves the approved visual foundation."
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "Dedicated Patterns page and full-width rows",
+      "reason": "User rejected tiled cards and inline subpatterns. Keep dashboard overview separate; each pattern navigates to its own detail panel with reloadable URLs and preserved search context."
     }
   ],
   "evidence": [
