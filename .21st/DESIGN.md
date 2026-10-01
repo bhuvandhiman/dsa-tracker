@@ -6,6 +6,9 @@ The layout must be original and tailored to DSA rather than copied from either i
 The website fills the viewport with the ivory canvas. Do not wrap the page in a
 centered card, outer border, rounded frame, shadow, or contrasting background gutter.
 Rounded cards remain appropriate within the page.
+The top-bar moon switches to dark mode; the sun switches back to light mode.
+Dark mode uses warm charcoal surfaces with cream text, keeping the colorful inner
+cards. Light mode is the default; the explicit choice is saved in local storage.
 
 Tokens live in apps/web/src/styles.css: ivory #fafbe9, coral #e96586,
 mustard #f2b632, teal #2c8075, and ink #202720. Typography uses the locally

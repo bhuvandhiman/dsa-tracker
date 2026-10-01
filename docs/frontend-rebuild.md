@@ -14,6 +14,7 @@ copying either reference's layout. Coverage and Retention remain central.
 - [x] Three illustrative pattern cards; no invented practice counts.
 - [x] Responsive layout, focus states, and reduced-motion handling.
 - [x] User revision: full-page ivory canvas, without an outer card or background gutters.
+- [x] User revision: top-bar moon/sun control, dark palette, and persisted theme preference.
 - [x] Lint, existing tests, and production build.
 - [x] Browser verification at 320, 376, 769, 1024, and 1440 CSS pixels: no horizontal overflow, click/keyboard perspective changes, and pattern anchor navigation. No browser errors or warnings.
 - [ ] User feedback checkpoint before expanding the interface.

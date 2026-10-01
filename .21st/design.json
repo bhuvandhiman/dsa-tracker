@@ -23,7 +23,7 @@
     ]
   },
   "design": {
-    "colorMode": "light",
+    "colorMode": "light and dark",
     "colors": {
       "canvas": "#fafbe9",
       "coral": "#e96586",
@@ -67,6 +67,11 @@
       "date": "2026-10-01",
       "direction": "Full-page ivory canvas",
       "reason": "User requested the website cover the whole page instead of appearing as an outer card. Preserve inner cards and responsive content gutters."
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "Moon/sun theme control",
+      "reason": "User requested dark and light mode in the top bar. Default to light; persist the explicit choice. Dark surfaces use warm charcoal with cream text and colorful cards."
     }
   ],
   "evidence": [

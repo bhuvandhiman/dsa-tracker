@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import './styles.css';
 
 const patterns = [
@@ -15,6 +15,8 @@ function Icon({ name, ...props }) {
     book: <><path d="M12 5C8 2 3 3 3 3v16s5-1 9 2c4-3 9-2 9-2V3s-5-1-9 2Z" /><path d="M12 5v16" /></>,
     clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
     spark: <path d="m12 2 2.6 7.4L22 12l-7.4 2.6L12 22l-2.6-7.4L2 12l7.4-2.6Z" />,
+    moon: <path d="M20.4 14.4A9 9 0 0 1 9.6 3.6a9 9 0 1 0 10.8 10.8Z" />,
+    sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" /></>,
   };
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name]}</svg>;
 }
@@ -39,6 +41,16 @@ function PracticeIllustration() {
 
 export default function App() {
   const [view, setView] = useState('coverage');
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('recall-theme') === 'dark' ? 'dark' : 'light'; }
+    catch { return 'light'; }
+  });
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem('recall-theme', theme); }
+    catch { /* Theme switching still works when browser storage is unavailable. */ }
+  }, [theme]);
+  const themeAction = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
   return <div className="workspace">
     <a className="skip-link" href="#main">Skip to content</a>
     <header className="topbar">
@@ -47,7 +59,10 @@ export default function App() {
         <a className="nav-link active" href="#main"><Icon name="home" />Dashboard</a>
         <a className="nav-link" href="#patterns"><Icon name="grid" />Patterns</a>
       </nav>
-      <span className="workspace-label"><span className="status-dot" />Your learning space</span>
+      <div className="topbar-actions">
+        <span className="workspace-label"><span className="status-dot" />Your learning space</span>
+        <button className="theme-toggle" type="button" aria-label={themeAction} title={themeAction} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button>
+      </div>
     </header>
 
     <main id="main">
