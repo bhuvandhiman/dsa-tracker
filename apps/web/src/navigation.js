@@ -1,6 +1,9 @@
 export function readRoute(hash) {
   const [path, query = ''] = hash.replace(/^#/, '').split('?');
   const parts = path.split('/').filter(Boolean);
+  if (['history','settings'].includes(parts[0])) {
+    return {page:parts[0],id:parts[1] || null,params:new URLSearchParams(query)};
+  }
   if (path === 'patterns' || parts[0] === 'patterns') {
     let slug;
     try { slug = parts[1] ? decodeURIComponent(parts[1]) : null; }

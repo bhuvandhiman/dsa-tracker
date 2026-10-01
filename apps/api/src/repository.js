@@ -108,11 +108,12 @@ export function createRepository(pool) {
         RETURNING profile,target,policy_version AS "policyVersion",updated_at AS "updatedAt"`,[profile,target,GOAL_POLICY_VERSION])).rows[0];
       return {configured:true,...row};
     },
-    async setPlacement(id,unit) {
+    async setPlacement(id,unit,manual=false) {
       return transaction(async client=>{
         if(!(await client.query('SELECT id FROM problems WHERE id=$1 FOR UPDATE',[id])).rowCount) throw new DomainError(404,'Problem not found.');
         const problem=(await client.query(problemSelect+' WHERE p.id=$1',[id])).rows[0];
-        if(unit&&!candidateUnits(problem).some(candidate=>candidate.unit===unit)) throw new DomainError(400,'Choose an approach supported by this problem\'s LeetCode topics.');
+        if(unit&&!retentionUnits.some(candidate=>candidate.slug===unit)) throw new DomainError(400,'Choose a valid primary pattern.');
+        if(unit&&!manual&&!candidateUnits(problem).some(candidate=>candidate.unit===unit)) throw new DomainError(400,'Choose an approach supported by this problem\'s LeetCode topics.');
         await client.query('DELETE FROM problem_placements WHERE problem_id=$1',[id]);
         if(unit) await client.query('INSERT INTO problem_placements VALUES($1,$2)',[id,unit]);
         return {saved:true};
@@ -185,7 +186,7 @@ export function createRepository(pool) {
       const seen=new Set();
       const imported=(await pool.query('SELECT submission_id AS id,submitted_at AS "attemptedAt" FROM imported_submissions WHERE problem_id=$1 ORDER BY submitted_at DESC',[id])).rows.filter(a=>{const day=practiceDay(a.attemptedAt);if(recordedDays.has(day)||seen.has(day))return false;seen.add(day);return true;}).map(a=>({...a,id:'import-'+a.id,assistance:'unknown',imported:true,practiceUnit:importedUnit,approachSource:'inferred',patternSlugs:[],notes:''}));
       const history=[...attempts,...imported].sort((a,b)=>new Date(b.attemptedAt)-new Date(a.attemptedAt)||String(b.id).localeCompare(String(a.id)));
-      return {problem,attempts:history.slice(offset,offset+limit),more:history.length>offset+limit,legacy:problem.historicallySolved,units:retentionUnits};
+      return {problem:{...problem,placement:classifyProblem(problem),candidates:candidateUnits(problem)},attempts:history.slice(offset,offset+limit),more:history.length>offset+limit,legacy:problem.historicallySolved,units:retentionUnits};
     },
     async capture(input) {
       const hash = createHash('sha256').update(JSON.stringify({problem:input.problem,attempt:input.attempt})).digest('hex');
@@ -242,7 +243,8 @@ export function createRepository(pool) {
         const practiced=(await pool.query('SELECT DISTINCT problem_id FROM attempts WHERE deleted_at IS NULL AND practice_unit=ANY($1::text[])',[unitSlugs])).rows;
         categoryIds.push(...practiced.map(r=>r.problem_id).filter(id=>dsaIds.has(id)));
       }
-      const order = {newest:'id DESC',title:'lower(title),id', 'oldest-practice':'"lastPracticedAt" ASC NULLS FIRST,id', 'recent-practice':'"lastPracticedAt" DESC NULLS LAST,id'}[sort] || 'id DESC';
+      const difficultyOrder = "CASE difficulty WHEN 'easy' THEN 0 WHEN 'medium' THEN 1 WHEN 'hard' THEN 2 END";
+      const order = {'difficulty-asc':`${difficultyOrder} ASC NULLS LAST,lower(title),id`,'difficulty-desc':`${difficultyOrder} DESC NULLS LAST,lower(title),id`,newest:'id DESC',title:'lower(title),id', 'oldest-practice':'"lastPracticedAt" ASC NULLS LAST,id', 'recent-practice':'"lastPracticedAt" DESC NULLS LAST,id'}[sort] || 'id DESC';
       const result = await pool.query(`WITH catalog AS (
         SELECT p.*,
           (EXISTS(SELECT 1 FROM attempts a WHERE a.problem_id=p.id AND a.deleted_at IS NULL) OR EXISTS(SELECT 1 FROM imported_submissions i WHERE i.problem_id=p.id)) AS practiced,
@@ -337,7 +339,7 @@ export function createRepository(pool) {
         return (await client.query(`${problemSelect} WHERE p.id=$1`, [id])).rows[0];
       });
     },
-    async listAttempts({ limit, offset }) { return (await pool.query(`${attemptSelect} WHERE a.deleted_at IS NULL ORDER BY a.attempted_at DESC, a.id DESC LIMIT $1 OFFSET $2`, [limit, offset])).rows; },
+    async listAttempts({ limit, offset, q = '', assistance = '' }) { return (await pool.query(`${attemptSelect} WHERE a.deleted_at IS NULL AND ($3::text='' OR strpos(lower(p.title || ' ' || a.notes),lower($3))>0) AND ($4::text='' OR a.assistance=$4) ORDER BY a.attempted_at DESC, a.id DESC LIMIT $1 OFFSET $2`, [limit, offset,q,assistance])).rows; },
     async createAttempt(input) {
       const hash = createHash('sha256').update(JSON.stringify(input)).digest('hex');
       return transaction(async (client) => {

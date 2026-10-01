@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import './styles.css';
 import LiveDashboard from './LiveDashboard.jsx';
+import Workflows from './Workflows.jsx';
 import { readRoute } from './navigation.js';
 
 function Icon({ name, ...props }) {
@@ -45,8 +46,6 @@ export default function App() {
     window.addEventListener('hashchange', navigate);
     return () => window.removeEventListener('hashchange', navigate);
   }, []);
-  const [view, setView] = useState(() => { try { return localStorage.getItem('recall-view') === 'retention' ? 'retention' : 'coverage'; } catch { return 'coverage'; } });
-  useLayoutEffect(() => { try { localStorage.setItem('recall-view', view); } catch { /* The view still works without storage. */ } }, [view]);
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('recall-theme') === 'dark' ? 'dark' : 'light'; }
     catch { return 'light'; }
@@ -64,6 +63,8 @@ export default function App() {
       <nav className="navigation" aria-label="Main navigation">
         <a className={`nav-link ${route.page === 'dashboard' ? 'active' : ''}`} aria-current={route.page === 'dashboard' ? 'page' : undefined} href="#/dashboard"><Icon name="home" />Dashboard</a>
         <a className={`nav-link ${route.page === 'patterns' ? 'active' : ''}`} aria-current={route.page === 'patterns' ? 'page' : undefined} href="#/patterns"><Icon name="grid" />Patterns</a>
+        <a className={`nav-link ${route.page === 'history' ? 'active' : ''}`} aria-current={route.page === 'history' ? 'page' : undefined} href="#/history"><Icon name="clock" />History</a>
+        <a className={`nav-link ${route.page === 'settings' ? 'active' : ''}`} aria-current={route.page === 'settings' ? 'page' : undefined} href="#/settings">Workspace</a>
       </nav>
       <div className="topbar-actions">
         <span className="workspace-label"><span className="status-dot" />Your learning space</span>
@@ -72,7 +73,7 @@ export default function App() {
     </header>
 
     <main id="main" tabIndex={-1}>
-      {route.page === 'dashboard' ? <section className="hero" aria-labelledby="welcome-title">
+      {['dashboard','patterns'].includes(route.page) && <>{route.page === 'dashboard' ? <section className="hero" aria-labelledby="welcome-title">
         <div className="hero-copy">
           <p className="eyebrow"><span />A little progress, every day</p>
           <h1 id="welcome-title">Learn something.<br />Make it <span>stay.</span></h1>
@@ -82,21 +83,8 @@ export default function App() {
         <PracticeIllustration />
       </section> : <div className="page-intro"><p className="eyebrow">Your practice, pattern by pattern</p><h1>Patterns.</h1><p>Explore your coverage and the practice behind each idea.</p></div>}
 
-      <section className="perspective" aria-labelledby="perspective-title">
-        <div><p className="eyebrow">Two ways to see your progress</p><h2 id="perspective-title">The bigger picture.</h2></div>
-        <div className="view-switch" role="group" aria-label="Progress perspective">
-          <button type="button" aria-pressed={view === 'coverage'} className={view === 'coverage' ? 'selected' : ''} onClick={() => setView('coverage')}><Icon name="grid" />Coverage</button>
-          <button type="button" aria-pressed={view === 'retention'} className={view === 'retention' ? 'selected' : ''} onClick={() => setView('retention')}><Icon name="spark" />Retention</button>
-        </div>
-      </section>
-
-      {route.page === 'dashboard' && <section className="perspective-card" aria-live="polite" aria-atomic="true">
-        <div className={`perspective-symbol ${view === 'coverage' ? 'coral' : 'teal'}`}><Icon name={view === 'coverage' ? 'grid' : 'spark'} /></div>
-        <div className="perspective-copy"><h3>{view === 'coverage' ? 'How far have you explored?' : 'What’s staying with you?'}</h3><p>{view === 'coverage' ? 'See the patterns you’ve practiced and the ground still left to cover.' : 'See how dated practice holds up over time, with undated experience kept separate.'}</p></div>
-        <span className="perspective-label">{view === 'coverage' ? 'Breadth of practice' : 'Practice over time'}<Icon name={view === 'coverage' ? 'book' : 'clock'} /></span>
-      </section>}
-
-      <LiveDashboard view={view} route={route} />
+      <LiveDashboard route={route} /></>}
+      {['history','settings'].includes(route.page) && <Workflows key={route.page} route={route} />}
       <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><span className="footer-flower" aria-hidden="true">✳</span></footer>
     </main>
   </div>;

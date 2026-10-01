@@ -2,7 +2,7 @@
 <html lang="en">
   <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Recall</title><link rel="stylesheet" href="popup.css" /></head>
   <body>
-    <header><span class="mark">R</span><h1>recall</h1></header>
+    <header><span class="mark" aria-hidden="true">R</span><h1>recall<span class="brand-dot">.</span></h1><button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode"></button></header>
     <p class="eyebrow">LEETCODE CONNECTION</p>
     <p id="worker" role="status">Checking extension…</p>
     <p id="api" role="status">Checking local API and database…</p>
@@ -11,10 +11,11 @@
     <button id="record" type="button" disabled>Open recording panel</button>
     <button id="refresh" class="secondary" type="button">Check again</button>
     <button id="legacy-setup" class="secondary" type="button" hidden>Finish first-time setup</button>
-    <button id="settings" class="secondary" type="button">Settings</button>
+    <button id="settings" class="secondary" type="button">Import & recordings</button>
     <a href="http://127.0.0.1:5173/" target="_blank" rel="noopener noreferrer">Open dashboard</a>
     <p id="launch-status" role="status"></p>
     <p class="note">After Accepted, record practice directly on LeetCode. Choose how you solved it; topic checkboxes are optional. Start the local Recall API before saving.</p>
+    <script src="src/theme.js"></script><script src="src/theme-page.js"></script>
     <script src="src/adapters/leetcode.js"></script>
     <script type="module" src="src/popup.js"></script>
     <script type="module" src="src/popup-legacy.js"></script>

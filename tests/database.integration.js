@@ -61,6 +61,10 @@ test('PostgreSQL migrations, relationships, persistence and transaction boundari
   assert.equal(concurrent.filter((result) => result.created).length, 1);
   assert.equal((await repository.listAttempts({ limit: 100, offset: 0 })).length, 2);
   assert.equal((await repository.listAttempts({ limit: 1, offset: 1 })).length, 1);
+  assert.deepEqual((await repository.listAttempts({limit:1,offset:0,q:'two sum',assistance:'hint'})).map(row=>row.id),[attempt.requestId]);
+  assert.deepEqual(await repository.listAttempts({limit:1,offset:1,q:'two sum',assistance:'hint'}),[]);
+  assert.equal((await repository.listAttempts({limit:25,offset:0,q:'DROP TABLE'})).length,2);
+  assert.deepEqual(await repository.listAttempts({limit:25,offset:0,q:'missing title'}),[]);
 
   const changed = await repository.setProblemPatterns(id, ['binary-search']);
   assert.deepEqual(changed.patternSlugs, ['binary-search']);
@@ -77,6 +81,25 @@ test('PostgreSQL migrations, relationships, persistence and transaction boundari
   assert.equal((await repository.listHistory({ limit: 100, offset: 0 })).length, 1);
   assert.equal((await repository.listAttempts({ limit: 100, offset: 0 })).length, 2);
   assert.equal((await pool.query('SELECT COUNT(*)::int AS count FROM problems')).rows[0].count, 2);
+
+  // Ordering occurs before pagination, with unknown values last in both directions.
+  const sortedIds=[];
+  const recordingIds=[];
+  for (const [index,difficulty] of ['easy','medium','hard',null].entries()) {
+    const row=await repository.createProblem(problemInput({url:`https://leetcode.com/problems/inline-sort-fixture-${index}/`,title:`Inline sort fixture ${index}`,difficulty,patternSlugs:['arrays-hashing']}));
+    sortedIds.push(row.problem.id);
+    if (index<3) {
+      const entry=await repository.createAttempt(attemptInput({requestId:randomUUID(),problemId:row.problem.id,assistance:'independent',patternSlugs:['arrays-hashing'],attemptedAt:`2025-0${index+1}-01T12:00:00.000Z`}));
+      recordingIds.push(entry.attempt.id);
+    }
+  }
+  for (const sort of ['difficulty-asc','oldest-practice','difficulty-desc','recent-practice']) {
+    const expected=sort.endsWith('desc') || sort === 'recent-practice' ? [sortedIds[2],sortedIds[1],sortedIds[0],sortedIds[3]] : sortedIds;
+    const options={q:'Inline sort fixture',sort,limit:25,offset:0};
+    assert.deepEqual((await repository.library(options)).problems.map(row=>row.id),expected);
+    assert.deepEqual((await repository.library({...options,limit:1,offset:1})).problems.map(row=>row.id),[expected[1]]);
+  }
+  for (const id of recordingIds) await repository.removeAttempt(id,1);
 
   // Reopening the connection verifies storage is PostgreSQL-backed rather than in memory.
   await pool.end();

@@ -16,7 +16,14 @@
     ],
     "components": [
       "apps/web/src/App.jsx",
-      "apps/web/src/LiveDashboard.jsx"
+      "apps/web/src/LiveDashboard.jsx",
+      "apps/web/src/Workflows.jsx",
+      "apps/extension/popup.html",
+      "apps/extension/setup.html",
+      "apps/extension/src/capture.js",
+      "apps/extension/src/theme.js",
+      "apps/web/src/SubpatternProblems.jsx",
+      "apps/web/src/PatternMenu.jsx"
     ],
     "assets": [],
     "instructions": [
@@ -43,7 +50,8 @@
     "patterns": [
       "Full-width pattern rows",
       "Separate subpattern detail panels",
-      "Coverage and Retention switch",
+      "Coverage and practice strength together",
+      "Inline subpattern problems with two sort buttons and notebooks",
       "Floating topic labels"
     ]
   },
@@ -84,6 +92,21 @@
       "date": "2026-10-01",
       "direction": "Dedicated Patterns page and full-width rows",
       "reason": "User rejected tiled cards and inline subpatterns. Keep dashboard overview separate; each pattern navigates to its own detail panel with reloadable URLs and preserved search context."
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "Unified coverage and retention view",
+      "reason": "User requested both metrics together for comparison. Remove perspective switching and its saved preference; use consistent catalog order while preserving the dedicated Patterns and detail pages."
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "Inline problems and two sorting controls",
+      "reason": "User requested expandable problems under each subpattern, inline notebooks, Difficulty and Last practiced ascending/descending buttons, and stopping once the existing four phases are finished."
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "Full subpattern disclosure and compact problem rows",
+      "reason": "User requested full-row toggle, name/difficulty/LeetCode/date bars, three-state column sorting, and ellipsis-only pattern editing with problem-specific candidates and explicit manual placement."
     }
   ],
   "evidence": [
@@ -93,7 +116,7 @@
     },
     {
       "url": "https://21st.dev/@cnippet-dev/components/tabs-with-icons",
-      "use": "Catalog reference only; native buttons used for two independent pressed states"
+      "use": "Historical catalog reference; perspective switching was later removed at the user's request"
     }
   ]
 }

@@ -1,10 +1,7 @@
-export function orderedPatterns(items, view) {
-  const evidence = item => item.summary || item;
-  const group = item => evidence(item).assessed ? 0 : evidence(item).distinctSolved > 0 ? 1 : 2;
+export function orderedPatterns(items) {
   return [...items].sort((a, b) => {
     if (a.slug === 'other' || b.slug === 'other') return Number(a.slug === 'other') - Number(b.slug === 'other');
-    if (view === 'coverage') return (b.goal?.deficit || 0) - (a.goal?.deficit || 0) || (a.order || 0) - (b.order || 0);
-    return group(a) - group(b) || (group(a) === 0 ? evidence(a).strength - evidence(b).strength || Date.parse(evidence(a).lastPracticedAt) - Date.parse(evidence(b).lastPracticedAt) : 0) || (a.order || 0) - (b.order || 0);
+    return (a.order || 0) - (b.order || 0);
   });
 }
 

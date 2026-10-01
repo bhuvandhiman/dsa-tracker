@@ -1,12 +1,12 @@
 // This panel lives in an isolated shadow root; page styles cannot break the form.
 globalThis.DsaCapture = {
   start(doc, page, runtime) {
-    let panel = null, currentUrl = null, timer = null, generation = 0, submission = null, keepDraft = null, returnFocus = null;
+    let panel = null, currentUrl = null, timer = null, generation = 0, submission = null, keepDraft = null, returnFocus = null, disposeTheme = null;
     const context = () => {
       const adapter = DsaAdapters.find(item => item.getProblem(page.location.href));
       return adapter ? { adapter, problem: adapter.getDetails(doc,page.location.href), topics: adapter.getTopics(doc) } : null;
     };
-    function close() { keepDraft?.(); keepDraft=null; panel?.remove(); panel = null; currentUrl = null; generation++; returnFocus?.focus?.(); }
+    function close() { keepDraft?.(); keepDraft=null; disposeTheme?.(); disposeTheme=null; panel?.remove(); panel = null; currentUrl = null; generation++; returnFocus?.focus?.(); }
     async function open(evidence = {}) {
       const current = context();
       if (!current) return;
@@ -37,9 +37,22 @@ globalThis.DsaCapture = {
       panel = doc.createElement('div'); panel.id = 'recall-practice-prompt'; currentUrl = problem.url;
       const root = panel.attachShadow({ mode: 'open' });
       const node = (tag,text) => { const el=doc.createElement(tag); if (text) el.textContent=text; return el; };
-      const style = node('style', ':host{position:fixed;right:16px;top:80px;z-index:2147483647;width:340px;max-width:calc(100vw - 32px);font:14px/1.5 system-ui;color:#edf3f7;color-scheme:dark}*{box-sizing:border-box}section{background:#161d27;border:1px solid #354254;border-radius:16px;padding:22px;box-shadow:0 12px 48px #0004;max-height:calc(100dvh - 100px);overflow:auto}header{display:flex;justify-content:space-between;align-items:center}h2{font-size:20px;line-height:1.3;margin:16px 0}fieldset{border:0;padding:0;margin:18px 0}legend{font-weight:650;margin-bottom:8px}label{display:flex;gap:10px;align-items:center;min-height:44px;padding:7px 0;cursor:pointer}input{accent-color:#5b8cff;width:17px;height:17px}p{margin:8px 0;overflow-wrap:anywhere;font-size:12px;color:#9aa9ba}button{font:inherit;cursor:pointer;border:0;border-radius:8px;min-height:44px;padding:10px;background:#5b8cff;color:#08111f;width:100%}button.close{width:auto;min-width:44px;background:transparent;color:#9aa9ba;padding:4px 8px}button:disabled{opacity:.6;cursor:wait}button:focus-visible,input:focus-visible{outline:3px solid #7aa2ff;outline-offset:3px}select{background:#0d1117;color:#edf3f7;border:1px solid #354254;border-radius:8px}select:focus-visible{outline:2px solid #7aa2ff;outline-offset:3px}label:hover{color:#7aa2ff}[role=status]{color:#f3b562}');
+      const style = node('style', (globalThis.DsaTheme?.styles || '') + `
+        :host{position:fixed;right:16px;top:72px;z-index:2147483647;width:360px;max-width:calc(100% - 32px);font:14px/1.6 'Trebuchet MS','Segoe UI',sans-serif;color:var(--ink)}
+        *{box-sizing:border-box}section{background:var(--canvas);border:1px solid var(--line);border-top:4px solid var(--coral);border-radius:22px;padding:20px;box-shadow:0 12px 48px #0003;max-height:calc(100dvh - 96px);overflow:auto}
+        header{display:flex;gap:8px;align-items:center}.brand{margin-right:auto;font-size:20px;letter-spacing:-.8px}h2{font-size:23px;line-height:1.25;letter-spacing:-.6px;margin:20px 0}
+        fieldset{border:0;padding:0;margin:20px 0}legend{font-weight:700;margin-bottom:10px}label{display:flex;gap:10px;align-items:center;min-height:44px;padding:8px 10px;cursor:pointer;border-radius:12px}
+        fieldset label{background:var(--surface);border:1px solid var(--line);margin:8px 0}fieldset label:has(input:checked){background:var(--soft-coral);border-color:var(--coral)}
+        input{accent-color:var(--teal);width:18px;height:18px;flex-shrink:0}input[type=datetime-local]{font:inherit;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:8px;min-width:0}
+        p{margin:10px 0;overflow-wrap:anywhere;font-size:12px;color:var(--muted)}button{font:inherit;font-size:13px;font-weight:700;cursor:pointer;border:1px solid transparent;border-radius:14px;min-height:44px;padding:12px;background:var(--ink);color:var(--canvas);width:100%}
+        button+button{margin-top:10px}button:hover:not(:disabled){background:var(--teal);color:#fffdec}button.close{width:44px;min-width:44px;background:var(--surface);border-color:var(--line);color:var(--muted);padding:4px 8px;font-size:23px;margin:0}button.theme-toggle{margin:0}
+        button:disabled{opacity:.6;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--focus);outline-offset:3px}select{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;min-height:44px}
+        [role=status]{color:var(--accent)}[hidden]{display:none!important}@media(max-width:400px){:host{right:12px;top:16px;max-width:calc(100% - 24px)}section{max-height:calc(100dvh - 32px);padding:18px}}@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+      `);
       const section=node('section'); section.setAttribute('role','region'); section.setAttribute('aria-label','Record practice in Recall');
-      const header=node('header'); header.append(node('strong','recall'));
+      const header=node('header'); const brand=node('strong','recall.');brand.className='brand';header.append(brand);
+      const themeButton=node('button');themeButton.className='theme-toggle';themeButton.type='button';themeButton.setAttribute('aria-label','Switch to dark mode');header.append(themeButton);
+      disposeTheme=globalThis.DsaTheme?.init(panel,themeButton);
       const dismiss=node('button','×'); dismiss.className='close'; dismiss.type='button'; dismiss.setAttribute('aria-label','Close recording panel'); dismiss.addEventListener('click',close); header.append(dismiss);
       const heading=node('h2',pending?.title || problem.title || problem.problemId.replaceAll('-',' '));
       const form=node('form');
@@ -90,7 +103,7 @@ globalThis.DsaCapture = {
           }
           if (generation === token && currentUrl === problem.url) {
             keepDraft=null;close();
-            const notice=doc.createElement('div');notice.setAttribute('role','status');notice.textContent='Recall: practice saved.';notice.style.cssText='position:fixed;right:16px;bottom:24px;z-index:2147483647;background:#161d27;color:#edf3f7;border:1px solid #45d483;padding:16px;border-radius:12px;font:14px system-ui';doc.documentElement.append(notice);page.setTimeout(()=>notice.remove(),4000);
+            const notice=doc.createElement('div');notice.setAttribute('role','status');notice.textContent='Recall: practice saved.';notice.style.cssText='position:fixed;right:16px;bottom:24px;z-index:2147483647;background:#fafbe9;color:#202720;border:1px solid #2c8075;padding:16px;border-radius:12px;font:14px Trebuchet MS,Segoe UI,sans-serif';if(root.host.getAttribute('data-theme')==='dark'){notice.style.background='#232d26';notice.style.color='#f3f2df';notice.style.borderColor='#82cabb';}doc.documentElement.append(notice);page.setTimeout(()=>notice.remove(),4000);
             const stored=await runtime.sendMessage({type:'GET_PENDING_CAPTURE',problem});
             if(stored?.queue?.length)await open();
           }
@@ -100,7 +113,7 @@ globalThis.DsaCapture = {
       const reconcile=node('button','Check whether this recording was saved');reconcile.type='button';reconcile.hidden=!pending;
       const release=node('button','Keep conflict copy and start a separate recording');release.type='button';release.hidden=true;
       release.addEventListener('click',async()=>{release.disabled=true;try{const result=await runtime.sendMessage({type:'RELEASE_CONFLICT',problem});if(!result.released)throw new Error(result.error||'Could not release conflict.');payload=null;lock(false);reconcile.hidden=true;release.hidden=true;submit.textContent='Save practice';status.textContent='The old choices are archived in extension Settings. Check the form before creating a separate recording.';}catch(error){status.textContent=error.message;}finally{release.disabled=false;}});
-      reconcile.addEventListener('click',async()=>{reconcile.disabled=true;try{const result=await runtime.sendMessage({type:'RECONCILE_CAPTURE',problem});if(result.status==='saved'){keepDraft=null;close();return;}release.hidden=result.status!=='conflict';status.textContent=result.status==='removed'?'This recording was removed. Restore it in dashboard Settings.':result.status==='conflict'?'This ID belongs to different saved choices. Keep a copy before starting a separate recording.':'No saved recording was found. Retry saves the same request ID.';}catch(error){status.textContent=error.message;}finally{reconcile.disabled=false;}});
+      reconcile.addEventListener('click',async()=>{reconcile.disabled=true;try{const result=await runtime.sendMessage({type:'RECONCILE_CAPTURE',problem});if(result.status==='saved'){keepDraft=null;close();return;}release.hidden=result.status!=='conflict';status.textContent=result.status==='removed'?'This recording was removed. Restore it in the dashboard Workspace page.':result.status==='conflict'?'This ID belongs to different saved choices. Keep a copy before starting a separate recording.':'No saved recording was found. Retry saves the same request ID.';}catch(error){status.textContent=error.message;}finally{reconcile.disabled=false;}});
       form.append(assistance,approachLabel,approach,topicFields,timeLabel,time,status,submit,reconcile,release); section.append(header,heading,form); root.append(style,section); doc.documentElement.append(panel);dismiss.focus();
       if(!pending)status.textContent=draft?`Your editable draft was restored.${queue.length?' New Accepted submissions are queued.':''}`:'Loading approaches… You can fill the form now.';
       async function loadContext(){

@@ -1,3 +1,4 @@
+import SubpatternProblems from './SubpatternProblems.jsx';
 import { useEffect, useState } from 'react';
 import { request } from './api.js';
 import { patternLink } from './navigation.js';
@@ -36,16 +37,16 @@ function PatternRow({ category, goalConfigured, query }) {
   </a>;
 }
 
-function PatternDetail({ category, view, goalConfigured, query }) {
-  const children = orderedPatterns(category.children,view);
+function PatternDetail({ category, goalConfigured, query }) {
+  const children = orderedPatterns(category.children);
   return <div className="pattern-detail">
     <a className="secondary-button back-link" href={patternLink(null,query)}>← All patterns</a>
     <section className="detail-overview" aria-label={`${category.name} overview`}><p className="eyebrow">Pattern overview</p><h2>{category.name}</h2><p>{category.summary.reason}</p><Metrics item={category.summary} goal={category.goal} name={category.name} goalConfigured={goalConfigured} /></section>
     <div className="section-heading"><h2>Subpatterns</h2><span className="data-note">{children.length} approaches to explore</span></div>
-    <div className="subpattern-list">{children.map(child => <section className="subpattern-row" key={child.slug}><div><h3>{child.name}</h3><p>{child.distinctSolved} distinct {child.distinctSolved === 1 ? 'solve' : 'solves'}</p><p>{child.reason}</p></div><Metrics item={child} goal={child.goal} name={`${category.name}, ${child.name}`} goalConfigured={goalConfigured} />{child.goal && <p className="difficulty-breakdown">{['easy','medium','hard'].map(bucket => `${bucket[0].toUpperCase()+bucket.slice(1)} ${child.goal.creditedByDifficulty[bucket]}/${child.goal.difficulty[bucket]}`).join(' · ')} credited</p>}</section>)}</div>
+    <div className="subpattern-list">{children.map(child => <SubpatternProblems key={child.slug} slug={child.slug} name={child.name}><div><h3>{child.name}</h3><p>{child.distinctSolved} distinct {child.distinctSolved === 1 ? 'solve' : 'solves'}</p><p>{child.reason}</p></div><Metrics item={child} goal={child.goal} name={`${category.name}, ${child.name}`} goalConfigured={goalConfigured} />{child.goal && <p className="difficulty-breakdown">{['easy','medium','hard'].map(bucket => `${bucket[0].toUpperCase()+bucket.slice(1)} ${child.goal.creditedByDifficulty[bucket]}/${child.goal.difficulty[bucket]}`).join(' · ')} credited</p>}</SubpatternProblems>)}</div>
   </div>;
 }
-export default function LiveDashboard({ view, route }) {
+export default function LiveDashboard({ route }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
@@ -65,7 +66,7 @@ export default function LiveDashboard({ view, route }) {
     document.addEventListener('visibilitychange', visible);
     return () => { controller.abort(); clearTimeout(poll); document.removeEventListener('visibilitychange', visible); };
   }, [revision]);
-  const categories = data ? filterPatterns(orderedPatterns(data.categories, view), query) : [];
+  const categories = data ? filterPatterns(orderedPatterns(data.categories), query) : [];
   const dated = data?.categories.filter(category => category.summary.assessed).length || 0;
   const undated = data?.categories.filter(category => !category.summary.assessed && category.summary.distinctSolved > 0).length || 0;
   const isDashboard = route.page === 'dashboard';
@@ -82,9 +83,9 @@ export default function LiveDashboard({ view, route }) {
         <a className="primary-button" href="#/patterns">Browse patterns →</a>
       </> : <>
         {!data.goal.configured && <p className="data-note"><a className="inline-link" href="#/dashboard">Choose a coverage goal on your dashboard.</a></p>}
-        {route.slug ? selected ? <PatternDetail category={selected} view={view} goalConfigured={data.goal.configured} query={query || route.query} /> : <div className="dashboard-message"><h3>Pattern not found.</h3><a className="secondary-button" href="#/patterns">Return to patterns</a></div> : <>
+        {route.slug ? selected ? <PatternDetail category={selected} goalConfigured={data.goal.configured} query={query || route.query} /> : <div className="dashboard-message"><h3>Pattern not found.</h3><a className="secondary-button" href="#/patterns">Return to patterns</a></div> : <>
           {!data.categories.some(category => category.summary.distinctSolved > 0) && <div className="dashboard-message"><h3>Your journey starts here.</h3><p>Import accepted problems or record practice through the extension. Your patterns will update here.</p></div>}
-          <div className="pattern-toolbar"><label className="pattern-search">Search patterns<input type="search" placeholder="Try trees, prefix sums, or knapsack…" value={query} onChange={event => setQuery(event.target.value)} /></label><p>{categories.length} / {data.categories.length} patterns<br /><span>{view === 'coverage' ? data.goal.configured ? 'Largest remaining goal gaps first' : 'Catalog order until you choose a goal' : 'Dated: weakest first · Undated · Unpracticed'}</span></p></div>
+          <div className="pattern-toolbar"><label className="pattern-search">Search patterns<input type="search" placeholder="Try trees, prefix sums, or knapsack…" value={query} onChange={event => setQuery(event.target.value)} /></label><p>{categories.length} / {data.categories.length} patterns<br /><span>Catalog order · Coverage and practice strength together</span></p></div>
           {categories.length ? <div className="pattern-list">{categories.map(category => <PatternRow category={category} goalConfigured={data.goal.configured} query={query} key={category.slug} />)}</div> : <div className="dashboard-message" role="status"><h3>No matching patterns.</h3><p>Try a category or subpattern name.</p><button className="secondary-button" onClick={() => setQuery('')}>Clear search</button></div>}
         </>}
       </>}

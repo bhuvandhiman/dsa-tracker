@@ -1,6 +1,7 @@
 import { mapTopics } from './platforms/leetcode-topics.js';
+import { historyInput } from './domain.js';
 import { Router } from 'express';
-import { DomainError, attemptInput, problemInput, patternInput, positiveId, importInput, pageInput, uuid, revisionInput, correctionInput, libraryInput, captureInput, legacyInput, recentInput, placementInput, goalInput } from './domain.js';
+import { DomainError, attemptInput, problemInput, patternInput, positiveId, importInput, pageInput, uuid, revisionInput, correctionInput, libraryInput, captureInput, legacyInput, recentInput, placementChangeInput, goalInput } from './domain.js';
 
 export function dataRoutes(repository) {
   const router = Router();
@@ -34,7 +35,10 @@ export function dataRoutes(repository) {
   router.get('/retention',async(_request,response)=>response.json(await repository.retention()));
   router.get('/goal',async(_request,response)=>response.json(await repository.goal()));
   router.put('/goal',async(request,response)=>response.json(await repository.setGoal(goalInput(request.body))));
-  router.put('/problems/:id/placement',async(request,response)=>response.json(await repository.setPlacement(positiveId(request.params.id),placementInput(request.body))));
+  router.put('/problems/:id/placement',async(request,response)=>{
+    const {unit,manual}=placementChangeInput(request.body);
+    response.json(await repository.setPlacement(positiveId(request.params.id),unit,manual));
+  });
   router.get('/imports/recent/:id',async(request,response)=>response.json(await repository.recentStatus(uuid(request.params.id))));
   router.post('/imports/recent',async(request,response)=>response.json(await repository.importRecent(recentInput(request.body))));
   router.get('/pattern-problems', async (request,response) => response.json(await repository.library(libraryInput(request.query))));
@@ -55,7 +59,7 @@ export function dataRoutes(repository) {
     response.json({ problem: await repository.setProblemPatterns(positiveId(request.params.id), patternInput(request.body)) });
   });
   router.get('/attempts', async (request, response) => {
-    const page = pageInput(request.query);
+    const page = historyInput(request.query);
     response.json({ attempts: await repository.listAttempts(page), persistence: true, ...page });
   });
   router.post('/attempts', async (request, response) => {

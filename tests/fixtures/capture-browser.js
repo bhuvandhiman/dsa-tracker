@@ -11,6 +11,8 @@ const simulatedPage = {
 };
 let pending = null; let saves = 0; let draft = null; const queue=[];
 globalThis.DsaLegacy={account:async()=> 'fixture-account'};
+const themeListeners=new Set();
+globalThis.chrome={storage:{local:{async get(key){return {[key]:localStorage.getItem(key)};},async set(values){for(const [key,value] of Object.entries(values)){localStorage.setItem(key,value);for(const listener of themeListeners)listener({[key]:{newValue:value}},'local');}}},onChanged:{addListener:listener=>themeListeners.add(listener),removeListener:listener=>themeListeners.delete(listener)}}};
 const simulatedRuntime = { async sendMessage(message) {
   if (message.type === 'GET_PRACTICE_CONTEXT') return {units:[{slug:'hashing',name:'Hash maps & sets'},{slug:'two-pointers',name:'Two pointers'},{slug:'other',name:'Needs classification'}],practiceUnit:'hashing'};
   if (message.type === 'GET_PENDING_CAPTURE') return { pending,draft,queue };

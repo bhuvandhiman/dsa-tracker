@@ -57,6 +57,13 @@ export function pageInput(query) {
   return { limit, offset };
 }
 
+export function historyInput(query) {
+  const {q = '', assistance = '', ...pagination} = query;
+  if (typeof q !== 'string' || q.length > 200) invalid('History search must be at most 200 characters.');
+  if (!['','independent','hint','solution'].includes(assistance)) invalid('Choose valid assistance for history.');
+  return {...pageInput(pagination),...(q.trim() ? {q:q.trim()} : {}),...(assistance ? {assistance} : {})};
+}
+
 
 export function uuid(value) {
   if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) invalid('A version 4 UUID is required.');
@@ -81,7 +88,7 @@ export function libraryInput(query) {
   if (!['all', 'done', 'practiced', 'unpracticed', 'historical'].includes(status)) invalid('Invalid library status.');
   if (!['', 'easy', 'medium', 'hard', 'unknown'].includes(difficulty)) invalid('Invalid difficulty filter.');
   if (!['all', 'dated', 'undated', 'older30'].includes(dates)) invalid('Invalid practice-date filter.');
-  if (!['newest', 'title', 'oldest-practice', 'recent-practice'].includes(sort)) invalid('Invalid problem sort.');
+  if (!['newest', 'title', 'oldest-practice', 'recent-practice', 'difficulty-asc', 'difficulty-desc'].includes(sort)) invalid('Invalid problem sort.');
   return { ...pageInput(pagination), q: q.trim(), pattern, category, status, difficulty, dates, sort };
 }
 
@@ -129,6 +136,12 @@ export function legacyInput(body) {
     return problemInput({url:value.url,title:value.title,difficulty:value.difficulty,patternSlugs:slugs.length?slugs:['uncategorized']});
   });
   return { installationId, username:body.username.trim(), problems, complete:body.complete };
+}
+
+export function placementChangeInput(body) {
+  object(body,['unit','manual']);
+  if (body.manual !== undefined && typeof body.manual !== 'boolean') invalid('Manual placement must be a boolean.');
+  return {unit:placementInput({unit:body.unit}),manual:body.manual === true};
 }
 
 export function placementInput(body) {

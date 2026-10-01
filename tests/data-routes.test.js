@@ -38,6 +38,16 @@ test('lists return bounded pagination and prevent stale browser caching', async 
   assert.equal(response.headers.get('cache-control'), 'no-store');
   assert.deepEqual(await response.json(), { attempts: [], persistence: true, limit: 5, offset: 10 });
 });
+
+test('history search and assistance are forwarded with pagination and invalid filters never reach storage',async(t)=>{
+  let calls=0;
+  const base=await serverFor(t,{async listAttempts(filters){calls++;assert.deepEqual(filters,{limit:25,offset:25,q:'Two Sum',assistance:'hint'});return [];} });
+  const response=await fetch(`${base}/attempts?limit=25&offset=25&q=Two%20Sum&assistance=hint`);
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).persistence,true);
+  assert.equal((await fetch(`${base}/attempts?assistance=wrong`)).status,400);
+  assert.equal(calls,1);
+});
 test('domain conflicts and missing resources retain their HTTP status', async (t) => {
   for (const status of [404, 409]) {
     const base = await serverFor(t, { async listPatterns() { throw new DomainError(status, 'Clear domain error.'); } });

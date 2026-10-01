@@ -21,6 +21,7 @@
       "js": [
         "src/adapters/leetcode.js",
         "src/adapters/leetcode-import.js",
+        "src/theme.js",
         "src/capture.js",
         "src/content.js"
       ],

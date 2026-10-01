@@ -29,7 +29,7 @@ export default [
     },
   },
   {
-    files: ['apps/extension/**/*.js', 'tests/fixtures/capture-browser.js'],
+    files: ['apps/extension/**/*.js', 'tests/fixtures/capture-browser.js', 'tests/fixtures/extension-ui.js'],
     languageOptions: { globals: { ...globals.browser, chrome: 'readonly', DsaAdapters: 'readonly', DsaCapture: 'readonly', DsaLegacy: 'readonly' } },
   },
 ];

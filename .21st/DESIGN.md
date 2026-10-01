@@ -14,12 +14,11 @@ Tokens live in apps/web/src/styles.css: ivory #fafbe9, coral #e96586,
 mustard #f2b632, teal #2c8075, and ink #202720. Typography uses the locally
 available Trebuchet MS / Segoe UI stack. No external font service is required.
 
-Phase 2 connects live practice and goal data. Coverage orders by remaining goal
-gaps; Retention separates dated practice (weakest first), undated experience,
-and unpracticed patterns. Search includes subpattern names; matching categories open into a separate detail screen.
+Phase 2 connects live practice and goal data in one combined view, without a
+Coverage/Retention switch. Patterns and subpatterns use consistent catalog order,
+with Other last. Search includes subpattern names; matching categories open into a separate detail screen.
 Coverage rings and strength bars remain separately labelled, without mastery claims
-or invented scores. Goal controls change only the existing goal. Detailed problem
-and history workflows remain Phase 3 in docs/frontend-rebuild.md.
+or invented scores. Goal controls change only the existing goal. Problems expand within each subpattern; their notebooks stay inline. History and Workspace retain dedicated pages.
 
 21st catalog search found Card Tabs, Tabs with Icons, and Card primitives.
 The references informed component discovery; no catalog source code was retrieved
@@ -32,3 +31,13 @@ The old frontend remains recoverable through Git history.
 Phase 2 catalog search found Progress primitives. Native progress elements and CSS coverage rings fit the established JavaScript/CSS foundation; no catalog code was installed.
 
 User layout revision: Dashboard shows overview and goals. Patterns is a separate route with long, full-width neutral rows and coral/teal/mustard accents. Each row opens a separate routed subpattern detail panel. Avoid tiled pattern cards and inline subpattern expansion.
+
+Phase 3 reuses neutral full-width rows, native labelled filters, and explicit inline correction forms. Problem lists preserve scope and filters in detail/return URLs. Imported submissions are read-only; undated solves remain separate. Workspace restore previews the selected backup before an explicit action. 21st search found filter-table and combobox references; existing native controls fit the current React/CSS foundation without installing another component stack.
+
+Phase 4 carries the same palette and typography into extension pages and the shadow-root recorder. `apps/extension/src/theme.js` shares extension tokens and moon/sun controls. The extension persists its own preference in Chrome local storage and synchronizes its surfaces; the website's preference remains independent. Panel storage listeners are removed on close. 21st Theme Toggle references informed discovery; native buttons and existing forms were reused.
+
+Final user revision: each subpattern expands an inline problem list. Use only Difficulty and Last practiced buttons for ascending/descending sorting, before pagination. Missing values appear last. Problem notebooks and corrections stay inline; remove the separate Problems route and navigation. Category detail routes remain. Native disclosure buttons reuse the existing rows and design tokens. The four planned development phases end here.
+
+Inline browsing catalog lookup found Accordion Multiple and Expand All Accordion references. Existing native buttons provide independent accessible disclosure without adding a dependency. Review found informational palette literals only.
+
+Current compact browsing revision: the complete subpattern summary toggles its list. Problem rows contain only name, difficulty, LeetCode icon link, last practiced date, and trailing ellipsis. Column headers cycle ascending, descending, normal. The ellipsis opens only Edit pattern, using existing provider-topic and curated candidates, plus a final explicit manual catalog choice. No problem notebook expands from these rows. History remains available on the History page. 21st Table Row Actions references informed discovery; native details, table, buttons, and selects reuse this project’s framework.

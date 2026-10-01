@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Recall Settings</title><link rel="stylesheet" href="setup.css"></head><body><main>
-<p class="brand">recall</p><h1>Settings · LeetCode import</h1><p>Import accepted problems from the LeetCode account signed in to this Chrome profile. They appear as previously solved, without an invented date or extra submissions.</p>
+<header><p class="brand">recall<span>.</span></p><button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode"></button></header><p class="eyebrow">Your practice, ready to continue</p><h1>Import & recordings.</h1><p>Import accepted problems from the LeetCode account signed in to this Chrome profile. They appear as previously solved, without an invented date or extra submissions.</p>
 <p>Existing practice and notes stay intact. Each problem counts once.</p>
 <p id="status" role="status" aria-live="polite">Checking setup…</p>
 <div><button id="import" disabled>Import previously solved problems</button><button id="skip" disabled>Start without importing</button></div>
@@ -7,4 +7,4 @@
 <p id="help">Keep a signed-in LeetCode tab open and the local Recall API running. Keep this setup tab open until import finishes.</p>
 <section><h2>Local recordings</h2><p>Editable drafts, unfinished saves and queued Accepted submissions remain in this Chrome profile. Open their problem to resume. Uninstalling the extension clears this storage.</p><button id="refresh-recordings">Refresh recordings</button><div id="recordings" role="status"></div></section>
 <a href="https://leetcode.com/problemset/" target="_blank" rel="noopener noreferrer">Open LeetCode</a> · <a href="http://127.0.0.1:5173/" target="_blank" rel="noopener noreferrer">Open dashboard</a>
-</main><script type="module" src="src/setup.js"></script><script type="module" src="src/setup-retention.js"></script><script type="module" src="src/setup-recordings.js"></script></body></html>
+</main><script src="src/theme.js"></script><script src="src/theme-page.js"></script><script type="module" src="src/setup.js"></script><script type="module" src="src/setup-retention.js"></script><script type="module" src="src/setup-recordings.js"></script></body></html>

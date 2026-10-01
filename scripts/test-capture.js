@@ -6,6 +6,7 @@ const files = new Map([
   ['/fixture.js', ['../tests/fixtures/capture-browser.js','text/javascript']],
   ['/adapter.js', ['../apps/extension/src/adapters/leetcode.js','text/javascript']],
   ['/capture.js', ['../apps/extension/src/capture.js','text/javascript']],
+  ['/theme.js', ['../apps/extension/src/theme.js','text/javascript']],
 ]);
 const server = createServer(async (request, response) => {
   const entry = files.get(new URL(request.url,'http://127.0.0.1').pathname);
