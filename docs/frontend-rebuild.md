@@ -59,3 +59,9 @@ All four planned development phases are implemented. There is no Phase 5. Stop a
 API contracts, database data, and extension behavior remain preserved.
 
 Compact browsing revision: whole subpattern summaries toggle problems. Rows show name, difficulty, external LeetCode icon, date, and ellipsis; notebooks no longer open from problem rows. Sorting resides in column headings and cycles ascending → descending → normal (original newest-added order), before pagination. Ellipsis provides only Edit pattern; choices use stored provider topics and curated mappings, with a final manual catalog choice. Placement-only writes preserve metadata and recordings. This refines the completed four phases and introduces no new phase.
+
+History removal: the History route and navigation are removed, along with unused notebooks, recording editors, helpers and styles. Old History links resolve to Dashboard. Stored practice, retention, APIs, extension capture, backup/restore, and removed-record recovery are preserved.
+
+Priority restoration: pattern and subpattern browsing now preserve the existing API ranking by weighted remaining coverage gaps with the bounded practice-strength refinement. The frontend no longer overrides priority with catalog order. Other stays last and filtering preserves priority; selection controls retain catalog order.
+
+Frontend refinement: tightened dashboard and page hierarchy, colored evidence tiles, a real highest-priority pattern link, numbered priority rows and remaining-credit labels, clearer progress tracks and difficulty/date presentation. Replaced the floating pattern editor with a bounded native modal dialog with focus restoration. Simplified Workspace empty recovery, separated statuses, reset backup selection correctly, consolidated CSS and removed unused MUI/Emotion dependencies. All existing routes and core coverage priority remain.

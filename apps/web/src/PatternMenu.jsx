@@ -1,8 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { request } from './api.js';
 import { orderedPatterns } from './dashboard-model.js';
 
 function PatternEditor({problem,onSaved,onCancel}) {
+  const dialog = useRef(null);
+  const firstInput = useRef(null);
+  const titleId = useId();
+  useEffect(()=>{
+    const element = dialog.current;
+    element.showModal();
+    firstInput.current?.focus();
+    return ()=>element.close();
+  },[]);
   const candidates = problem.candidates || [];
   const current = problem.placement?.unit;
   const [choice,setChoice] = useState(candidates.some(item=>item.unit === current) ? current : current && problem.placement.source === 'manual' ? '__manual__' : '');
@@ -25,7 +34,7 @@ function PatternEditor({problem,onSaved,onCancel}) {
     catch(failure) {setError(failure.message);}
     finally {setBusy(false);}
   }
-  return <form className="pattern-editor" onSubmit={save}><h4>Edit pattern</h4><label>Pattern<select autoFocus required disabled={busy} value={choice} onChange={event=>{setChoice(event.target.value);setError('');}}><option value="" disabled>Choose a pattern</option>{candidates.map(item=><option key={item.unit} value={item.unit}>{item.categoryName} / {item.name} · {item.source === 'curated' ? 'Curated' : 'LeetCode topics'}</option>)}<option value="__manual__">Manually add to a pattern…</option></select></label>{choice === '__manual__' && <>{catalog ? <label>Choose a pattern manually<select required disabled={busy} value={manualUnit} onChange={event=>setManualUnit(event.target.value)}><option value="">Choose a pattern</option>{catalog.map(item=><option key={item.slug} value={item.slug}>{item.name}</option>)}</select></label> : !error && <p role="status">Loading patterns…</p>}</>}{error && <div role="alert"><p>{error}</p>{choice === '__manual__' && !catalog && <button type="button" className="secondary-button" onClick={()=>setRevision(value=>value+1)}>Try again</button>}</div>}<div className="row-actions"><button className="primary-button" disabled={busy || !choice || (choice === '__manual__' && (!catalog || !catalog.some(item=>item.slug === manualUnit)))}>{busy ? 'Saving…' : 'Save pattern'}</button><button className="secondary-button" type="button" disabled={busy} onClick={onCancel}>Cancel</button></div></form>;
+  return <dialog className="pattern-dialog" ref={dialog} aria-labelledby={titleId} onCancel={event=>{event.preventDefault();if(!busy)onCancel();}}><form className="pattern-editor" onSubmit={save}><p className="eyebrow">Choose the right approach</p><h2 id={titleId}>Edit pattern</h2><p className="dialog-problem-name">{problem.title}</p><label>Pattern<select ref={firstInput} required disabled={busy} value={choice} onChange={event=>{setChoice(event.target.value);setError('');}}><option value="" disabled>Choose a pattern</option>{candidates.map(item=><option key={item.unit} value={item.unit}>{item.categoryName} / {item.name} · {item.source === 'curated' ? 'Curated' : 'LeetCode topics'}</option>)}<option value="__manual__">Manually add to a pattern…</option></select></label>{choice === '__manual__' && <>{catalog ? <label>Choose a pattern manually<select required disabled={busy} value={manualUnit} onChange={event=>setManualUnit(event.target.value)}><option value="">Choose a pattern</option>{catalog.map(item=><option key={item.slug} value={item.slug}>{item.name}</option>)}</select></label> : !error && <p role="status">Loading patterns…</p>}</>}{error && <div role="alert"><p>{error}</p>{choice === '__manual__' && !catalog && <button type="button" className="secondary-button" onClick={()=>setRevision(value=>value+1)}>Try again</button>}</div>}<div className="row-actions"><button className="primary-button" disabled={busy || !choice || (choice === '__manual__' && (!catalog || !catalog.some(item=>item.slug === manualUnit)))}>{busy ? 'Saving…' : 'Save pattern'}</button><button className="secondary-button" type="button" disabled={busy} onClick={onCancel}>Cancel</button></div></form></dialog>;
 }
 
 export default function PatternMenu({problem,onSaved}) {
@@ -33,16 +42,22 @@ export default function PatternMenu({problem,onSaved}) {
   const [editing,setEditing] = useState(false);
   const root = useRef(null);
   const trigger = useRef(null);
+  const menuItem = useRef(null);
   useEffect(()=>{
     if (!menu) return;
+    menuItem.current?.focus();
     function outside(event) {if (!root.current?.contains(event.target)) setMenu(false);}
     document.addEventListener('pointerdown',outside);
     return ()=>document.removeEventListener('pointerdown',outside);
   },[menu]);
-  function close() {setMenu(false);setEditing(false);trigger.current?.focus();}
-  return <div className="pattern-menu" ref={root} onKeyDown={event=>{if(event.key === 'Escape') {event.stopPropagation();close();}}}>
-    <button ref={trigger} className="problem-more" aria-label={`Options for ${problem.title}`} aria-expanded={menu || editing} onClick={()=>{if(editing)close();else setMenu(value=>!value);}}>⋯</button>
-    {menu && <div className="pattern-menu-options"><button className="text-button" autoFocus onClick={()=>{setMenu(false);setEditing(true);}}>Edit pattern</button></div>}
+  function close() {
+    root.current?.querySelector('dialog')?.close();
+    setMenu(false);setEditing(false);
+    trigger.current?.focus();
+  }
+  return <div className="pattern-menu" ref={root} onKeyDown={event=>{if(event.key === 'Escape' && menu) {event.stopPropagation();close();}}}>
+    <button ref={trigger} className="problem-more" aria-label={`Options for ${problem.title}`} aria-expanded={menu} onClick={()=>{if(editing)close();else setMenu(value=>!value);}}>⋯</button>
+    {menu && <div className="pattern-menu-options"><button className="text-button" ref={menuItem} onClick={()=>{setMenu(false);setEditing(true);}}>Edit pattern</button></div>}
     {editing && <PatternEditor problem={problem} onCancel={close} onSaved={()=>{close();onSaved();}} />}
   </div>;
 }

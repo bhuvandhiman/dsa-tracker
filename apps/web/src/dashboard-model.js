@@ -5,6 +5,12 @@ export function orderedPatterns(items) {
   });
 }
 
+// The API already ranks coverage gaps using the selected goal and practice
+// evidence. Preserve that order instead of replacing it with catalog order.
+export function prioritizedPatterns(items) {
+  return [...items].sort((a, b) => Number(a.slug === 'other') - Number(b.slug === 'other'));
+}
+
 export function filterPatterns(items, query) {
   const term = query.trim().toLocaleLowerCase();
   return items.filter(item => [item.name, ...(item.children || []).map(child => child.name)].some(name => name.toLocaleLowerCase().includes(term)));

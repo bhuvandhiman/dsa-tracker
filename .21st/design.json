@@ -43,15 +43,15 @@
     "density": "comfortable"
   },
   "components": {
-    "installed": [
-      "Material UI"
+    "installed": [],
+    "preferredPrimitives": [
+      "Native buttons, details, tables, selects and modal dialog"
     ],
-    "preferredPrimitives": [],
     "patterns": [
       "Full-width pattern rows",
       "Separate subpattern detail panels",
       "Coverage and practice strength together",
-      "Inline subpattern problems with two sort buttons and notebooks",
+      "Inline compact problem rows with three-state column sorting",
       "Floating topic labels"
     ]
   },
@@ -107,6 +107,21 @@
       "date": "2026-10-01",
       "direction": "Full subpattern disclosure and compact problem rows",
       "reason": "User requested full-row toggle, name/difficulty/LeetCode/date bars, three-state column sorting, and ellipsis-only pattern editing with problem-specific candidates and explicit manual placement."
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "Remove the History page",
+      "reason": "User requested removing History completely. Keep only Dashboard, Patterns and Workspace; remove history-only frontend code while preserving practice records and capture."
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "Restore coverage priority queue",
+      "reason": "User reaffirmed coverage-based ranking as core behavior. Preserve existing API goal-attention order for both patterns and subpatterns, including search; keep catalog ordering only in selection controls."
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "Refine the completed frontend",
+      "reason": "Preserve the approved full-page palette and coverage priority. Tighten hierarchy, add priority ranks and next-pattern guidance, strengthen progress contrast, consolidate CSS, use a bounded keyboard-accessible editor dialog, simplify empty states and remove unused MUI/Emotion dependencies."
     }
   ],
   "evidence": [

@@ -7,21 +7,6 @@ export function nextProblemSort(current, field) {
   return {field, direction:current.field !== field || !current.direction ? 'asc' : current.direction === 'asc' ? 'desc' : null};
 }
 
-export function localDateTime(value) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return '';
-  const local = new Date(date.getTime() - date.getTimezoneOffset()*60000);
-  return local.toISOString().slice(0,23);
-}
-
-export function correctionPayload(attempt, fields) {
-  const date = new Date(fields.attemptedAt);
-  if (!Number.isFinite(date.getTime())) throw new Error('Choose a valid practice date.');
-  if (!fields.patternSlugs.length) throw new Error('Select at least one pattern used.');
-  return {revision:attempt.revision,assistance:fields.assistance,notes:fields.notes,patternSlugs:fields.patternSlugs,
-    attemptedAt:date.toISOString(),...(fields.practiceUnit && fields.practiceUnit !== attempt.practiceUnit ? {practiceUnit:fields.practiceUnit} : {})};
-}
-
 export function safeProblemUrl(value) {
   try {
     const url = new URL(value);

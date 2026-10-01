@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { backupSummary, correctionPayload, subpatternQuery, nextProblemSort, localDateTime, safeProblemUrl } from '../apps/web/src/workflow-model.js';
+import { backupSummary, subpatternQuery, nextProblemSort, safeProblemUrl } from '../apps/web/src/workflow-model.js';
 import { readRoute } from '../apps/web/src/navigation.js';
 import { historyInput, libraryInput, placementChangeInput } from '../apps/api/src/domain.js';
 
-test('only patterns, history and workspace have routes; problem notebooks remain inline',()=>{
-  assert.equal(readRoute('#/history').page,'history');
+test('removed history and problem URLs fall back to the dashboard',()=>{
+  assert.equal(readRoute('#/history').page,'dashboard');
+  assert.equal(readRoute('#/history?q=two-sum').page,'dashboard');
   assert.equal(readRoute('#/settings').page,'settings');
   assert.notEqual(readRoute('#/problems/12').page,'problems');
 });
@@ -23,18 +24,6 @@ test('subpattern sorting preserves scope, orders on the server and bounds pagina
   assert.deepEqual(nextProblemSort({field:'difficulty',direction:null},'difficulty'),{field:'difficulty',direction:'asc'});
   assert.equal(new URLSearchParams(subpatternQuery('hashing',{field:'practiced',direction:null})).get('sort'),'newest');
   assert.deepEqual(nextProblemSort({field:'difficulty',direction:'desc'},'practiced'),{field:'practiced',direction:'asc'});
-});
-
-test('editing notes preserves original timestamp precision, revision, patterns and inferred approach',()=>{
-  const attempt={revision:7,practiceUnit:'hashing',attemptedAt:'2026-09-23T12:34:56.789Z'};
-  const fields={assistance:'hint',notes:'Keep the complement lookup',patternSlugs:['hash-table'],practiceUnit:'hashing',attemptedAt:localDateTime(attempt.attemptedAt)};
-  const payload=correctionPayload(attempt,fields);
-  assert.equal(payload.attemptedAt,attempt.attemptedAt);assert.equal(payload.revision,7);
-  assert.equal(Object.hasOwn(payload,'practiceUnit'),false);
-  assert.deepEqual(payload.patternSlugs,['hash-table']);
-  assert.equal(correctionPayload(attempt,{...fields,practiceUnit:'prefix-sum'}).practiceUnit,'prefix-sum');
-  assert.throws(()=>correctionPayload(attempt,{...fields,patternSlugs:[]}),/Select/);
-  assert.throws(()=>correctionPayload(attempt,{...fields,attemptedAt:'invalid'}),/valid practice date/);
 });
 
 test('external problem links reject script URLs, foreign hosts and disguised LeetCode hosts',()=>{
