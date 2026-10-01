@@ -24,3 +24,25 @@ export function evidenceLabel(item) {
 export function percent(value) {
   return Math.max(0, Math.min(100, Number(value) || 0));
 }
+
+export function retentionOverview(categories) {
+  const patterns = categories.filter(item => item.slug !== 'other');
+  const assessed = patterns.filter(item => item.summary.assessed && Number.isFinite(item.summary.strength));
+  return {
+    score: assessed.length ? assessed.reduce((sum, item) => sum + percent(item.summary.strength), 0) / assessed.length : null,
+    dated: assessed.length,
+    undated: patterns.filter(item => !item.summary.assessed && item.summary.distinctSolved > 0).length,
+    total: patterns.length,
+  };
+}
+
+export function difficultyCoverage(goal, bucket) {
+  const patterns = (goal.categories || []).map(category => ({
+    slug: category.slug, name: category.name, ...category.difficulty[bucket],
+  })).filter(item => item.target > 0);
+  return {
+    patterns,
+    credited: patterns.reduce((sum, item) => sum + item.credited, 0),
+    target: patterns.reduce((sum, item) => sum + item.target, 0),
+  };
+}

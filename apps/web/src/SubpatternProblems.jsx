@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { request } from './api.js';
 import PatternMenu from './PatternMenu.jsx';
+import { NextAction } from './PatternMetrics.jsx';
 import { nextProblemSort, safeProblemUrl, subpatternQuery } from './workflow-model.js';
 
 function LeetCodeLink({problem}) {
@@ -39,7 +40,7 @@ function ProblemList({slug}) {
   </div>;
 }
 
-export default function SubpatternProblems({slug,name,children}) {
+export default function SubpatternProblems({slug,name,children,next = false}) {
   const [open,setOpen] = useState(false);
-  return <details className="subpattern-row" onToggle={event=>setOpen(event.currentTarget.open)}><summary className="subpattern-header" aria-label={`${name} problems`}>{children}<span className="subpattern-chevron" aria-hidden="true">⌄</span></summary>{open && <ProblemList slug={slug} />}</details>;
+  return <details className={`subpattern-row ${next ? 'is-next' : ''}`} onToggle={event=>setOpen(event.currentTarget.open)}><summary className="subpattern-header" aria-label={`${name} problems${next ? '. Next recommended subpattern' : ''}`}>{children}<NextAction next={next} expanded={open} disclosure /></summary>{open && <ProblemList slug={slug} />}</details>;
 }

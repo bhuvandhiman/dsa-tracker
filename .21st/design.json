@@ -23,7 +23,9 @@
       "apps/extension/src/capture.js",
       "apps/extension/src/theme.js",
       "apps/web/src/SubpatternProblems.jsx",
-      "apps/web/src/PatternMenu.jsx"
+      "apps/web/src/PatternMenu.jsx",
+      "apps/web/src/PatternOverview.jsx",
+      "apps/web/src/PatternMetrics.jsx"
     ],
     "assets": [],
     "instructions": [
@@ -52,7 +54,7 @@
       "Separate subpattern detail panels",
       "Coverage and practice strength together",
       "Inline compact problem rows with three-state column sorting",
-      "Floating topic labels"
+      "Large central retention bar and difficulty bars segmented by pattern"
     ]
   },
   "constraints": {
@@ -122,6 +124,16 @@
       "date": "2026-10-01",
       "direction": "Refine the completed frontend",
       "reason": "Preserve the approved full-page palette and coverage priority. Tighten hierarchy, add priority ranks and next-pattern guidance, strengthen progress contrast, consolidate CSS, use a bounded keyboard-accessible editor dialog, simplify empty states and remove unused MUI/Emotion dependencies."
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "Patterns and retention lead the dashboard",
+      "reason": "User reaffirmed patterns as the USP and requested a dominant middle retention bar plus LeetCode-colored Easy/Medium/Hard coverage bars with pattern-level hover details. Replace the decorative hero and aggregate coverage tile with assessed-pattern mean strength, clear evidence scope, coverage segments and ranked pattern links."
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "Dashboard visual language across pattern browsing",
+      "reason": "User requested retention-led metrics and difficulty bars on Patterns and subpatterns, with a visual next-action cue instead of explanatory text. Reserve mustard outline, rank badge, progress accent and play action for the first priority; keep other rows neutral. Preserve API ranking, inline disclosure and accessible names."
     }
   ],
   "evidence": [
@@ -132,6 +144,10 @@
     {
       "url": "https://21st.dev/@cnippet-dev/components/tabs-with-icons",
       "use": "Historical catalog reference; perspective switching was later removed at the user's request"
+    },
+    {
+      "url": "https://21st.dev/@jatin-yadav05/components/progress-bar",
+      "use": "Segmented progress discovery; native project controls reused, no catalog code installed"
     }
   ]
 }

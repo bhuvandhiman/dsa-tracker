@@ -1,15 +1,10 @@
+import PatternOverview, { DifficultyBar } from './PatternOverview.jsx';
+import PatternMetrics, { NextAction, RetentionMetric } from './PatternMetrics.jsx';
 import SubpatternProblems from './SubpatternProblems.jsx';
 import { useEffect, useState } from 'react';
 import { request } from './api.js';
 import { patternLink } from './navigation.js';
-import { evidenceLabel, filterPatterns, prioritizedPatterns, percent } from './dashboard-model.js';
-
-function Metrics({ item, goal, name, goalConfigured }) {
-  return <div className="live-metrics">
-    <div className="coverage-metric"><span className="coverage-ring" role="img" aria-label={goal ? `${name}: ${Math.round(percent(goal.coverage))}% goal coverage` : `${name}: ${goalConfigured ? 'outside the coverage goal' : 'no goal configured'}`} style={{ '--coverage': `${percent(goal?.coverage)}%` }}><span>{goal ? `${Math.round(percent(goal.coverage))}%` : '—'}</span></span><div><strong>Goal coverage</strong><small>{goal ? `${goal.credited} / ${goal.target} credited` : goalConfigured ? 'Outside the coverage goal' : 'Choose a coverage goal'}</small></div></div>
-    <div className="strength-metric"><div><strong>{evidenceLabel(item)}</strong><span>{item.distinctSolved > 0 ? `${Math.round(percent(item.displayStrength))}%` : '—'}</span></div><progress max="100" value={percent(item.displayStrength)} aria-label={`${name}: ${evidenceLabel(item)}`} /><small>{item.assessed ? `Last practice: ${new Intl.DateTimeFormat('en-IN', {timeZone:'Asia/Calcutta', day:'numeric',month:'short',year:'numeric'}).format(new Date(item.lastPracticedAt))}` : item.distinctSolved > 0 ? 'Undated solves are not assessed retention.' : 'Record practice with the extension.'}</small></div>
-  </div>;
-}
+import { filterPatterns, prioritizedPatterns } from './dashboard-model.js';
 
 function GoalForm({ goal, onSaved }) {
   const [profile, setProfile] = useState(goal.profile || 'interview');
@@ -29,21 +24,27 @@ function GoalForm({ goal, onSaved }) {
 }
 
 function PatternRow({ category, goalConfigured, query, rank }) {
-  const color = ['coral','teal','mustard'][category.order % 3] || 'coral';
-  return <a className={`pattern-row ${color}`} href={patternLink(category.slug,query)} aria-label={`Priority ${rank}: Open ${category.name} subpatterns`}>
+  return <a className={`pattern-row ${rank === 1 ? 'is-next' : ''}`} href={patternLink(category.slug,query)} aria-label={`Priority ${rank}: Open ${category.name} subpatterns${rank === 1 ? '. Next recommended pattern' : ''}`}>
     <div className="pattern-row-heading"><span className="pattern-icon" aria-hidden="true">{String(rank).padStart(2,'0')}</span><div><h3>{category.name}</h3><p>{category.goal?.deficit > 0 ? `${category.goal.deficit} credits to close this gap · ` : ''}{category.children.length} subpatterns</p></div></div>
-    <Metrics item={category.summary} goal={category.goal} name={category.name} goalConfigured={goalConfigured} />
-    <span className="row-arrow" aria-hidden="true">↗</span>
+    <PatternMetrics item={category.summary} goal={category.goal} name={category.name} goalConfigured={goalConfigured} />
+    <NextAction next={rank === 1} />
   </a>;
 }
 
 function PatternDetail({ category, goalConfigured, query }) {
   const children = prioritizedPatterns(category.children);
+  const coverageGoal = {categories:children.filter(child => child.goal).map(child => ({
+    slug:child.slug, name:child.name,
+    difficulty:Object.fromEntries(['easy','medium','hard'].map(bucket => [bucket,{target:child.goal.difficulty[bucket],credited:child.goal.creditedByDifficulty[bucket]}])),
+  }))};
   return <div className="pattern-detail">
     <a className="secondary-button back-link" href={patternLink(null,query)}>← All patterns</a>
-    <section className="detail-overview" aria-label={`${category.name} overview`}><h2>Coverage & practice</h2><p>{category.summary.reason}</p><Metrics item={category.summary} goal={category.goal} name={category.name} goalConfigured={goalConfigured} /></section>
-    <div className="section-heading"><h2>Subpatterns</h2><span className="data-note">{children.length} approaches · Highest priority first</span></div>
-    <div className="subpattern-list">{children.map(child => <SubpatternProblems key={child.slug} slug={child.slug} name={child.name}><div><h3>{child.name}</h3><p>{child.distinctSolved} distinct {child.distinctSolved === 1 ? 'solve' : 'solves'}{child.goal?.deficit > 0 ? ` · ${child.goal.deficit} credits remaining` : ''}</p>{child.assessed && <p>{child.reason}</p>}</div><Metrics item={child} goal={child.goal} name={`${category.name}, ${child.name}`} goalConfigured={goalConfigured} />{child.goal && <p className="difficulty-breakdown">{['easy','medium','hard'].map(bucket => `${bucket[0].toUpperCase()+bucket.slice(1)} ${child.goal.creditedByDifficulty[bucket]}/${child.goal.difficulty[bucket]}`).join(' · ')} credited</p>}</SubpatternProblems>)}</div>
+    <div className="detail-summary-grid">
+      <section className="retention-tracker detail-retention" aria-label={`${category.name} retention`}><p className="eyebrow">Keep what you learn</p><h2>Pattern retention.</h2><RetentionMetric item={category.summary} name={category.name} prominent /><p className="detail-retention-reason">{category.summary.reason}</p></section>
+      <section className="detail-coverage" aria-label={`${category.name} difficulty coverage`}><p className="eyebrow">Build balanced coverage</p><h2>Coverage by difficulty.</h2>{category.goal ? <><div className="difficulty-coverage-list">{['easy','medium','hard'].map(bucket => <DifficultyBar key={bucket} goal={coverageGoal} bucket={bucket} />)}</div><p className="coverage-help">Each segment is a subpattern. Hover, tap, or focus to see its progress.</p></> : <p className="data-note">{goalConfigured ? 'Outside the coverage goal.' : 'Choose a coverage goal on the dashboard.'}</p>}</section>
+    </div>
+    <div className="section-heading"><h2>Subpatterns</h2><span className="data-note">{children.length} approaches</span></div>
+    <div className="subpattern-list">{children.map((child,index) => <SubpatternProblems key={child.slug} slug={child.slug} name={child.name} next={index === 0 && category.slug !== 'other'}><div className="subpattern-row-heading"><span className="pattern-icon" aria-hidden="true">{String(index+1).padStart(2,'0')}</span><div><h3>{child.name}</h3><p>{child.distinctSolved} distinct {child.distinctSolved === 1 ? 'solve' : 'solves'}{child.goal?.deficit > 0 ? ` · ${child.goal.deficit} credits remaining` : ''}</p></div></div><PatternMetrics item={child} goal={child.goal} name={`${category.name}, ${child.name}`} goalConfigured={goalConfigured} /></SubpatternProblems>)}</div>
   </div>;
 }
 export default function LiveDashboard({ route }) {
@@ -67,26 +68,22 @@ export default function LiveDashboard({ route }) {
     return () => { controller.abort(); clearTimeout(poll); document.removeEventListener('visibilitychange', visible); };
   }, [revision]);
   const categories = data ? filterPatterns(prioritizedPatterns(data.categories), query) : [];
-  const dated = data?.categories.filter(category => category.summary.assessed).length || 0;
-  const undated = data?.categories.filter(category => !category.summary.assessed && category.summary.distinctSolved > 0).length || 0;
   const isDashboard = route.page === 'dashboard';
-  const nextCategory = data?.categories.find(category => category.slug !== 'other' && (data.goal.configured ? category.goal?.deficit > 0 : category.priority !== null));
   const selected = data?.categories.find(category => category.slug === route.slug);
   return <section className={`patterns-section live-dashboard ${isDashboard ? 'dashboard-overview' : 'pattern-browser'}`} aria-labelledby="live-title" aria-busy={loading}>
-    <div className="section-heading live-heading"><div><p className="eyebrow">{isDashboard ? 'Your progress at a glance' : 'Your practice, in priority order'}</p>{isDashboard ? <h2 id="live-title">Your overview.</h2> : <h1 id="live-title">{route.slug ? selected?.name || 'Pattern details' : 'Patterns.'}</h1>}{!isDashboard && !route.slug && <p className="page-description">Close your coverage gaps. Keep your practice fresh.</p>}</div><button className="secondary-button" type="button" disabled={loading} onClick={refresh}>{loading ? 'Refreshing…' : 'Refresh practice'}</button></div>
+    <div className="section-heading live-heading"><div><p className="eyebrow">{isDashboard ? 'Your patterns. Your progress.' : 'Explore your patterns'}</p>{isDashboard ? <h1 id="live-title">Know your patterns.<br />Keep them fresh.</h1> : <h1 id="live-title">{route.slug ? selected?.name || 'Pattern details' : 'Patterns.'}</h1>}{!isDashboard && !route.slug && <p className="page-description">Build your coverage. Keep what you learn.</p>}</div><button className="secondary-button" type="button" disabled={loading} onClick={refresh}>{loading ? 'Refreshing…' : 'Refresh practice'}</button></div>
     {error && <div className="dashboard-message error-message" role="alert"><h3>Practice could not be updated.</h3><p>{error}</p>{data && <p>Showing the last successful snapshot.</p>}<button className="secondary-button" onClick={refresh} disabled={loading}>Try again</button></div>}
     {!data && !error && <p className="dashboard-message" role="status">Loading your patterns and practice…</p>}
     {data && <>
       {isDashboard ? <>
-        <div className="overview-grid"><article className="overview-coverage"><p className="eyebrow">Goal coverage</p><strong className="overview-value">{data.goal.configured ? `${Math.round(data.goal.coverage)}%` : 'Your next step'}</strong><p>{data.goal.configured ? `${data.goal.credited} / ${data.goal.target} credited · ${data.goal.profileName}` : 'Choose a goal to reveal coverage gaps.'}</p></article><article className="overview-dated"><p className="eyebrow">Dated practice</p><strong className="overview-value">{dated} <span>patterns</span></strong><p>Patterns with dated practice evidence.</p></article><article className="overview-undated"><p className="eyebrow">Undated experience</p><strong className="overview-value">{undated} <span>patterns</span></strong><p>Previous solves without practice dates.</p></article></div>
+        <PatternOverview data={data} />
         <GoalForm key={`${data.goal.profile}-${data.goal.target}`} goal={data.goal} onSaved={refresh} />
         {data.goal.unknownDifficulty > 0 && <p className="data-note">{data.goal.unknownDifficulty} solved problems have unknown difficulty and cannot receive goal credit yet.</p>}
-        {nextCategory && <div className="next-practice"><div><p className="eyebrow">Your first priority</p><h3>{nextCategory.name}</h3><p>{data.goal.configured ? `${nextCategory.goal.deficit} credits remaining toward your goal.` : 'Your practice needs the most attention here.'}</p></div><a className="primary-button" href={patternLink(nextCategory.slug)}>Explore this pattern →</a></div>}
       </> : <>
         {!data.goal.configured && <p className="data-note"><a className="inline-link" href="#/dashboard">Choose a coverage goal on your dashboard.</a></p>}
         {route.slug ? selected ? <PatternDetail category={selected} goalConfigured={data.goal.configured} query={query || route.query} /> : <div className="dashboard-message"><h3>Pattern not found.</h3><a className="secondary-button" href="#/patterns">Return to patterns</a></div> : <>
           {!data.categories.some(category => category.summary.distinctSolved > 0) && <div className="dashboard-message"><h3>Your journey starts here.</h3><p>Import accepted problems or record practice through the extension. Your patterns will update here.</p></div>}
-          <div className="pattern-toolbar"><label className="pattern-search">Search patterns<input type="search" placeholder="Try trees, prefix sums, or knapsack…" value={query} onChange={event => setQuery(event.target.value)} /></label><p>{categories.length} / {data.categories.length} patterns<br /><span>{data.goal.configured ? 'Coverage priority · Goal gaps first, adjusted for practice strength' : 'Practice priority · Choose a goal to rank coverage gaps'}</span></p></div>
+          <div className="pattern-toolbar"><label className="pattern-search">Search patterns<input type="search" placeholder="Try trees, prefix sums, or knapsack…" value={query} onChange={event => setQuery(event.target.value)} /></label><p>{categories.length} / {data.categories.length} patterns<br /><span>{data.goal.configured ? '' : 'Choose a goal to reveal coverage gaps'}</span></p></div>
           {categories.length ? <div className="pattern-list">{categories.map(category => <PatternRow category={category} goalConfigured={data.goal.configured} query={query} rank={data.categories.findIndex(item => item.slug === category.slug)+1} key={category.slug} />)}</div> : <div className="dashboard-message" role="status"><h3>No matching patterns.</h3><p>Try a category or subpattern name.</p><button className="secondary-button" onClick={() => setQuery('')}>Clear search</button></div>}
         </>}
       </>}

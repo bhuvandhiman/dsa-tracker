@@ -18,24 +18,6 @@ function Icon({ name, ...props }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name]}</svg>;
 }
 
-function PracticeIllustration() {
-  return <div className="practice-illustration" aria-hidden="true">
-    <span className="orbit orbit-one" /><span className="orbit orbit-two" />
-    <span className="floating-topic topic-one">#Curiosity</span>
-    <span className="floating-topic topic-two">#Patterns</span>
-    <span className="floating-topic topic-three">#OneStepAtATime</span>
-    <div className="illustration-disc"><svg viewBox="0 0 160 160" fill="none">
-      <path d="M42 45 78 54 117 39 125 111 86 127 48 114Z" fill="var(--canvas)" stroke="var(--ink)" strokeWidth="3" strokeLinejoin="round" />
-      <path d="m78 54 8 73M42 45l36 9 39-15M48 114l38 13 39-16" stroke="var(--ink)" strokeWidth="3" />
-      <path d="m53 64 16 4m-14 7 16 4m-14 7 16 4m-14 7 16 4" stroke="var(--coral)" strokeWidth="4" strokeLinecap="round" />
-      <path d="m93 65 13-5m-12 16 13-5m-12 16 13-5m-12 16 13-5" stroke="var(--teal)" strokeWidth="4" strokeLinecap="round" />
-      <path d="m107 17 3 9 9 3-9 3-3 9-3-9-9-3 9-3Z" fill="var(--mustard)" />
-    </svg></div>
-    <span className="little-spark"><Icon name="spark" /></span>
-    <span className="code-chip">{'{ learn. repeat. }'}</span>
-  </div>;
-}
-
 export default function App() {
   const [route, setRoute] = useState(() => readRoute(window.location.hash));
   useEffect(() => {
@@ -72,17 +54,7 @@ export default function App() {
     </header>
 
     <main id="main" tabIndex={-1}>
-      {['dashboard','patterns'].includes(route.page) && <>{route.page === 'dashboard' ? <section className="hero" aria-labelledby="welcome-title">
-        <div className="hero-copy">
-          <p className="eyebrow"><span />A little progress, every day</p>
-          <h1 id="welcome-title">Learn something.<br />Make it <span>stay.</span></h1>
-          <p className="hero-description">Your DSA journey, with room to grow.<br className="desktop-break" /> Explore your coverage. Stay close to what you’ve learned.</p>
-          <a className="primary-button" href="#/patterns">Explore your patterns<Icon name="arrow" /></a>
-        </div>
-        <PracticeIllustration />
-      </section> : null}
-
-      <LiveDashboard route={route} /></>}
+      {['dashboard','patterns'].includes(route.page) && <LiveDashboard route={route} />}
       {route.page === 'settings' && <Workflows />}
       <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><span className="footer-flower" aria-hidden="true">✳</span></footer>
     </main>

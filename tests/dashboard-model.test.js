@@ -1,7 +1,7 @@
 import { applyGoalOrdering } from '../apps/api/src/goal-policy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evidenceLabel, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
+import { difficultyCoverage, retentionOverview, evidenceLabel, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
 
 const item = (slug, order, { assessed = false, solved = 0, strength = null, gap = 0 } = {}) => ({ slug, name:slug, order, goal:{deficit:gap}, summary:{assessed,distinctSolved:solved,strength,lastPracticedAt:'2026-09-01T00:00:00Z'} });
 test('pattern picker uses catalog order, keeps unclassified last, and preserves input', () => {
@@ -43,4 +43,28 @@ test('frontend keeps goal-policy priorities even when they differ from catalog o
   const ranked=applyGoalOrdering([{slug:'arrays-hashing',order:0,priority:30,children:[{slug:'hashing',order:0,priority:95},{slug:'prefix-sum',order:1,priority:10}]},{slug:'graphs',order:10,priority:40,children:[]},{slug:'other',order:16,children:[]}],goal);
   assert.deepEqual(prioritizedPatterns(ranked).map(row=>row.slug),['graphs','arrays-hashing','other']);
   assert.deepEqual(prioritizedPatterns(ranked[1].children).map(row=>row.slug),['prefix-sum','hashing']);
+});
+
+test('retention overview averages only assessed pattern strengths and keeps absent dates unknown', () => {
+  const categories = [
+    {slug:'arrays',summary:{assessed:true,strength:60}},
+    {slug:'trees',summary:{assessed:true,strength:20}},
+    {slug:'dp',summary:{assessed:false,strength:null,distinctSolved:50}},
+    {slug:'graphs',summary:{assessed:false,distinctSolved:0}},
+    {slug:'other',summary:{assessed:true,strength:99}},
+  ];
+  assert.deepEqual(retentionOverview(categories),{score:40,dated:2,undated:1,total:4});
+  assert.equal(retentionOverview(categories.slice(2,4)).score,null);
+});
+
+test('difficulty coverage keeps pattern-specific credits and excludes zero-target segments', () => {
+  const goal={categories:[
+    {slug:'arrays',name:'Arrays',difficulty:{easy:{target:10,credited:4,actual:30}}},
+    {slug:'trees',name:'Trees',difficulty:{easy:{target:5,credited:5,actual:8}}},
+    {slug:'empty',name:'Empty',difficulty:{easy:{target:0,credited:0}}},
+  ]};
+  const result=difficultyCoverage(goal,'easy');
+  assert.equal(result.credited,9);assert.equal(result.target,15);
+  assert.deepEqual(result.patterns.map(item=>[item.slug,item.credited,item.target]),[['arrays',4,10],['trees',5,5]]);
+  assert.deepEqual(difficultyCoverage({},'hard'),{patterns:[],credited:0,target:0});
 });
