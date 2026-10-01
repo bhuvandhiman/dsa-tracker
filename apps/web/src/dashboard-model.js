@@ -25,6 +25,13 @@ export function percent(value) {
   return Math.max(0, Math.min(100, Number(value) || 0));
 }
 
+export function priorityProgress(item) {
+  if (item.slug === 'other') return null;
+  if (Number.isFinite(item.priorityProgress)) return percent(item.priorityProgress);
+  // Unconfigured workspaces retain the API's practice-only ranking.
+  return Number.isFinite(item.priority) ? percent(100 * (1 - item.priority / 95)) : null;
+}
+
 export function retentionOverview(categories) {
   const patterns = categories.filter(item => item.slug !== 'other');
   const assessed = patterns.filter(item => item.summary.assessed && Number.isFinite(item.summary.strength));

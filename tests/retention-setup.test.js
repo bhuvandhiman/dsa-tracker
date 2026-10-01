@@ -2,7 +2,8 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-const source=readFileSync(new URL('../apps/extension/src/setup-retention.js',import.meta.url),'utf8');
+import {connectLeetCode} from '../apps/extension/src/leetcode-connection.js';
+const source=readFileSync(new URL('../apps/extension/src/setup-retention.js',import.meta.url),'utf8').replace(/^import .*\r?\n/,'');
 function setup({fail=false,wrongAccount=false}={}) {
   const button={addEventListener(_event,fn){this.click=fn;},hidden:true},status={textContent:''};
   const storage={legacySetup:{installationId:'11111111-1111-4111-8111-111111111111',decision:'complete',username:'alice'}};
@@ -11,6 +12,7 @@ function setup({fail=false,wrongAccount=false}={}) {
     if(options.method==='POST'){writes++;completed=true;if(fail)throw new Error('Lost response');}
     return {ok:true,json:async()=>({completed})};
   }});
+  context.connectLeetCode=connectLeetCode;
   vm.runInContext(source,context);
   return {button,status,storage,get writes(){return writes;},get reads(){return reads;}};
 }

@@ -1,3 +1,4 @@
+import { connectLeetCode } from './leetcode-connection.js';
 const button=document.querySelector('#initialize-retention'),status=document.querySelector('#retention-status');
 let busy=false;
 async function api(path,body) {
@@ -21,12 +22,7 @@ async function initialize() {
     if(stored.retentionSetup?.complete)return;
     const saved=await api('/imports/recent/'+setup.installationId);
     if(saved.completed){await chrome.storage.local.set({retentionSetup:{complete:true}});return;}
-    const tabs=await chrome.tabs.query({url:'https://leetcode.com/*'}),tab=tabs.find(t=>t.active)||tabs[0];
-    if(!tab)throw new Error('Open a signed-in LeetCode tab first.');
-    async function read(type,extra={}) {
-      let result;try{result=await chrome.tabs.sendMessage(tab.id,{type,...extra});}catch{throw new Error('Refresh LeetCode after reloading the extension, then retry.');}
-      if(result?.error)throw new Error(result.error);if(!result?.data)throw new Error('LeetCode did not return recent dates.');return result.data;
-    }
+    const read=await connectLeetCode(chrome,()=>{status.textContent='Reconnecting through a fresh LeetCode tab…';});
     const recent=await read('READ_RECENT_SUBMISSIONS');
     if(setup.username&&setup.username!==recent.username)throw new Error('Use the same LeetCode account as the legacy import.');
     let snapshot=stored.retentionSetup?.snapshot;

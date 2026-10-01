@@ -15,7 +15,7 @@ test('primary patterns override broad provider tags without changing them',()=>{
   assert.equal(classifyProblem(interval).category,'intervals');
   assert.deepEqual(interval.patternSlugs,['arrays-hashing','greedy','sorting']);
   assert.equal(candidateUnits(interval)[0].source,'curated');
-  assert.equal(classifyProblem(problem('range-module',['ordered-set','segment-tree'])).category,'intervals');
+  assert.equal(classifyProblem(problem('range-module',['ordered-set','segment-tree'])).unit,'segment-tree');
 });
 test('derived Recall families use reviewed exact identities instead of broad-topic guesses',()=>{
   assert.equal(classifyProblem(problem('minimum-cost-to-merge-stones',['dynamic-programming'])).subpattern,'interval-dp');
@@ -68,4 +68,27 @@ test('each problem contributes to exactly one major pattern, with nested counts'
   const dp=inventory.find(p=>p.slug==='dynamic-programming');
   assert.equal(dp.count,2);
   assert.equal(dp.children.filter(p=>p.slug.startsWith('knapsack-')).reduce((n,p)=>n+p.count,0),2);
+});
+
+test('provider normalization handles punctuation, case and Unicode variants without losing raw names',()=>{
+  assert.deepEqual(mapTopics([' union-find ','UNION FIND','Union–Find','hash-table',' Depth First Search ']),['depth-first-search','hash-table','union-find']);
+  assert.deepEqual(mapTopics(['New Future Technique']),['uncategorized']);
+});
+test('raw specialized topics beat curated identities and legacy collapsed tags',()=>{
+  const input={...problem('top-k-frequent-words',['arrays-hashing','heap']),providerTopics:['String','Hash Table','Trie','Heap (Priority Queue)']};
+  assert.equal(classifyProblem(input).unit,'trie');
+  assert.equal(classifyProblem({...problem('longest-common-prefix',['arrays-hashing']),providerTopics:['String','Trie']}).unit,'trie');
+  assert.equal(classifyProblem({...problem('range-module',['intervals']),providerTopics:['Segment Tree']}).unit,'segment-tree');
+  assert.equal(classifyProblem({...problem('unknown',['arrays-hashing']),providerTopics:['Array','Hash Table']}).unit,'hashing');
+  assert.equal(classifyProblem({...problem('number-of-islands',['graphs']),providerTopics:['Graph']}).unit,'graphs-general');
+  assert.equal(classifyProblem({...input,placementOverride:'heap'}).unit,'heap');
+  assert.deepEqual(input.providerTopics,['String','Hash Table','Trie','Heap (Priority Queue)']);
+});
+test('provider topic order does not alter classification, and unsupported topics remain honest',()=>{
+  const topics=['Array','Hash Table','Sliding Window'];
+  assert.equal(classifyProblem({...problem('new'),providerTopics:topics}).unit,classifyProblem({...problem('new'),providerTopics:[...topics].reverse()}).unit);
+  assert.equal(classifyProblem({...problem('two-sum'),providerTopics:[]}).unit,'other');
+  assert.equal(classifyProblem({...problem('merge-intervals'),providerTopics:[]}).unit,'other');
+  assert.equal(classifyProblem({...problem('coin-change'),providerTopics:['Dynamic Programming']}).unit,'knapsack-unbounded');
+  assert.equal(classifyProblem({...problem('new-dp'),providerTopics:['Array','Hash Table','Dynamic Programming']}).unit,'dynamic-programming-general');
 });

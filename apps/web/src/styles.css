@@ -507,3 +507,6 @@ button:disabled { opacity: .65; cursor: not-allowed; }
 .pattern-row { --row-accent: var(--line); }
 .pattern-row .pattern-icon { background: var(--track); color: var(--ink); }
 .pattern-row.is-next .pattern-icon { background: var(--mustard); color: #202720; }
+.priority-explanation { color: var(--muted); font-size: 12px; line-height: 1.7; margin-top: 20px; }
+.priority-explanation summary { cursor: pointer; min-height: 32px; }
+.priority-explanation p { max-width: 760px; margin-top: 8px; }

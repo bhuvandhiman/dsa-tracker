@@ -18,6 +18,7 @@ function worker(fetcher,storage={}) {
 }
 test('capture maps only problem topics; skipped selections use inferred defaults',()=>{
   const input=captureInput(payload);
+  assert.deepEqual(input.providerTopics,['Array','Hash Table']);
   assert.deepEqual(input.attempt.patternSlugs,['arrays-hashing','hash-table']);
   assert.equal(input.attempt.patternSource,'inferred');
   assert.equal(input.problem.difficulty,'easy');

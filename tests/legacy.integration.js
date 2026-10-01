@@ -31,7 +31,7 @@ test('legacy imports preserve attempts, deduplicate across reinstall, sort undat
   const primaryPage=await repo.library({q:'',category:'two-pointers',status:'all',limit:20,offset:0});
   assert.equal(primaryPage.total,2);assert.deepEqual(primaryPage.problems.map(p=>p.external_id).sort(),['3sum','two-sum']);
   const hashingPage=await repo.library({q:'',category:'hashing',status:'all',limit:20,offset:0});
-  assert.equal(hashingPage.total,1);assert.equal(hashingPage.problems[0].id,existing.id);
+  assert.equal(hashingPage.total,0); // manual placement and recorded approaches take precedence
   const history=await repo.problemHistory(existing.id,{limit:1,offset:0});assert.equal(history.attempts[0].assistance,'independent');assert.equal(history.more,true);assert.equal(history.legacy,true);
   const older=await repo.problemHistory(existing.id,{limit:1,offset:1});assert.equal(older.attempts[0].notes,'Keep this');assert.equal(older.more,false);assert.equal(older.legacy,true);
   assert.equal('attemptedAt' in older.problem,false);
@@ -44,4 +44,28 @@ test('legacy imports preserve attempts, deduplicate across reinstall, sort undat
   const newId=saved.find(p=>p.id!==existing.id).id;
   await repo.createAttempt({...first,requestId:randomUUID(),problemId:newId});assert.equal((await repo.summary()).uniqueProblems,2);
   assert.equal((await repo.library({q:'',pattern:'arrays-hashing',status:'done',limit:20,offset:0})).total,2);
+  assert.deepEqual(old.providerTopics,['Array','Hash Table','Math']);
+  const beforeRefresh=(await repo.backup()).tables;
+  await repo.importLegacy(legacyInput({...raw,installationId:randomUUID(),complete:true,problems:[{...raw.problems[0],topics:['Hash-Table','Future Technique']}]}));
+  const refreshed=await repo.problemHistory(existing.id,{limit:20,offset:0});
+  assert.deepEqual(refreshed.problem.providerTopics,['Hash-Table','Future Technique']);
+  assert.equal(refreshed.problem.placement.unit,'two-pointers');
+  assert.equal(refreshed.problem.title,'My Two Sum');
+  const afterRefresh=(await repo.backup()).tables;
+  for(const table of ['attempts','attempt_patterns','historical_solves','problem_placements']) assert.deepEqual(afterRefresh[table],beforeRefresh[table]);
+  assert.equal((await repo.summary()).uniqueProblems,2);
+  await repo.importLegacy(legacyInput({...raw,installationId:randomUUID(),complete:true,problems:[
+    {url:'https://leetcode.com/problems/longest-common-prefix/',title:'Longest Common Prefix',difficulty:'easy',topics:['String','Trie']},
+    {url:'https://leetcode.com/problems/provider-hashing-fixture/',title:'Provider hashing fixture',difficulty:'medium',topics:['Array','Hash-Table','Future Technique']},
+    {url:'https://leetcode.com/problems/provider-union-fixture/',title:'Provider union fixture',difficulty:'medium',topics:['Graph','Union-Find']},
+    {url:'https://leetcode.com/problems/provider-empty-fixture/',title:'No provider topics',difficulty:'easy',topics:[]},
+  ]}));
+  const classified=await repo.listProblems({limit:100,offset:0});
+  for(const [slug,unit] of [['longest-common-prefix','trie'],['provider-hashing-fixture','hashing'],['provider-union-fixture','union-find'],['provider-empty-fixture','other']]) {
+    const problem=classified.find(p=>p.externalId===slug);
+    assert.equal((await repo.problemHistory(problem.id,{limit:20,offset:0})).problem.placement.unit,unit);
+  }
+  const backup=await repo.backup();
+  assert.deepEqual(backup.tables.problems.find(p=>p.external_id==='provider-hashing-fixture').provider_topics,['Array','Hash-Table','Future Technique']);
+  assert.deepEqual(backup.tables.problems.find(p=>p.external_id==='provider-empty-fixture').provider_topics,[]);
 });

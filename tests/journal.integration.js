@@ -98,7 +98,8 @@ test('pattern details: browsing, corrections, conflicts, removal and imports', {
   await api('/capture','POST',capture,409);
   // Normal choices are problem-specific; manual placement changes only placement.
   const beforePlacement=(await api('/problems/'+problem.id+'/history')).problem;
-  assert.ok(beforePlacement.candidates.some(item=>item.unit==='hashing')); // curated Two Sum mapping
+  assert.ok(beforePlacement.candidates.some(item=>item.unit==='sliding-window'));
+  assert.equal(beforePlacement.candidates.some(item=>item.unit==='hashing'),false); // identity does not override supported tags
   await api('/problems/'+problem.id+'/placement','PUT',{unit:'binary-search'},400);
   await api('/problems/'+problem.id+'/placement','PUT',{unit:'binary-search',manual:true});
   const manuallyPlaced=(await api('/problems/'+problem.id+'/history')).problem;
@@ -109,8 +110,8 @@ test('pattern details: browsing, corrections, conflicts, removal and imports', {
   assert.deepEqual(manuallyPlaced.patternSlugs,beforePlacement.patternSlugs);
   assert.equal((await api('/attempts/removed')).attempts.find(row=>row.id===attempt.requestId).notes,'corrected');
   await api('/problems/'+problem.id+'/placement','PUT',{unit:'made-up',manual:true},400);
-  await api('/problems/'+problem.id+'/placement','PUT',{unit:'hashing'});
-  assert.equal((await api('/problems/'+problem.id+'/history')).problem.placement.unit,'hashing');
+  await api('/problems/'+problem.id+'/placement','PUT',{unit:'sliding-window'});
+  assert.equal((await api('/problems/'+problem.id+'/history')).problem.placement.unit,'sliding-window');
   await api('/pattern-problems?status=wrong', 'GET', undefined, 400);
   await api('/attempts/not-a-uuid', 'DELETE', { revision: 1 }, 400);
   await api(`/attempts/${randomUUID()}`, 'DELETE', { revision: 1 }, 404);

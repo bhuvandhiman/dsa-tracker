@@ -179,3 +179,35 @@ test('a rare completely weak topic cannot outrank a much larger profile gap', ()
   ], goal);
   assert.equal(ordered[0].slug, 'dynamic-programming');
 });
+
+test('priority bars follow ranking and grow on a fixed profile scale when coverage improves', () => {
+  const categories=[{slug:'graphs',priority:70,children:[{slug:'bfs',priority:70}]},{slug:'dp',priority:80,children:[]}];
+  const makeGoal=gap=>({categories:[{slug:'graphs',target:50,deficit:gap,units:[{slug:'bfs',target:50,deficit:gap}]},{slug:'dp',target:50,deficit:25,units:[]}]});
+  const before=applyGoalOrdering(categories,makeGoal(40));
+  const after=applyGoalOrdering(categories,makeGoal(5));
+  assert.equal(before[0].slug,'graphs');assert.equal(after[0].slug,'dp');
+  assert.ok(after.find(item=>item.slug==='graphs').priorityProgress>before[0].priorityProgress);
+  assert.equal(after.find(item=>item.slug==='dp').priorityProgress,before.find(item=>item.slug==='dp').priorityProgress);
+  for(const list of [before,after]) for(let i=1;i<list.length;i++) assert.ok(list[i].priorityProgress>=list[i-1].priorityProgress);
+  assert.ok(after.find(item=>item.slug==='graphs').children[0].priorityProgress>before[0].children[0].priorityProgress);
+});
+
+test('recent practice cannot erase an important solve gap and complete patterns still need retention work', () => {
+  const categories=[{slug:'dp',priority:5,children:[]},{slug:'rare',priority:95,children:[]}];
+  const goal={categories:[{slug:'dp',target:100,deficit:60,units:[]},{slug:'rare',target:10,deficit:10,units:[]}]};
+  assert.equal(applyGoalOrdering(categories,goal)[0].slug,'dp');
+  const completedGoal={categories:[{slug:'dp',target:100,deficit:0,units:[]},{slug:'rare',target:10,deficit:10,units:[]}]};
+  const fresh=applyGoalOrdering(categories,completedGoal);
+  const neglected=applyGoalOrdering([{...categories[0],priority:80},categories[1]],completedGoal);
+  assert.equal(neglected[0].slug,'dp');
+  assert.ok(neglected[0].priorityProgress<fresh.find(item=>item.slug==='dp').priorityProgress);
+  assert.ok(neglected[0].dashboardPriority>0);
+});
+
+test('subpattern bars use the same attention order and Other stays unscored', () => {
+  const goal={categories:[{slug:'graphs',target:100,deficit:50,units:[{slug:'dfs',target:70,deficit:45},{slug:'bfs',target:30,deficit:5}]}]};
+  const result=applyGoalOrdering([{slug:'graphs',priority:10,children:[{slug:'dfs',priority:5},{slug:'bfs',priority:80}]},{slug:'other',priority:null,children:[]}],goal);
+  const children=result[0].children;
+  assert.equal(children[0].slug,'dfs');assert.ok(children[0].priorityProgress<children[1].priorityProgress);
+  assert.equal(result.at(-1).priorityProgress,null);
+});

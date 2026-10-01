@@ -19,6 +19,10 @@ export const topicPatterns = {
   'Merge Sort': 'sorting', 'Quickselect': 'sorting', 'Randomized': 'randomized', 'Database': 'database',
   'Concurrency': 'concurrency', 'Iterator': 'design', 'Data Stream': 'design',
 };
+export function normalizeTopic(topic) {
+  return topic.normalize('NFKC').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+const normalizedTopics = new Map(Object.entries(topicPatterns).map(([name,slug]) => [normalizeTopic(name),slug]));
 export function mapTopics(topics) {
-  return [...new Set(topics.map(topic => topicPatterns[topic] || 'uncategorized'))].sort();
+  return [...new Set(topics.map(topic => normalizedTopics.get(normalizeTopic(topic)) || 'uncategorized'))].sort();
 }

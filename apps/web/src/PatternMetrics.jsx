@@ -1,4 +1,4 @@
-import { percent } from './dashboard-model.js';
+import { percent, priorityProgress } from './dashboard-model.js';
 
 export function NextAction({ next, expanded = false, disclosure = false }) {
   return <span className={`next-action ${next && !expanded ? 'next-action-play' : ''}`} aria-hidden="true">{next && !expanded ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7Z" /></svg> : <span>{disclosure ? expanded ? '⌃' : '⌄' : '↗'}</span>}</span>;
@@ -25,6 +25,11 @@ export function DifficultyMetrics({ goal, name, goalConfigured }) {
   })}</div>;
 }
 
-export default function PatternMetrics({ item, goal, name, goalConfigured }) {
-  return <div className="pattern-metrics"><RetentionMetric item={item} name={name} /><DifficultyMetrics goal={goal} name={name} goalConfigured={goalConfigured} /></div>;
+function PriorityMetric({ item, priorityItem, name }) {
+  const progress = priorityProgress(priorityItem);
+  return <div className="pattern-retention"><div className="pattern-retention-label"><strong>{priorityItem.slug === 'other' ? 'Needs classification' : 'Priority balance'}</strong><span>{progress === null ? '—' : `${Math.round(progress)}%`}</span></div>{progress !== null && <div className="pattern-retention-track" role="img" aria-label={`${name}: ${Math.round(progress)}% priority balance. Less filled means more attention needed.`}><span style={{width:`${progress}%`}} /></div>}<small>{item.assessed ? `Retention ${Math.round(percent(item.strength))}%` : item.distinctSolved > 0 ? 'Retention undated' : 'Retention not assessed'} · {item.distinctSolved} distinct solves</small></div>;
+}
+
+export default function PatternMetrics({ item, priorityItem = item, goal, name, goalConfigured }) {
+  return <div className="pattern-metrics"><PriorityMetric item={item} priorityItem={priorityItem} name={name} /><DifficultyMetrics goal={goal} name={name} goalConfigured={goalConfigured} /></div>;
 }

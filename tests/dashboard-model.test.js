@@ -1,7 +1,7 @@
 import { applyGoalOrdering } from '../apps/api/src/goal-policy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { difficultyCoverage, retentionOverview, evidenceLabel, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
+import { priorityProgress, difficultyCoverage, retentionOverview, evidenceLabel, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
 
 const item = (slug, order, { assessed = false, solved = 0, strength = null, gap = 0 } = {}) => ({ slug, name:slug, order, goal:{deficit:gap}, summary:{assessed,distinctSolved:solved,strength,lastPracticedAt:'2026-09-01T00:00:00Z'} });
 test('pattern picker uses catalog order, keeps unclassified last, and preserves input', () => {
@@ -67,4 +67,11 @@ test('difficulty coverage keeps pattern-specific credits and excludes zero-targe
   assert.equal(result.credited,9);assert.equal(result.target,15);
   assert.deepEqual(result.patterns.map(item=>[item.slug,item.credited,item.target]),[['arrays',4,10],['trees',5,5]]);
   assert.deepEqual(difficultyCoverage({},'hard'),{patterns:[],credited:0,target:0});
+});
+
+test('priority progress uses the API balance and preserves unscored states', () => {
+  assert.equal(priorityProgress({slug:'graphs',priorityProgress:42.5,priority:95}),42.5);
+  assert.equal(priorityProgress({slug:'graphs',priority:47.5}),50);
+  assert.equal(priorityProgress({slug:'new',priority:null}),null);
+  assert.equal(priorityProgress({slug:'other',priorityProgress:80,priority:20}),null);
 });

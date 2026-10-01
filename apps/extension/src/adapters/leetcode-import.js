@@ -60,7 +60,7 @@ globalThis.DsaLegacy = {
     if(!data.userStatus?.isSignedIn||data.userStatus.username!==username) throw new Error('Sign back into '+username+' on LeetCode to resume this import.');
     return slugs.map((slug,i)=>{
       const q=data['q'+i];
-      if(!q||q.titleSlug!==slug||typeof q.title!=='string'||!Array.isArray(q.topicTags)||q.topicTags.some(t=>typeof t.name!=='string')||!['Easy','Medium','Hard'].includes(q.difficulty)) throw new Error('Could not read all problem topics. Resume to retry this batch.');
+      if(!q||q.titleSlug!==slug||typeof q.title!=='string'||!q.title.trim()||!Array.isArray(q.topicTags)||q.topicTags.length>30||q.topicTags.some(t=>typeof t?.name!=='string'||!t.name.trim()||t.name.length>100)||!['Easy','Medium','Hard'].includes(q.difficulty)) throw new Error('Could not read all problem topics. Resume to retry this batch.');
       return {url:`https://leetcode.com/problems/${slug}/`,title:q.title,difficulty:q.difficulty.toLowerCase(),topics:q.topicTags.map(t=>t.name)};
     });
   },

@@ -6,7 +6,7 @@ import { GOAL_POLICY_VERSION, applyGoalOrdering, goalCoverage, unconfiguredGoal 
 import { isDsaTrackingProblem, splitDsaTrackingProblems } from './problem-scope.js';
 import { exportBackup, restoreBackup } from './backup.js';
 
-const problemSelect = `SELECT p.id, p.platform, p.external_id AS "externalId", p.title, p.url, p.difficulty,
+const problemSelect = `SELECT p.id, p.platform, p.external_id AS "externalId", p.title, p.url, p.difficulty, p.provider_topics AS "providerTopics",
   (SELECT unit_slug FROM problem_placements WHERE problem_id=p.id) AS "placementOverride",
   COALESCE((SELECT json_agg(pp.pattern_slug ORDER BY pp.pattern_slug) FROM problem_patterns pp WHERE pp.problem_id=p.id), '[]') AS "patternSlugs",
   EXISTS(SELECT 1 FROM historical_solves h WHERE h.problem_id=p.id) AS "historicallySolved"
@@ -139,6 +139,7 @@ export function createRepository(pool) {
           // Reimports can reveal more specific provider evidence. Merge it for
           // existing problems without replacing user-entered tags or placement.
           await client.query('UPDATE problems SET difficulty=COALESCE(difficulty,$2) WHERE id=$1',[id,p.difficulty]);
+          if (Array.isArray(p.providerTopics)) await client.query('UPDATE problems SET provider_topics=$2::jsonb WHERE id=$1',[id,JSON.stringify(p.providerTopics)]);
           for(const slug of p.patternSlugs) await client.query('INSERT INTO problem_patterns VALUES($1,$2) ON CONFLICT DO NOTHING',[id,slug]);
           const saved=await client.query('INSERT INTO imported_submissions VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING submission_id',[username,p.submissionId,id,p.submittedAt]);
           if(!saved.rowCount) {
@@ -168,8 +169,9 @@ export function createRepository(pool) {
             ON CONFLICT(platform,external_id) DO NOTHING RETURNING id`,[p.platform,p.externalId,p.title,p.url,p.difficulty]);
           const id=created.rowCount?created.rows[0].id:(await client.query('SELECT id FROM problems WHERE platform=$1 AND external_id=$2',[p.platform,p.externalId])).rows[0].id;
           await client.query('UPDATE problems SET difficulty=COALESCE(difficulty,$2) WHERE id=$1',[id,p.difficulty]);
+          if (Array.isArray(p.providerTopics)) await client.query('UPDATE problems SET provider_topics=$2::jsonb WHERE id=$1',[id,JSON.stringify(p.providerTopics)]);
           // Reimports can add newly preserved provider topics while keeping all
-          // existing metadata, attempts, notes, assistance, and manual placement.
+          // existing titles, attempts, notes, assistance, and manual placement.
           for(const slug of p.patternSlugs) await client.query('INSERT INTO problem_patterns VALUES($1,$2) ON CONFLICT DO NOTHING',[id,slug]);
           added+=(await client.query('INSERT INTO historical_solves(problem_id) VALUES($1) ON CONFLICT DO NOTHING',[id])).rowCount;
         }
@@ -204,8 +206,9 @@ export function createRepository(pool) {
           ON CONFLICT(platform,external_id) DO NOTHING`,[p.platform,p.externalId,p.title,p.url,p.difficulty]);
         const id=(await client.query('SELECT id FROM problems WHERE platform=$1 AND external_id=$2',[p.platform,p.externalId])).rows[0].id;
         await client.query('UPDATE problems SET difficulty=COALESCE(difficulty,$2) WHERE id=$1',[id,p.difficulty]);
+        if (Array.isArray(input.providerTopics)) await client.query('UPDATE problems SET provider_topics=$2::jsonb WHERE id=$1',[id,JSON.stringify(input.providerTopics)]);
         const inserted=await client.query(`INSERT INTO attempts(id,problem_id,assistance,notes,attempted_at,request_hash,pattern_source,practice_unit,approach_source,capture_source,submission_id,selected_topics)
-          VALUES($1,$2,$3,'',$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(id) DO NOTHING RETURNING id`,[a.requestId,id,a.assistance,a.attemptedAt,hash,a.patternSource,a.practiceUnit||classifyProblem(p).unit,a.approachSource,a.captureSource,a.submissionId,JSON.stringify(a.selectedTopics)]);
+          VALUES($1,$2,$3,'',$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(id) DO NOTHING RETURNING id`,[a.requestId,id,a.assistance,a.attemptedAt,hash,a.patternSource,a.practiceUnit||classifyProblem({...p,providerTopics:input.providerTopics}).unit,a.approachSource,a.captureSource,a.submissionId,JSON.stringify(a.selectedTopics)]);
         if (!inserted.rowCount) {
           const old=(await client.query('SELECT request_hash,deleted_at FROM attempts WHERE id=$1',[a.requestId])).rows[0];
           if (old.deleted_at || (old.request_hash !== hash && old.request_hash !== legacyHash)) throw new DomainError(409,'This recording ID was already used. Refresh the panel before making a new recording.');

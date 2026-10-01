@@ -1,6 +1,6 @@
 # Goal Coverage policy evidence
 
-Policy version: `2026-09-30.v3`
+Policy version: `2026-10-01.v4`
 
 Evidence last checked against the linked official sources: `2026-09-26`
 
@@ -75,7 +75,7 @@ The following values are deliberate, versioned Recall policy. They are **not** c
 - Advanced tree, graph and DP subpatterns receive a smaller share in a 300-problem Interview Focused goal and progressively more room in larger or Deep Understanding goals.
 - Every positively weighted subpattern receives at least one target slot when its parent category has enough capacity. Rare techniques can therefore stay low-priority without disappearing from the goal entirely.
 - Integer quotas use deterministic largest-remainder allocation so every generated matrix totals exactly the selected 300/500/1000 target.
-- Dashboard attention starts from the remaining profile-specific problem deficit, then Practice Strength adjusts that need by up to 35%. This keeps the selected goal profile as the main signal while allowing stale or weak practice to matter among comparable gaps. The 35% bound is Recall product policy, not an externally published interview statistic.
+- Dashboard attention is 65% of the remaining profile-specific goal deficit plus 35% of the pattern target multiplied by practice weakness. The existing practice-priority signal supplies weakness (including the experience baseline for undated solves, without inventing recency). The second term persists after coverage is complete, so neglected patterns return for revision. The 65/35 split is Recall product policy, not an externally published interview statistic.
 - Unknown-difficulty solves remain visible but receive no guessed difficulty credit.
 - `Other / needs classification` has no target and stays outside Goal Coverage.
 
@@ -93,3 +93,5 @@ The exact weights are intentionally stored in code rather than copied from a sou
 - Difficulty buckets are independent: extra Easy solves cannot compensate for missing Medium or Hard coverage.
 - Primary-placement corrections re-attribute Goal Coverage without rewriting confirmed attempt approaches.
 - A rare pattern with a small profile target cannot become the top dashboard attention item solely because its Practice Strength is very low; substantially larger core-topic deficits remain ahead.
+
+Priority balance visualization (v4): attention = 0.65 * remaining goal credits + 0.35 * profile target * practice weakness. The displayed balance is 100 * (1 - attention / largest profile target at this browsing level). The category scale is shared across categories; each parent shares one scale across its subpatterns. These scales depend on the goal matrix, not current rankings, so new solves and dated practice visibly change fill. Lower fill corresponds to greater attention; this is a relative priority comparison, not a completion or recall percentage. Other remains outside scoring. Practice Strength and stored records are unchanged; only attention composition and its visual representation changed.

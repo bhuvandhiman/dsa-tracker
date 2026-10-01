@@ -113,7 +113,7 @@ export function captureInput(body) {
   if (body.approachSource !== undefined && !['inferred','confirmed'].includes(body.approachSource)) invalid('Invalid approach source.');
   if (body.captureSource !== undefined && !['manual','accepted'].includes(body.captureSource)) invalid('Invalid capture source.');
   if (body.submissionId != null && !/^\d{1,30}$/.test(body.submissionId)) invalid('Invalid submission identity.');
-  return { ...(body.username ? {username:body.username} : {}), problem, attempt: { ...fields, practiceUnit:body.practiceUnit??null, approachSource:body.approachSource||'inferred', captureSource:body.captureSource||'manual', submissionId:body.submissionId??null, selectedTopics:selected, patternSource: selected.length ? 'explicit' : 'inferred' } };
+  return { ...(body.username ? {username:body.username} : {}), providerTopics:topics, problem, attempt: { ...fields, practiceUnit:body.practiceUnit??null, approachSource:body.approachSource||'inferred', captureSource:body.captureSource||'manual', submissionId:body.submissionId??null, selectedTopics:selected, patternSource: selected.length ? 'explicit' : 'inferred' } };
 }
 
 export function goalInput(body) {
@@ -133,7 +133,7 @@ export function legacyInput(body) {
     object(value, ['url','title','difficulty','topics']);
     if (!Array.isArray(value.topics) || value.topics.length > 30 || value.topics.some(t=>typeof t!=='string'||!t.trim()||t.length>100)) invalid('Invalid problem topics.');
     const slugs = mapTopics(value.topics);
-    return problemInput({url:value.url,title:value.title,difficulty:value.difficulty,patternSlugs:slugs.length?slugs:['uncategorized']});
+    return {...problemInput({url:value.url,title:value.title,difficulty:value.difficulty,patternSlugs:slugs.length?slugs:['uncategorized']}),providerTopics:[...new Set(value.topics.map(topic=>topic.trim()))]};
   });
   return { installationId, username:body.username.trim(), problems, complete:body.complete };
 }
@@ -158,8 +158,8 @@ export function recentInput(body) {
     object(row,['submissionId','submittedAt','url','title','difficulty','topics']);
     if(typeof row.submissionId!=='string'||!/^\d{1,30}$/.test(row.submissionId)) invalid('Invalid submission ID.');
     if(typeof row.submittedAt!=='string'||!Number.isFinite(Date.parse(row.submittedAt))||new Date(row.submittedAt).toISOString()!==row.submittedAt||Date.parse(row.submittedAt)>Date.now()+60000||Date.parse(row.submittedAt)<946684800000) invalid('Invalid submission timestamp.');
-    if(!Array.isArray(row.topics)||row.topics.length>30||row.topics.some(t=>typeof t!=='string'||t.length>100)) invalid('Invalid problem topics.');
-    return {...problemInput({url:row.url,title:row.title,difficulty:row.difficulty,patternSlugs:mapTopics(row.topics)}),submissionId:row.submissionId,submittedAt:row.submittedAt};
+    if(!Array.isArray(row.topics)||row.topics.length>30||row.topics.some(t=>typeof t!=='string'||!t.trim()||t.length>100)) invalid('Invalid problem topics.');
+    return {...problemInput({url:row.url,title:row.title,difficulty:row.difficulty,patternSlugs:mapTopics(row.topics)}),providerTopics:[...new Set(row.topics.map(topic=>topic.trim()))],submissionId:row.submissionId,submittedAt:row.submittedAt};
   });
   return {installationId,username:body.username,submissions};
 }

@@ -1,3 +1,4 @@
+import { mapTopics } from './platforms/leetcode-topics.js';
 // Dashboard placement is separate from topic tags and the approaches used in attempts.
 // One primary placement per problem keeps imported collections useful to browse.
 export const categories = [
@@ -71,7 +72,7 @@ group('advanced-graphs','shortest-path','path-with-minimum-effort');
 // Provider topics describe possible approaches, not the approach a learner used.
 // Keep every supported browsing candidate for correction, then choose one stable
 // default. Specific technique tags precede broad Array and Math families.
-const fallbackPriority = ['trie','linked-list','binary-search-tree','segment-tree','binary-indexed-tree','topological-sort','shortest-path','minimum-spanning-tree','union-find','trees','graphs','sliding-window','two-pointers','monotonic-stack','intervals','binary-search','heap','backtracking','dynamic-programming','greedy','stack','prefix-sum','hash-table','bit-manipulation','arrays-hashing','math'];
+const fallbackPriority = ['trie','linked-list','binary-search-tree','segment-tree','binary-indexed-tree','topological-sort','shortest-path','minimum-spanning-tree','union-find','sliding-window','two-pointers','monotonic-stack','intervals','binary-search','heap','backtracking','dynamic-programming','greedy','stack','prefix-sum','hash-table','bit-manipulation','trees','graphs','arrays-hashing','math'];
 const topicPlacements = {
   'trie': {category:'trie',subpattern:null},
   'linked-list': {category:'linked-list',subpattern:null},
@@ -125,8 +126,11 @@ export function candidateUnits(problem) {
     if(!seen.has(value.unit)){seen.add(value.unit);result.push(value);}
   };
   const exact=problem.platform==='leetcode'&&known[problem.externalId];
-  if(exact) add(exact,'curated');
-  const tags=new Set(problem.patternSlugs||[]);
+  const hasProviderTopics=Array.isArray(problem.providerTopics);
+  const tags=new Set(hasProviderTopics ? mapTopics(problem.providerTopics) : problem.patternSlugs||[]);
+  // Explicit technique tags outrank structural families and problem-name rules.
+  const specialized = fallbackPriority.filter(tag => !['trees','graphs','arrays-hashing','math','dynamic-programming','greedy','stack','hash-table'].includes(tag));
+  for(const tag of specialized) if(tags.has(tag)) add(topicPlacements[tag],'topic');
   const addTraversalFamily=(family,dfsPlacement,bfsPlacement)=>{
     if(!tags.has(family)) return;
     const hasDfs=tags.has('depth-first-search');
@@ -142,6 +146,13 @@ export function candidateUnits(problem) {
   };
   addTraversalFamily('trees',{category:'trees',subpattern:'tree-dfs'},{category:'trees',subpattern:'tree-bfs'});
   addTraversalFamily('graphs',{category:'graphs',subpattern:'graph-dfs'},{category:'graphs',subpattern:'graph-bfs'});
+  // Retain exact refinements only where provider vocabulary cannot identify the
+  // subtype. Existing imports without raw metadata may also need legacy hints.
+  const primary=result[0];
+  const canRefine=exact && (!primary || (primary.category===exact.category && !primary.subpattern));
+  const supportsFamily=exact && [...tags].some(tag=>topicPlacements[tag]?.category===exact.category);
+  const derived=exact && exact.category==='dynamic-programming' && supportsFamily;
+  if(canRefine && ((!hasProviderTopics && !primary) || derived)) add(exact,'curated');
   for(const tag of fallbackPriority) if(tags.has(tag)) add(topicPlacements[tag],'topic');
   // These provider topics share the broad arrays placement and are deliberately
   // added after named algorithmic patterns.
@@ -150,12 +161,11 @@ export function candidateUnits(problem) {
 }
 
 export function classifyProblem(problem) {
-  const exact = problem.platform === 'leetcode' && known[problem.externalId];
   const inferred = candidateUnits(problem)[0];
   const placement = problem.placementOverride ? placementForUnit(problem.placementOverride) : inferred || {category:'other',subpattern:null};
   const category = navigationCategories.find(c=>c.slug===placement.category);
   const child = category.children.find(c=>c.slug===placement.subpattern);
-  return {...placement, unit:placement.subpattern || (category.children.length?category.slug+'-general':category.slug), name:category.name, subpatternName:child?.name || null, source:problem.placementOverride?'manual':exact?'curated':inferred?'topic-fallback':'unclassified'};
+  return {...placement, unit:placement.subpattern || (category.children.length?category.slug+'-general':category.slug), name:category.name, subpatternName:child?.name || null, source:problem.placementOverride?'manual':inferred?.source==='curated'?'curated':inferred?'topic-fallback':'unclassified'};
 }
 export function patternInventory(problems) {
   return navigationCategories.map(category=>{

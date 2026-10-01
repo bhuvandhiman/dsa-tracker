@@ -1,0 +1,19 @@
+# Provider tag classification
+
+Bulk accepted imports, recent submissions and new captures preserve the original provider topic names in `problems.provider_topics`. Classification normalizes Unicode, capitalization, whitespace and punctuation for dictionary lookup; originals, including unknown names, remain available in backups. The dictionary maps provider vocabulary to the supported catalog rather than listing individual problems.
+
+When raw metadata exists it is authoritative. Specialized techniques such as Trie, Union-Find, Topological Sort, Sliding Window, Monotonic Stack and Prefix Sum precede broad structural tags. Hash Table maps to the Hashing subpattern rather than disappearing into general Arrays. Dynamic Programming precedes Hash Table; Hash Table precedes broad Tree, Graph, Array and Math. Multiple approaches use a stable specificity order, independent of the provider's tag order. This is a default inference, not a claim about the algorithm the learner actually used or its optimality.
+
+DFS/BFS compose with a Tree or Graph tag only when the provider supplies those families. If both traversals are present, both remain correction candidates and the ambiguous family uses General / unspecified. Unsupported-only or verified empty metadata uses Other. No graph traversal or DP subtype is guessed from broad tags.
+
+Existing curated mappings can refine a provider-supported DP family into a subtype the provider does not label. They also provide compatibility for legacy imports whose raw metadata is still NULL. They cannot override an explicit specialized provider technique. A saved manual placement remains first priority; recorded approaches remain immutable unless the user corrects them.
+
+Reimport updates raw topics, fills missing difficulty and merges supported tag associations without duplicating problems or rewriting titles, manual placements, historical solve dates, recordings, notes or assistance. Old merged associations remain preserved for compatibility, but refreshed raw topics drive current inferred placement and correction candidates. Missing metadata or invalid provider responses fail the batch before advancing its checkpoint; unknown valid tags are preserved rather than rejected.
+
+## Refreshing an existing workspace
+
+Apply database migrations, reload the unpacked extension and refresh the signed-in LeetCode tab. Select **Reimport accepted problems** in extension setup. This starts a fresh resumable run and fetches provider topics again for all accepted problems. Previously collapsed tags cannot be reconstructed locally; adding the nullable metadata column alone does not restore those tags. The database migration preserves existing rows and recorded practice units.
+
+If an existing tab's content-script connection was invalidated by an extension reload, setup retries once through a fresh background LeetCode problemset tab. It leaves the current editor tab untouched and keeps the same import run and checkpoint. Recent-date initialization uses the same recovery. Provider/account errors are reported directly rather than triggering reconnection. If connection recovery fails, check Recall's site access in Chrome extension settings; no new extension permissions are needed.
+
+LeetCode topic counts include a problem under every applicable tag. Recall's primary placement assigns one unit per problem. Even with complete metadata, those two kinds of counts are intentionally different; alternative supported approaches remain available in the problem's placement menu.

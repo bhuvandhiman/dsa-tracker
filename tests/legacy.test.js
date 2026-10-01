@@ -29,6 +29,9 @@ test('topic batches require matching slugs and the same account; no submission d
   assert.equal(result[0].url,'https://leetcode.com/problems/two-sum/');assert.equal(result[0].difficulty,'easy');assert.equal('attemptedAt' in result[0],false);
   await assert.rejects(adapter([account('bob')]).api.topics(['two-sum'],'alice'),/Sign back/);
   await assert.rejects(adapter([account('alice')]).api.topics(['two-sum'],'alice'),/all problem topics/);
+  for(const topicTags of [[null],[{name:' '}],Array(31).fill({name:'Array'})]) {
+    await assert.rejects(adapter([{data:{userStatus:{isSignedIn:true,username:'alice'},q0:{titleSlug:'two-sum',title:'Two Sum',difficulty:'Easy',topicTags}}}]).api.topics(['two-sum'],'alice'),/all problem topics/);
+  }
 });
 test('import resumes the frozen snapshot after failure without skipping an unconfirmed batch',async()=>{
   let state={installationId,decision:'pending',offset:0};let fail=true;const sent=[];

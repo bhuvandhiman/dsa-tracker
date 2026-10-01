@@ -1,4 +1,5 @@
 import { runLegacyImport } from './legacy-runner.js';
+import { connectLeetCode } from './leetcode-connection.js';
 const status=document.querySelector('#status'), start=document.querySelector('#import'), skip=document.querySelector('#skip');
 let state, busy=false, failure='';
 const store=async value=>{await chrome.storage.local.set({legacySetup:value});state=value;};
@@ -17,11 +18,6 @@ function render() {
   if(state?.decision==='complete')status.textContent=`Import complete${state.username?' for '+state.username:''}${state.count!==undefined?' · '+state.count+' problems':''}${state.completedAt?' · '+new Date(state.completedAt).toLocaleString():''}. Your previously solved problems are ready in Recall.`;
   if(state?.decision==='skipped')status.textContent='Setup complete. New practice will be recorded through the LeetCode panel.';
 }
-async function sourceTab() {
-  const tabs=await chrome.tabs.query({url:'https://leetcode.com/*'});
-  if(!tabs.length)throw new Error('Open LeetCode in Chrome and sign in, then retry.');
-  return tabs.find(tab=>tab.active)||tabs[0];
-}
 start.addEventListener('click',async()=>{
   if(busy)return;
   busy=true;failure='';render();status.textContent='Connecting to your signed-in LeetCode account…';
@@ -31,16 +27,11 @@ start.addEventListener('click',async()=>{
     state=(await chrome.storage.local.get('legacySetup')).legacySetup;
     if(state?.decision!=='pending') {
       await chrome.storage.local.remove('retentionSetup');
-      await store({installationId:crypto.randomUUID(),username:state.username,decision:'pending',offset:0});
+      await store({installationId:crypto.randomUUID(),username:state?.username,decision:'pending',offset:0});
     }
     const saved=await api('/imports/legacy/'+state.installationId);
     if(saved.completed){await store({installationId:state.installationId,username:saved.username,decision:'complete'});return;}
-    const tab=await sourceTab();
-    async function read(type,extra={}) {
-      let result;try{result=await chrome.tabs.sendMessage(tab.id,{type,...extra});}catch{throw new Error('Refresh your LeetCode tab after reloading Recall, then resume.');}
-      if(result?.error)throw new Error(result.error);
-      if(!result?.data)throw new Error('LeetCode did not provide the expected data.');return result.data;
-    }
+    const read=await connectLeetCode(chrome,()=>{status.textContent='Reconnecting through a fresh LeetCode tab… Your existing editor stays open.';});
     await runLegacyImport({state,scan:()=>read('SCAN_LEGACY_PROBLEMS'),topics:(slugs,username)=>read('READ_LEGACY_TOPICS',{slugs,username}),writeBatch:body=>api('/imports/legacy',body),saveState:store,onPhase:s=>{status.textContent=s.phase==='scanning'?'Scanning accepted problems…':`${s.username}: ${s.phase==='metadata'?'Fetching topics and difficulty':'Saving batch'} · ${s.offset} of ${s.total} saved…`;},onProgress:s=>{status.textContent=`${s.username}: imported ${s.offset} of ${s.snapshot.length} problems… Latest batch: ${s.lastBatch?.added??0} added, ${s.lastBatch?.alreadyPresent??0} already present, ${s.lastBatch?.excluded??0} Database problems preserved outside DSA.`;}});
     });
   }catch(error){failure=error.message;}
