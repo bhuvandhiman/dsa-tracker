@@ -4,7 +4,7 @@ import SubpatternProblems from './SubpatternProblems.jsx';
 import { useEffect, useState } from 'react';
 import { request } from './api.js';
 import { patternLink } from './navigation.js';
-import { classifiedSolves, filterPatterns, prioritizedPatterns, recommendationReason } from './dashboard-model.js';
+import { classifiedSolves, filterPatterns, prioritizedPatterns, recommendationReason, difficultyProgress } from './dashboard-model.js';
 
 function GoalForm({ goal, onSaved }) {
   const [profile, setProfile] = useState(goal.profile || 'interview');
@@ -24,7 +24,7 @@ function GoalForm({ goal, onSaved }) {
 }
 
 function PracticeExplanation() {
-  return <details className="priority-explanation"><summary>How strength, counts and the queue work</summary><p>Pink reflects experience from distinct solves and repeat work. Yellow is the additional strength from dated recent practice; it fades after its hold. Together they equal the displayed practice-strength estimate, not a tested recall percentage. Imported experience can build pink, but missing dates cannot build yellow or establish retention.</p><p>Primary solves count problems once in their assigned pattern. Distinct practice problems follow recorded approaches, so these counts can differ. Dated and dates-unknown counts partition practice evidence; they are not session counts. Goal coverage counts only known difficulty and is capped within each subpattern and difficulty. Extra solves remain in your solve totals.</p><p>The focus badge reflects your selected preparation mode. Queue order combines focus-weighted coverage gaps and committed practice evidence, so fuller bars need not appear last. “Queue held” means a decrease is waiting for a meaningful block. Practice blocks require four weighted credits from at least four distinct problems in one subpattern: independent work counts 1, hints 0.5, solutions 0.2, unknown assistance 0. New solves and revisits both qualify. Partial work grows the bar immediately; repeated attempts at one problem cannot fill the block. A completed block resets its dots, earns a hold, and permits the queue to reassess. Up to four additional goal credits can also permit reassessment; near completion only the remainder is needed. Neither route guarantees a lower rank.</p></details>;
+  return <details className="priority-explanation"><summary>How strength, counts and the queue work</summary><p>Pink reflects experience from distinct solves and repeat work. Yellow is the additional strength from dated recent practice; it fades after its hold. Together they equal the displayed practice-strength estimate, not a tested recall percentage. Imported experience can build pink, but missing dates cannot build yellow or establish retention.</p><p>Primary solves count problems once in their assigned pattern. Distinct practice problems follow recorded approaches, so these counts can differ. Dated and dates-unknown counts partition practice evidence; they are not session counts. Goal coverage labels show actual solved counts against each target, including extra solves. Fill uses capped credits within each subpattern and difficulty, so extra counts do not fill other gaps. Unknown difficulty cannot receive goal credit.</p><p>The focus badge reflects your selected preparation mode. Queue order combines focus-weighted coverage gaps and committed practice evidence, so fuller bars need not appear last. “Queue held” means a decrease is waiting for a meaningful block. Practice blocks require four weighted credits from at least four distinct problems in one subpattern: independent work counts 1, hints 0.5, solutions 0.2, unknown assistance 0. New solves and revisits both qualify. Partial work grows the bar immediately; repeated attempts at one problem cannot fill the block. A completed block resets its dots, earns a hold, and permits the queue to reassess. Up to four additional goal credits can also permit reassessment; near completion only the remainder is needed. Neither route guarantees a lower rank.</p></details>;
 }
 
 function PatternRow({ category, goalConfigured, query, rank }) {
@@ -39,7 +39,7 @@ function PatternDetail({ category, goalConfigured, query }) {
   const children = prioritizedPatterns(category.children);
   const coverageGoal = {categories:children.filter(child => child.goal).map(child => ({
     slug:child.slug, name:child.name,
-    difficulty:Object.fromEntries(['easy','medium','hard'].map(bucket => [bucket,{target:child.goal.difficulty[bucket],credited:child.goal.creditedByDifficulty[bucket]}])),
+    difficulty:Object.fromEntries(['easy','medium','hard'].map(bucket => [bucket,difficultyProgress(child.goal,bucket)])),
   }))};
   return <div className="pattern-detail">
     <a className="secondary-button back-link" href={patternLink(null,query)}>← All patterns</a>
@@ -49,7 +49,7 @@ function PatternDetail({ category, goalConfigured, query }) {
     </div>
     <PracticeExplanation />
     <div className="section-heading"><h2>Subpatterns</h2><span className="data-note">{children.length} approaches</span></div>
-    <p className="data-note">Primary solves count each problem once in its assigned pattern. Practice evidence follows recorded approaches. Goal coverage is capped within each subpattern and difficulty; extra solves still build experience.</p>
+    <p className="data-note">Primary solves count each problem once in its assigned pattern. Practice evidence follows recorded approaches. Goal coverage shows actual solves / target; its fill stays capped within each subpattern and difficulty.</p>
     <p className="data-note">Pink experience and yellow recent practice add up to the strength percentage. Unknown dates do not establish retention.</p><div className="subpattern-list">{children.map((child,index) => <SubpatternProblems key={child.slug} slug={child.slug} name={child.name} next={index === 0 && category.slug !== 'other'}><div className="subpattern-row-heading"><span className="pattern-icon" aria-hidden="true">{String(index+1).padStart(2,'0')}</span><div><h3>{child.name} <FocusBadge item={child} /></h3><p>{classifiedSolves(child) ?? '—'} primary {classifiedSolves(child) === 1 ? 'solve' : 'solves'}</p><p className="recommendation-reason">{recommendationReason(child)}</p></div></div><PatternMetrics item={child} goal={child.goal} name={`${category.name}, ${child.name}`} goalConfigured={goalConfigured} /></SubpatternProblems>)}</div>
   </div>;
 }

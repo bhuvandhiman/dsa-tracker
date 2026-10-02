@@ -1,7 +1,7 @@
 import { applyGoalOrdering } from '../apps/api/src/goal-policy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifiedSolves, patternProgress, difficultyCoverage, retentionOverview, evidenceLabel, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
+import { classifiedSolves, patternProgress, difficultyCoverage, difficultyProgress, retentionOverview, evidenceLabel, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
 
 test('classified solves stay independent of practiced approaches and capped credits across API versions',()=>{
   assert.equal(classifiedSolves({coverageSolved:6,distinctSolved:2,goal:{credited:3}}),6);
@@ -72,8 +72,19 @@ test('difficulty coverage keeps pattern-specific credits and excludes zero-targe
   ]};
   const result=difficultyCoverage(goal,'easy');
   assert.equal(result.credited,9);assert.equal(result.target,15);
+  assert.equal(result.actual,38);
   assert.deepEqual(result.patterns.map(item=>[item.slug,item.credited,item.target]),[['arrays',4,10],['trees',5,5]]);
-  assert.deepEqual(difficultyCoverage({},'hard'),{patterns:[],credited:0,target:0});
+  assert.deepEqual(difficultyCoverage({},'hard'),{patterns:[],credited:0,actual:0,target:0});
+});
+
+test('extra solved counts are visible without changing capped or balanced goal fills',()=>{
+  const unit={difficulty:{easy:16},actual:{easy:20},creditedByDifficulty:{easy:16}};
+  assert.deepEqual(difficultyProgress(unit,'easy'),{actual:20,target:16,credited:16,fill:100});
+  // Excess solves in one subpattern cannot fill another subpattern's gap.
+  const category={difficulty:{easy:{actual:20,target:16,credited:12}}};
+  assert.deepEqual(difficultyProgress(category,'easy'),{actual:20,target:16,credited:12,fill:75});
+  assert.equal(difficultyProgress({difficulty:{hard:0},actual:{hard:3},creditedByDifficulty:{hard:0}},'hard').fill,0);
+  assert.equal(difficultyProgress({difficulty:{easy:{target:16,credited:12}}},'easy').actual,12);
 });
 
 test('priority progress uses the API balance and preserves unscored states', () => {

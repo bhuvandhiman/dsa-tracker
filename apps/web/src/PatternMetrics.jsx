@@ -1,4 +1,4 @@
-import { percent, strengthBarModel, practiceEvidenceLabel } from './dashboard-model.js';
+import { percent, strengthBarModel, practiceEvidenceLabel, difficultyProgress } from './dashboard-model.js';
 
 export function FocusBadge({item}) {
   const emphasis=item.emphasis;
@@ -42,11 +42,9 @@ export function RetentionMetric({ item, name, prominent = false }) {
 export function DifficultyMetrics({ goal, name, goalConfigured }) {
   if (!goal) return <p className="data-note">{goalConfigured ? 'Outside the coverage goal' : 'Choose a coverage goal on the dashboard.'}</p>;
   return <div className="row-difficulty-metrics"><strong className="goal-coverage-label">Goal coverage</strong>{['easy','medium','hard'].map(bucket => {
-    const value = goal.difficulty[bucket];
-    const target = typeof value === 'number' ? value : value.target;
-    const credited = typeof value === 'number' ? goal.creditedByDifficulty[bucket] : value.credited;
+    const {target,credited,actual,fill}=difficultyProgress(goal,bucket);
     const label = bucket[0].toUpperCase()+bucket.slice(1);
-    return <div className={`row-difficulty row-difficulty-${bucket}`} key={bucket} title={`${name} · ${label}: ${credited} / ${target} goal credits`}><div><strong>{label}</strong><span>{credited}/{target}</span></div><div className="row-difficulty-track" role="img" aria-label={`${name}: ${credited} of ${target} ${bucket} goal credits`}><span style={{width:`${target ? percent(100*credited/target) : 0}%`}} /></div></div>;
+    return <div className={`row-difficulty row-difficulty-${bucket}`} key={bucket} title={`${name} · ${label}: ${actual} solved / ${target} target; ${credited} goal credits`}><div><strong>{label}</strong><span>{actual}/{target}</span></div><div className="row-difficulty-track" role="img" aria-label={`${name}: ${actual} ${bucket} problems solved, target ${target}; ${credited} goal credits, ${Math.round(fill)}% goal coverage`}><span style={{width:`${fill}%`}} /></div></div>;
   })}</div>;
 }
 

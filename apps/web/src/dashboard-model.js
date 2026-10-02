@@ -57,11 +57,12 @@ export function retentionOverview(categories) {
 
 export function difficultyCoverage(goal, bucket) {
   const patterns = (goal.categories || []).map(category => ({
-    slug: category.slug, name: category.name, ...category.difficulty[bucket],
+    slug: category.slug, name: category.name, ...difficultyProgress(category, bucket),
   })).filter(item => item.target > 0);
   return {
     patterns,
     credited: patterns.reduce((sum, item) => sum + item.credited, 0),
+    actual: patterns.reduce((sum, item) => sum + item.actual, 0),
     target: patterns.reduce((sum, item) => sum + item.target, 0),
   };
 }
@@ -84,6 +85,16 @@ export function strengthBarModel(item) {
   const earned=required?Math.max(0,Math.min(required,Number(practice.earned)||0)):0;
   return {score,experienceWidth,recentWidth,assessed,practice,blocks:evidence.completedPracticeBlocks||0,
     steps:required?Array.from({length:Math.ceil(required)},(_,index)=>Math.max(0,Math.min(1,earned-index))):[]};
+}
+
+// Raw solve totals are display-only. Fill always uses the capped goal credits,
+// including category totals whose subpattern balance may still have gaps.
+export function difficultyProgress(goal, bucket) {
+  const value=goal.difficulty?.[bucket];
+  const target=typeof value==='number'?value:value?.target??0;
+  const credited=typeof value==='number'?goal.creditedByDifficulty?.[bucket]??0:value?.credited??0;
+  const raw=typeof value==='number'?goal.actual?.[bucket]:value?.actual;
+  return {target,credited,actual:Number.isFinite(raw)?raw:credited,fill:target?percent(100*credited/target):0};
 }
 
 export function recommendationReason(item) {

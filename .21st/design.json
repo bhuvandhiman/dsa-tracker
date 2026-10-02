@@ -179,6 +179,11 @@
       "date": "2026-10-02",
       "direction": "One strength estimate, additive experience/recent-practice segments, separate practice-block dots",
       "reason": "User approved resolving mixed scales and duplicated coverage. Pink is the existing experienceScore; yellow is strength minus experienceScore. Their widths sum to the assessed strength percentage. Unknown dates expose experience without claiming assessed retention. Keep focus badges and stable queue policy, show brief contributing-need or held-state reasons, distinguish primary solves from recorded practice evidence, label capped difficulty counts as Goal coverage, and replace the moving coverage marker with weighted practice-block dots."
+    },
+    {
+      "date": "2026-10-02",
+      "direction": "Show uncapped difficulty solve totals against capped goals",
+      "reason": "User requested counts such as 20/16. Rows, segmented summaries and pattern hover details show actual primary solves / target, while fills continue to use capped goal credits. Extra displayed counts do not change any existing strength, ranking or threshold calculation."
     }
   ],
   "evidence": [
