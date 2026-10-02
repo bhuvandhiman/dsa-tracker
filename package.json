@@ -19,10 +19,12 @@
     "test": "node --test tests/*.test.js",
     "test:capture": "node scripts/test-capture.js",
     "test:extension-ui": "node scripts/test-extension-ui.js",
+    "test:accounts": "node scripts/test-accounts.js",
+    "package:extension": "node scripts/package-extension.js",
     "check": "npm run lint && npm test && npm run build",
     "db:check": "npm run db:check --workspace=@dsa/api",
     "db:migrate": "npm run db:migrate --workspace=@dsa/api",
-    "test:db": "node --env-file-if-exists=apps/api/.env --test tests/database.integration.js tests/journal.integration.js tests/legacy.integration.js tests/retention.integration.js tests/strength.integration.js"
+    "test:db": "node --env-file-if-exists=apps/api/.env --test tests/database.integration.js tests/journal.integration.js tests/legacy.integration.js tests/retention.integration.js tests/strength.integration.js tests/accounts.integration.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

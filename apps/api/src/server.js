@@ -1,13 +1,17 @@
 import { createApp } from './app.js';
 import { createPool } from './db.js';
 import { createRepository } from './repository.js';
+import { authSettings } from './auth.js';
+import { createUserWorkspaces } from './user-workspaces.js';
 
 const port = Number(process.env.PORT || 3001);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be between 1 and 65535.');
 const host = process.env.HOST || '127.0.0.1';
 if (!['127.0.0.1', 'localhost', '::1'].includes(host)) throw new Error('Recall stores personal practice locally. HOST must be a loopback address.');
 const pool = process.env.DATABASE_URL ? createPool() : null;
-const server = createApp({ repository: pool ? createRepository(pool) : null }).listen(port, host);
+const auth=authSettings();
+const installation={storeUrl:process.env.EXTENSION_STORE_URL||'',videoUrl:process.env.EXTENSION_VIDEO_URL||'',downloadUrl:'/downloads/recall-extension.zip'};
+const server = createApp({ repository: pool ? createRepository(pool) : null,auth,repositoryForUser:pool?createUserWorkspaces(pool):null,installation }).listen(port, host);
 server.once('listening', () => {
   console.log(`API listening on http://${host}:${port}`);
 });

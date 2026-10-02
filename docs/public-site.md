@@ -20,19 +20,27 @@ Validation: lint, 199 unit tests and production build pass. Browser checks cover
 Home/About in light and dark mode, 390px/320px layouts without horizontal
 overflow, keyboard FAQ disclosure, section focus and workspace/pattern entry.
 
-## Phase 2 — accounts and private workspaces
+## Phase 2 — implemented; real project configuration pending
 
-Choose the authentication service and sign-in method before adding working
-signup/login/recovery forms. Add authenticated API access and user ownership to
-practice, goals, placements, imports and backups together. Test cross-user
-isolation. Keep existing local data recoverable with an explicit migration path.
+Split signup/login screens use Google and email/password through Supabase Auth.
+Confirmation/resend and password recovery are implemented. The API verifies
+sessions and isolates all data resources in per-user workspaces. Existing local
+data remains in local mode; an explicit backup/restore can transfer it.
+
+Short setup now saves preparation mode and coverage goal, guides extension
+installation and opens the private dashboard. The dedicated installation page
+provides a ZIP, Load unpacked steps, a video placeholder and a configurable future
+store link. See [account setup](account-setup.md) for Supabase configuration,
+validation and the existing-data boundary. Real sign-in/email delivery requires
+your project URL, public key and provider settings.
 
 ## Phase 3 — extension connection and onboarding
 
-Connect the extension to the authenticated hosted workspace. Isolate local
-drafts, queues and retries per account. Guide new users through goal selection,
-extension connection and optional import; preserve the distinction between
-historical solves and dated practice.
+Connect the extension to the authenticated workspace. Isolate local drafts,
+queues and retries per account. Extend the existing setup to verify a real
+connection and offer import; preserve the distinction between historical solves
+and dated practice. The current installation acknowledgement does not claim a
+paired extension or working hosted import.
 
 ## Phase 4 — launch
 

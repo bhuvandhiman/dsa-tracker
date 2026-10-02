@@ -1,8 +1,11 @@
+let tokenProvider=null;
+export function setTokenProvider(provider){tokenProvider=provider;}
 export async function request(path, { signal, ...options } = {}) {
   const timeout = new AbortController();
   const timer = setTimeout(() => timeout.abort(), 12000);
   try {
-    const response = await fetch(`/api${path}`, { ...options, signal: signal ? AbortSignal.any([signal, timeout.signal]) : timeout.signal, headers: { 'Content-Type': 'application/json', ...options.headers } });
+    const token=path==='/auth/config'?null:await tokenProvider?.();
+    const response = await fetch(`/api${path}`, { ...options, signal: signal ? AbortSignal.any([signal, timeout.signal]) : timeout.signal, headers: { 'Content-Type': 'application/json', ...(token?{Authorization:`Bearer ${token}`} : {}), ...options.headers } });
     let body;
     try { body = await response.json(); }
     catch (error) {

@@ -1,6 +1,7 @@
 export function readRoute(hash) {
   const [path, query = ''] = hash.replace(/^#/, '').split('?');
   const parts = path.split('/').filter(Boolean);
+  if(parts.length===1&&['signup','login','forgot-password','reset-password','setup','install-extension'].includes(parts[0]))return {page:parts[0]};
   if (!parts.length || (parts.length === 1 && ['home','about'].includes(parts[0]))) {
     return {page:parts[0] || 'home',section:new URLSearchParams(query).get('section') || ''};
   }

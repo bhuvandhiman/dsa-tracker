@@ -11,6 +11,10 @@ test('public entry and About stay separate from workspace and legacy links',()=>
   assert.equal(readRoute('#/settings').page,'settings');
   assert.equal(readRoute('#main').page,'dashboard');
 });
+test('account, recovery and setup URLs reload independently without becoming workspace routes',()=>{
+  for(const page of ['signup','login','forgot-password','reset-password','setup','install-extension'])assert.equal(readRoute(`#/${page}`).page,page);
+  assert.equal(readRoute('#/login/foreign').page,'dashboard');
+});
 
 test('patterns and dashboard are separate routes with direct detail links', () => {
   assert.equal(readRoute('#/dashboard').page,'dashboard');

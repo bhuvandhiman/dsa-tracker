@@ -25,7 +25,10 @@
       "apps/web/src/SubpatternProblems.jsx",
       "apps/web/src/PatternMenu.jsx",
       "apps/web/src/PatternOverview.jsx",
-      "apps/web/src/PatternMetrics.jsx"
+      "apps/web/src/PatternMetrics.jsx",
+      "apps/web/src/AuthPages.jsx",
+      "apps/web/src/Onboarding.jsx",
+      "apps/web/src/accounts.css"
     ],
     "assets": [],
     "instructions": [
@@ -209,6 +212,11 @@
       "date": "2026-10-02",
       "direction": "Pattern-led public home and About, before accounts",
       "reason": "Phase 1 introduces Recall with a full-page ivory canvas, bold type, a ranked pattern preview using shared product metrics, editorial workflow sections and native FAQ disclosures. Keep existing themes and local workspace access; label illustrative data, explain retention estimates honestly, and defer authentication and hosted sync to phase 2."
+    },
+    {
+      "date": "2026-10-03",
+      "direction": "Split Supabase account pages and short setup with a dedicated installation guide",
+      "reason": "User selected split pages, Google and email/password, Supabase Auth, and a short goal/setup flow. Reuse the full-page canvas, palette, typography, native forms and theme control. Installation has a local ZIP and video placeholder now, with a configurable Chrome Web Store link later; acknowledgement is not account pairing."
     }
   ],
   "evidence": [

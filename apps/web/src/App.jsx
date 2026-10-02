@@ -4,6 +4,9 @@ import LiveDashboard from './LiveDashboard.jsx';
 import Workflows from './Workflows.jsx';
 import { readRoute } from './navigation.js';
 import PublicPages from './PublicPages.jsx';
+import AuthPages from './AuthPages.jsx';
+import Onboarding, { Installation } from './Onboarding.jsx';
+import useAuth from './use-auth.js';
 
 function Icon({ name, ...props }) {
   const paths = {
@@ -20,6 +23,8 @@ function Icon({ name, ...props }) {
 }
 
 export default function App() {
+  const auth=useAuth();
+  const [accountError,setAccountError]=useState('');
   const [route, setRoute] = useState(() => readRoute(window.location.hash));
   useEffect(() => {
     function navigate() {
@@ -28,9 +33,22 @@ export default function App() {
     window.addEventListener('hashchange', navigate);
     return () => window.removeEventListener('hashchange', navigate);
   }, []);
+  const authPage=['signup','login','forgot-password','reset-password'].includes(route.page);
+  const setupPage=route.page==='setup';
+  const installationPage=route.page==='install-extension';
+  const privatePage=['dashboard','patterns','settings'].includes(route.page);
   const publicPage = ['home','about'].includes(route.page);
+  const accountShell=authPage||setupPage;
+  const accountsEnabled=auth.config?.mode==='supabase';
+  const canReadWorkspace=!auth.loading&&auth.config&&(accountsEnabled?auth.user&&auth.setup?.completed:true);
+  useEffect(()=>{
+    if(auth.loading||auth.error)return;
+    if(accountsEnabled&&privatePage&&!auth.user)window.location.hash='/login';
+    else if(accountsEnabled&&privatePage&&auth.user&&!auth.setup?.completed)window.location.hash='/setup';
+    else if(auth.user&&['signup','login'].includes(route.page))window.location.hash=auth.setup?.completed?'/dashboard':'/setup';
+  },[auth.loading,auth.error,auth.user,auth.setup,accountsEnabled,privatePage,route.page]);
   useEffect(() => {
-    const titles={home:'Recall — Know which DSA pattern to practice next',about:'About Recall',dashboard:'Dashboard · Recall',patterns:'Patterns · Recall',settings:'Workspace · Recall'};
+    const titles={home:'Recall — Know which DSA pattern to practice next',about:'About Recall',dashboard:'Dashboard · Recall',patterns:'Patterns · Recall',settings:'Workspace · Recall',signup:'Create account · Recall',login:'Log in · Recall','forgot-password':'Reset password · Recall','reset-password':'New password · Recall',setup:'Your setup · Recall','install-extension':'Install the extension · Recall'};
     document.title=titles[route.page] || 'Recall';
     const frame=requestAnimationFrame(()=>{
       const section=route.page==='home'&&['how-it-works','questions'].includes(route.section)?document.getElementById(route.section):null;
@@ -50,12 +68,12 @@ export default function App() {
     catch { /* Theme switching still works when browser storage is unavailable. */ }
   }, [theme]);
   const themeAction = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-  return <div className={`workspace ${publicPage?'public-site':''}`}>
+  return <div className={`workspace ${publicPage||installationPage||accountShell?'public-site':''} ${accountShell?'account-shell':''}`}>
     <a className="skip-link" href="#main" onClick={event => {event.preventDefault(); document.getElementById('main')?.focus();}}>Skip to content</a>
     <header className="topbar">
       <a className="brand" href="#/home" aria-label="Recall home"><span className="brand-mark"><Icon name="book" /></span><span>recall<span className="brand-dot">.</span></span></a>
       <nav className="navigation" aria-label="Main navigation">
-        {publicPage?<>
+        {publicPage||installationPage||accountShell?<>
         <a className={`nav-link ${route.page==='home'&&!route.section?'active':''}`} aria-current={route.page==='home'&&!route.section?'page':undefined} href="#/home">Home</a>
         <a className={`nav-link ${route.section==='how-it-works'?'active':''}`} aria-current={route.section==='how-it-works'?'location':undefined} href="#/home?section=how-it-works">How it works</a>
         <a className={`nav-link ${route.page==='about'?'active':''}`} aria-current={route.page==='about'?'page':undefined} href="#/about">About</a>
@@ -66,17 +84,24 @@ export default function App() {
         </>}
       </nav>
       <div className="topbar-actions">
-        {!publicPage&&<span className="workspace-label"><span className="status-dot" />Your learning space</span>}
+        {privatePage&&<span className="workspace-label"><span className="status-dot" />Your learning space</span>}
         <button className="theme-toggle" type="button" aria-label={themeAction} title={themeAction} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button>
-        {publicPage&&<a className="primary-button public-nav-cta" href="#/dashboard">Open workspace <Icon name="arrow" /></a>}
+        {(publicPage||installationPage)&&<>{!auth.user&&<a className="account-header-link" href="#/login">Log in</a>}<a className="primary-button public-nav-cta" href={auth.user?'#/dashboard':'#/signup'}>{auth.user?'Open dashboard':'Get started'} <Icon name="arrow" /></a></>}
+        {authPage&&<a className="account-header-link" href={route.page==='signup'?'#/login':'#/signup'}>{route.page==='signup'?'Log in':'Create account'}</a>}
+        {auth.user&&(privatePage||setupPage)&&<button className="text-button account-signout" onClick={async()=>{try{await auth.signOut();setAccountError('');}catch(error){setAccountError(error.message);}}}>Log out</button>}
       </div>
     </header>
 
     <main id="main" tabIndex={-1}>
-      {publicPage&&<PublicPages page={route.page} />}
-      {['dashboard','patterns'].includes(route.page) && <LiveDashboard key={`${route.page}:${route.slug || ''}:${route.query}`} route={route} />}
-      {route.page === 'settings' && <Workflows />}
-      <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><nav className="footer-links" aria-label="Footer"><a href="#/home">Home</a><a href="#/about">About</a><a href="#/home?section=questions">FAQ</a></nav><span className="footer-flower" aria-hidden="true">✳</span></footer>
+      {accountError&&<p className="account-error" role="alert">{accountError}</p>}
+      {publicPage&&<PublicPages page={route.page} signedIn={Boolean(auth.user)} localMode={auth.config?.mode==='local'} />}
+      {authPage&&<AuthPages key={route.page} page={route.page} auth={auth} />}
+      {setupPage&&(auth.user?<Onboarding key={auth.user.id} auth={auth} />:<div className="account-loading"><h1>Start with your account.</h1><p>{auth.loading?'Checking your session…':'Sign in to save your setup and open your private workspace.'}</p><a className="primary-button" href="#/signup">Create account</a></div>)}
+      {installationPage&&<Installation auth={auth} />}
+      {privatePage&&!canReadWorkspace&&<div className="account-loading" role="status"><h2>{auth.error?'Could not open your workspace.':'Opening your workspace…'}</h2>{auth.error&&<><p>{auth.error}</p><button className="secondary-button" onClick={auth.retry}>Retry connection</button><a className="inline-link" href="#/login">Go to login</a></>}</div>}
+      {canReadWorkspace&&['dashboard','patterns'].includes(route.page) && <LiveDashboard key={`${auth.user?.id||'local'}:${route.page}:${route.slug || ''}:${route.query}`} route={route} />}
+      {canReadWorkspace&&route.page === 'settings' && <Workflows key={auth.user?.id||'local'} />}
+      <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><nav className="footer-links" aria-label="Footer"><a href="#/home">Home</a><a href="#/about">About</a><a href="#/install-extension">Extension</a><a href="#/home?section=questions">FAQ</a></nav><span className="footer-flower" aria-hidden="true">✳</span></footer>
     </main>
   </div>;
 }
