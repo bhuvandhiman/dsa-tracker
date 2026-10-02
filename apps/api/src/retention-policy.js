@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { navigationCategories, unitsFor, unitForPlacement } from './pattern-catalog.js';
 import { practicePolicy } from './practice-policy.js';
 
@@ -33,6 +34,7 @@ export function decay(value,days) { return value*Math.pow(0.5,Math.max(0,days)/p
 function datedEvents(events,now) {
   const daily=new Map();
   for(const event of events) {
+    if(event.at==null||event.at==='')continue;
     const time=new Date(event.at).getTime();
     if(!Number.isFinite(time)||time>now) continue;
     const key=event.problemId+':'+practiceDay(time);
@@ -69,11 +71,13 @@ function earnedBlocks(daily) {
     blocks.push({index,time:event.time,holdDays,unit});
     state.pending.clear();state.lastDay=date;
   });
-  return blocks;
+  const pending=[...units].map(([unit,state])=>({unit,earned:[...state.pending.values()].reduce((sum,value)=>sum+value,0),distinct:state.pending.size}));
+  pending.sort((a,b)=>Math.min(b.earned/practicePolicy.blockWeight,b.distinct/practicePolicy.minimumDistinct)-Math.min(a.earned/practicePolicy.blockWeight,a.distinct/practicePolicy.minimumDistinct)||a.unit.localeCompare(b.unit));
+  return {blocks,practiceBlock:{...(pending[0]||{unit:null,earned:0,distinct:0}),required:practicePolicy.blockWeight,minimumDistinct:practicePolicy.minimumDistinct}};
 }
 
 function summarizePractice(daily,now,distinctProblems,breadthTarget) {
-  const blocks=earnedBlocks(daily),byIndex=new Map(blocks.map(block=>[block.index,block]));
+  const {blocks,practiceBlock}=earnedBlocks(daily),byIndex=new Map(blocks.map(block=>[block.index,block]));
   let recency=0,previous=null,weightedRevisits=0,revisitCount=0;
   let holdUntil=0;
   const seen=new Set();
@@ -101,12 +105,12 @@ function summarizePractice(daily,now,distinctProblems,breadthTarget) {
     datedDistinctSolved,legacyDistinctSolved:Math.max(0,totalDistinct-datedDistinctSolved),
     lastPracticedAt:previous===null?null:new Date(previous).toISOString(),experienceScore,
     activity:activityFor(daily,now),
-    completedPracticeBlocks:blocks.length,
+    completedPracticeBlocks:blocks.length,practiceBlock,
   };
 }
 
 export function retentionFor(events,now=Date.now(),distinctProblems,breadthTarget=policy.defaultBreadthTarget,legacyProblemIds=[]) {
-  const daily=datedEvents(events,now),blocks=earnedBlocks(daily);
+  const daily=datedEvents(events,now),{blocks}=earnedBlocks(daily);
   const result=summarizePractice(daily,now,distinctProblems,breadthTarget);
   // Queue evidence only changes when a meaningful block is completed. Partial
   // practice still grows the visible bar, without refreshing the queue snapshot.
@@ -114,7 +118,8 @@ export function retentionFor(events,now=Date.now(),distinctProblems,breadthTarge
   const committed=last?daily.slice(0,last.index+1):[];
   const committedIds=new Set([...legacyProblemIds,...committed.map(event=>event.problemId)]);
   const queue=summarizePractice(committed,now,committedIds.size,breadthTarget);
-  return {...result,queueStrength:queue.displayStrength};
+  const queueEvidenceKey=createHash('sha256').update(JSON.stringify(committed.filter(e=>practicePolicy.evidenceWeight[e.assistance]>0).map(e=>[e.problemId,e.time,e.assistance,e.practiceUnit||null]))).digest('hex');
+  return {...result,queueStrength:queue.displayStrength,queueEvidenceKey};
 }
 function trendFor(events,legacyProblemIds,now,breadthTarget,current) {
   if(!current.assessed) return null;

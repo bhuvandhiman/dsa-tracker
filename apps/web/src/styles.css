@@ -42,7 +42,7 @@
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 24px; }
-body { margin: 0; min-width: 320px; }
+body { margin: 0; min-width: 0; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { font: inherit; cursor: pointer; }
 a { color: inherit; text-decoration: none; }
@@ -511,9 +511,38 @@ button:disabled { opacity: .65; cursor: not-allowed; }
 .priority-explanation summary { cursor: pointer; min-height: 32px; }
 .priority-explanation p { max-width: 760px; margin-top: 8px; }
 
-.priority-bar-explanation { position: relative; min-width: 0; outline-offset: 4px; border-radius: 7px; }
-.priority-bar-tooltip { display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); color: var(--ink); font-size: 12px; line-height: 1.6; font-weight: 400; z-index: 20; box-shadow: 0 6px 18px #0002; pointer-events: auto; }
-.priority-bar-explanation:hover > .priority-bar-tooltip, .priority-bar-explanation:focus > .priority-bar-tooltip { display: block; }
-.priority-pattern-content .priority-bar-explanation { margin-top: 10px; }
-.priority-pattern-content .pattern-retention-track { height: 8px; }
-.priority-bar-explanation > .priority-bar-tooltip[hidden] { display: none; }
+.practice-gap-bar { min-width: 0; }
+.practice-gap-bar .pattern-retention-track { height: 40px; border-radius: 10px; }
+.priority-pattern-content .practice-gap-bar { margin-top: 10px; }
+.priority-pattern-content .practice-gap-bar .pattern-retention-track { height: 20px; }
+
+.focus-emphasis { display: inline-block; padding: 3px 7px; border: 1px solid currentColor; border-radius: 999px; font-size: 10px; font-weight: 600; line-height: 1.3; vertical-align: middle; }
+.focus-emphasis-high { color: var(--nav-ink); background: var(--surface-raised); }
+.focus-emphasis-medium { color: #202720; background: var(--mustard); }
+.focus-emphasis-lower { color: var(--accent-ink); background: var(--surface-raised); }
+.practice-gap-bar.emphasis-high .pattern-retention-track > span { background: var(--coral); }
+.practice-gap-bar.emphasis-medium .pattern-retention-track > span { background: var(--mustard); }
+.practice-gap-bar.emphasis-lower .pattern-retention-track > span { background: var(--teal); }
+.pattern-retention-label > strong { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.focus-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 22px; color: var(--muted); font-size: 12px; }
+
+
+/* One continuous stack follows the user's pink/yellow bar sketch. */
+.split-priority-labels { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; margin-bottom:8px; }
+.split-priority-track { position:relative; display:flex; height:44px; border-radius:10px; overflow:hidden; background:var(--track); }
+.split-priority-track > span { flex-shrink:0; height:100%; transition:width .2s ease; }
+.split-priority-focus { background:var(--coral); }
+.split-priority-retention { background:var(--mustard); }
+.split-priority-retention.is-undated { background:repeating-linear-gradient(135deg,var(--mustard) 0 8px,transparent 8px 11px); }
+.priority-release-marker { position:absolute; top:4px; bottom:4px; border-left:2px dashed var(--ink); transform:translateX(-1px); }
+.priority-key { display:inline-flex; align-items:center; gap:7px; font-size:12px; }
+.priority-key::before { content:''; width:10px; height:10px; border-radius:3px; background:var(--coral); }
+.priority-key-retention::before { background:var(--mustard); }
+.queue-threshold { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; font-size:11px; color:var(--muted); }
+.queue-threshold strong { white-space:nowrap; font-weight:400; }
+.priority-pattern-content .split-priority-track { height:28px; }
+@media (prefers-reduced-motion:reduce) { .split-priority-track > span { transition:none; } }
+
+.queue-threshold { flex-wrap:wrap; }
+.queue-threshold > span { display:inline-flex; align-items:center; gap:5px; }
+.threshold-key { height:10px; border-left:2px dashed var(--ink); }

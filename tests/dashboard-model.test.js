@@ -1,7 +1,7 @@
 import { applyGoalOrdering } from '../apps/api/src/goal-policy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifiedSolves, priorityProgress, difficultyCoverage, retentionOverview, evidenceLabel, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
+import { classifiedSolves, patternProgress, difficultyCoverage, retentionOverview, evidenceLabel, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
 
 test('classified solves stay independent of practiced approaches and capped credits across API versions',()=>{
   assert.equal(classifiedSolves({coverageSolved:6,distinctSolved:2,goal:{credited:3}}),6);
@@ -77,9 +77,23 @@ test('difficulty coverage keeps pattern-specific credits and excludes zero-targe
 });
 
 test('priority progress uses the API balance and preserves unscored states', () => {
-  assert.equal(priorityProgress({slug:'graphs',priorityDetails:{bandScore:32},priorityProgress:42.5,priority:95}),42.5);
-  assert.equal(priorityProgress({slug:'graphs',queuePriority:50,summary:{displayStrength:80}}),50);
-  assert.equal(priorityProgress({slug:'bfs',queuePriority:51,displayStrength:80}),50);
-  assert.equal(priorityProgress({slug:'new',priority:null}),null);
-  assert.equal(priorityProgress({slug:'other',priorityProgress:80,priority:20}),null);
+  assert.equal(patternProgress({slug:'graphs',priorityDetails:{bandScore:32},patternProgress:42.5,priority:95}),42.5);
+  assert.equal(patternProgress({slug:'graphs',queuePriority:50,summary:{displayStrength:50}}),50);
+  assert.equal(patternProgress({slug:'bfs',queuePriority:51,displayStrength:50}),50);
+  assert.equal(patternProgress({slug:'new',priority:null}),null);
+  assert.equal(patternProgress({slug:'other',patternProgress:80,priority:20}),null);
+});
+
+
+test('continuous bar uses authoritative gates and never invents a revision marker',async()=>{
+  const {priorityBarModel}=await import('../apps/web/src/dashboard-model.js');
+  const item={slug:'graphs',goal:{deficit:2},prioritySignals:{focusPush:50,retentionPush:20,retentionAssessed:true,releaseMark:35},queueGate:{held:true,coverage:{active:true,earned:1,required:2},practice:{earned:3,required:4,minimumDistinct:4}}};
+  const model=priorityBarModel(item);
+  assert.equal(model.focusWidth,32.5);assert.equal(model.retentionWidth,7);
+  assert.equal(model.releaseMark,35);assert.equal(model.practice.earned,3);assert.equal(model.held,true);
+  assert.equal(priorityBarModel({...item,queueGate:{...item.queueGate,coverage:{active:false}}}).releaseMark,null);
+  assert.equal(priorityBarModel({...item,prioritySignals:{...item.prioritySignals,releaseMark:undefined}}).releaseMark,null);
+  assert.equal(priorityBarModel({slug:'graphs',goal:{deficit:3}}),null);
+  assert.equal(priorityBarModel({slug:'other'}),null);
+  assert.equal(priorityBarModel({slug:'graphs',queuePriority:80,practiceBlock:{earned:2}}).retentionWidth,80);
 });

@@ -144,6 +144,31 @@
       "reason": "Higher fill means more attention needed. Show priority points and a focusable explanation of coverage/practice contributions; retain difficulty completion bars and practice strength separately.",
       "date": "2026-10-02",
       "direction": "Practice priority bars follow ranking bands"
+    },
+    {
+      "date": "2026-10-02",
+      "direction": "Practice gap uses empty space",
+      "reason": "User requested inverse fill, no hover explanations and taller bars. Remaining attention is empty; meaningful practice fills the bar. Pattern rows use 40px tracks and dashboard recommendations use 20px tracks."
+    },
+    {
+      "reason": "Bar length is independent of interview importance. Coral/high, mustard/medium and teal/lower badges communicate emphasis. Public point scores and hover explanations are removed. Every coverage credit updates progress; persisted queue anchors gate demotion.",
+      "direction": "Own-pattern progress, selected-focus emphasis, stable queue position",
+      "date": "2026-10-02"
+    },
+    {
+      "date": "2026-10-02",
+      "direction": "Equal coral focus-push and mustard retention-push halves",
+      "reason": "User sketch selected split priority signals with a visible four-credit queue-release threshold. Unknown retention dates use hatching."
+    },
+    {
+      "date": "2026-10-02",
+      "direction": "Continuous adjacent coral/mustard stack with an internal dashed marker",
+      "reason": "User rejected separately filled halves. Both weighted contributors share one uninterrupted track with remaining space at the end; no separate threshold mini-bar."
+    },
+    {
+      "date": "2026-10-02",
+      "direction": "Authoritative coverage marker with separate truthful next-block counters",
+      "reason": "Threshold audit aligned marker and counters with API gates, added weighted revision progress, near-completion requirements and completed-goal states; the continuous coral/mustard bar is preserved."
     }
   ],
   "evidence": [

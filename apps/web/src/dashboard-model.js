@@ -36,26 +36,12 @@ export function classifiedSolves(item) {
   return null;
 }
 
-export function priorityProgress(item) {
+export function patternProgress(item) {
   if (item.slug === 'other') return null;
-  if(item.priorityDetails&&Number.isFinite(item.priorityProgress)) return percent(item.priorityProgress);
-  if(item.goal)return null;
-  const score=Number.isFinite(item.queuePriority)?item.queuePriority:item.priority;
-  return Number.isFinite(score)?percent(2*Math.floor(score/2)):null;
-}
-
-export function priorityExplanation(item) {
-  const d=item.priorityDetails;
-  if(d) return `${d.profileName}: coverage gap ${d.coverageContribution.toFixed(1)} + practice need ${d.practiceContribution.toFixed(1)} = ${d.score.toFixed(1)} attention points. Ranking band: ${d.bandScore} points. ${d.actualGap} actual goal credits remaining; ${d.committedGap} used by the practice-block queue. Similar scores share a ${d.bufferCredits}-point band and use catalog order. Bars share a ${d.scale}-point scale at this level. More fill means more attention needed.`;
-  return 'Practice-only priority: based on practice evidence committed through completed blocks, with earned holds and gradual recency decay. Similar scores share a two-point band. More fill means more attention needed.';
-}
-
-export function priorityScore(item) {
-  if(item.slug==='other')return null;
-  if(item.priorityDetails)return item.priorityDetails.bandScore;
-  if(item.goal)return null;
-  const score=Number.isFinite(item.queuePriority)?item.queuePriority:item.priority;
-  return Number.isFinite(score)?2*Math.floor(score/2):null;
+  if(Number.isFinite(item.patternProgress))return percent(item.patternProgress);
+  const evidence=item.summary||item,strength=evidence.displayStrength;
+  if(!Number.isFinite(strength))return null;
+  return item.goal&&Number.isFinite(item.goal.coverage)?percent(0.65*item.goal.coverage+0.35*strength):percent(strength);
 }
 
 export function retentionOverview(categories) {
@@ -78,4 +64,18 @@ export function difficultyCoverage(goal, bucket) {
     credited: patterns.reduce((sum, item) => sum + item.credited, 0),
     target: patterns.reduce((sum, item) => sum + item.target, 0),
   };
+}
+
+
+// Threshold placement and counters come from the queue policy, never a UI projection.
+export function priorityBarModel(item) {
+  if(item.slug==='other')return null;
+  const evidence=item.summary||item;
+  const signals=item.prioritySignals;
+  if(!signals) {
+    if(item.goal)return null;
+    return {focusWidth:0,retentionWidth:percent(Number.isFinite(item.queuePriority)?item.queuePriority:100),releaseMark:null,coverage:null,practice:evidence.practiceBlock||null,assessed:Boolean(evidence.assessed),held:false};
+  }
+  const coverage=item.queueGate?.coverage||{active:item.goal?.deficit>0,earned:signals.releaseCredits,required:signals.releaseTarget};
+  return {focusWidth:0.65*percent(signals.focusPush),retentionWidth:0.35*percent(signals.retentionPush),releaseMark:coverage.active&&Number.isFinite(signals.releaseMark)?percent(signals.releaseMark):null,coverage,practice:item.queueGate?.practice||evidence.practiceBlock||null,assessed:Boolean(signals.retentionAssessed),held:Boolean(item.queueGate?.held)};
 }

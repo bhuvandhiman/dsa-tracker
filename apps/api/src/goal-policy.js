@@ -1,7 +1,7 @@
 import { navigationCategories, unitsFor, unitForPlacement } from './pattern-catalog.js';
 import { practicePolicy } from './practice-policy.js';
 
-export const GOAL_POLICY_VERSION = '2026-10-02.v6';
+export const GOAL_POLICY_VERSION = '2026-10-02.v8';
 export const GOAL_TARGETS = Object.freeze([300, 500, 1000]);
 
 export const GOAL_PROFILES = Object.freeze({
@@ -267,17 +267,7 @@ function practicePriority(item) {
 }
 
 function remainingGoalGap(item) {
-  const goal = item?.goal;
-  if (goal?.units?.length) return goal.units.reduce((sum, unit) => sum + committedGap(unit), 0);
-  return committedGap(goal);
-}
-
-function committedGap(goal) {
-  const deficit = Math.max(0, Number(goal?.deficit) || 0);
-  const target = Number(goal?.target);
-  if (!Number.isFinite(target) || deficit === 0) return deficit;
-  const credited = Math.max(0, Number(goal.credited ?? target - deficit));
-  return Math.max(0, target - Math.floor(credited / practicePolicy.blockWeight) * practicePolicy.blockWeight);
+  return Math.max(0,Number(item?.goal?.deficit)||0);
 }
 
 // Profile-weighted targets keep important patterns prominent. Coverage accounts
@@ -297,43 +287,79 @@ function attentionScore(item) {
   return (1 - PRACTICE_ATTENTION_SHARE) * gap + PRACTICE_ATTENTION_SHARE * target * practiceNeed(item);
 }
 
-function withPriorityProgress(item,scale,profileName) {
+function withPriorityProgress(item,importance,profileName,previous,scale) {
   const score = attentionScore(item);
   const gap=remainingGoalGap(item),target=Math.max(gap,Number(item.goal?.target)||0);
-  const bandScore=Math.floor(score/practicePolicy.bufferCredits)*practicePolicy.bufferCredits;
   const scored=item.slug!=='other'&&Boolean(item.goal);
+  const evidence=item.summary||item;
+  const coverage=item.goal?.coverage??(target?100*(1-gap/target):0);
+  const strength=evidence.displayStrength??(Number.isFinite(item.priority)?100-item.priority:0);
+  const progress=Math.max(0,Math.min(100,0.65*coverage+0.35*strength));
+  const credited=item.goal?.credited??target-gap,blocks=evidence.completedPracticeBlocks||0;
+  const validMemory=previous&&['anchor','credited','blocks','gap'].every(key=>Number.isFinite(previous[key])&&previous[key]>=0);
+  previous=validMemory?previous:null;
+  const evidenceKey=evidence.queueEvidenceKey||null;
+  const corrected=Boolean(previous&&(credited<(previous.lastCredited??previous.credited)||blocks<previous.blocks||(blocks===previous.blocks&&evidenceKey&&previous.evidenceKey&&evidenceKey!==previous.evidenceKey)));
+  const gained=previous?Math.max(0,credited-previous.credited):0;
+  const coverageRelease=Boolean(previous&&(gained>=practicePolicy.blockWeight||(gap===0&&previous.gap>0)));
+  const practiceRelease=Boolean(previous&&blocks>previous.blocks);
+  const release=!previous||corrected||coverageRelease||practiceRelease;
+  const rankingPriority=release?score:Math.max(score,previous.anchor);
+  // Bulk coverage keeps the unfinished remainder toward the following block.
+  const baseline=coverageRelease&&!corrected&&gap>0?previous.credited+Math.floor(gained/practicePolicy.blockWeight)*practicePolicy.blockWeight:credited;
+  const queueMemory=release?{anchor:score,credited:baseline,blocks,gap:target-baseline,lastCredited:credited,evidenceKey}:{...previous,anchor:rankingPriority,lastCredited:credited,evidenceKey};
+  const earned=Math.max(0,credited-queueMemory.credited);
+  const required=Math.min(practicePolicy.blockWeight,queueMemory.gap);
+  const remaining=Math.min(gap,Math.max(0,required-earned));
+  const coverageGate={active:gap>0,earned,required,remaining};
+  const practiceGate=evidence.practiceBlock||{unit:null,earned:0,distinct:0,required:practicePolicy.blockWeight,minimumDistinct:practicePolicy.minimumDistinct};
+  const queueGate={coverage:coverageGate,practice:practiceGate,held:rankingPriority>score+1e-9,reason:!previous?'initial':corrected?'correction':practiceRelease?'practice':coverageRelease?'coverage':'held'};
+  const releaseMark=gap>0?Number((100*(score-0.65*remaining)/scale).toFixed(10)):null;
+  const tier=importance>=0.5?'high':importance>=0.25?'medium':'lower';
   return {...item,dashboardPriority:score,
-    priorityProgress:scored?Math.max(0,Math.min(100,100*bandScore/scale)):null,
-    priorityDetails:scored?{score,bandScore,scale,profileName:profileName||'Selected goal',coverageContribution:0.65*gap,practiceContribution:0.35*target*practiceNeed(item),committedGap:gap,actualGap:item.goal.deficit,target,bufferCredits:practicePolicy.bufferCredits}:null};
+    rankingPriority,queueMemory,queueGate:scored?queueGate:null,
+    prioritySignals:scored?{focusPush:100*gap/scale,retentionPush:100*target*practiceNeed(item)/scale,scale,retentionAssessed:Boolean(evidence.assessed),releaseCredits:earned,releaseTarget:required,releaseMark}:null,
+    patternProgress:scored?progress:null,
+    emphasis:scored?{tier,label: `${tier==='lower'?'Lower':tier==='high'?'High':'Medium'} emphasis`,profileName:profileName||'Selected focus'}:null,
+    priorityDetails:scored?{score,coverageContribution:0.65*gap,practiceContribution:0.35*target*practiceNeed(item),actualGap:gap,target,profileName:profileName||'Selected focus'}:null};
 }
 
 function compareGoalAttention(a, b) {
   if (a.slug === 'other') return b.slug === 'other' ? 0 : 1;
   if (b.slug === 'other') return -1;
-  return Math.floor(attentionScore(b) / practicePolicy.bufferCredits) - Math.floor(attentionScore(a) / practicePolicy.bufferCredits)
+  return Math.floor((b.rankingPriority??attentionScore(b)) / practicePolicy.bufferCredits) - Math.floor((a.rankingPriority??attentionScore(a)) / practicePolicy.bufferCredits)
     || (a.order ?? 0) - (b.order ?? 0);
 }
 
 // Practice Strength itself remains independent from Goal Coverage. This ordering
 // only combines the two signals to decide which existing gap deserves more
 // attention on the dashboard.
-export function applyGoalOrdering(categories, goal) {
+export function applyGoalOrdering(categories, goal, snapshot) {
   const byCategory = new Map(goal.categories.map(category => [category.slug, category]));
-  const scale=Math.max(1,...goal.categories.map(c=>Number(c.target)||c.deficit||0));
+  const valid=snapshot?.version===GOAL_POLICY_VERSION&&snapshot.profile===goal.profile&&snapshot.target===goal.target;
+  const memory=valid?snapshot.items||{}:{};
+  const weights=categoryWeights[goal.profile]||{};
+  const maximum=Math.max(1e-9,...Object.values(weights));
+  const categoryScale=Math.max(1,...goal.categories.map(c=>Number(c.target)||c.deficit||0));
   return categories.map(category => {
     const categoryGoal = byCategory.get(category.slug) || null;
     const byUnit = new Map((categoryGoal?.units || []).map(unit => [unit.slug, unit]));
     const unitScale=Math.max(1,...(categoryGoal?.units||[]).map(u=>Number(u.target)||u.deficit||0));
+    const importance=(weights[category.slug]??0)/maximum;
     const children = category.children
-      .map(unit => withPriorityProgress({ ...unit, goal: byUnit.get(unit.slug) || null },unitScale,goal.profileName))
+      .map(unit => withPriorityProgress({ ...unit, goal: byUnit.get(unit.slug) || null },importance*(byUnit.get(unit.slug)?.target||0)/unitScale,goal.profileName,memory['unit:'+unit.slug],unitScale))
       .sort(compareGoalAttention);
     return withPriorityProgress({
       ...category,
       goal: categoryGoal,
       children,
       attention: children[0]?.slug || null,
-    },scale,goal.profileName);
+    },importance,goal.profileName,memory['category:'+category.slug],categoryScale);
   }).sort(compareGoalAttention);
+}
+
+export function goalQueueSnapshot(categories,goal) {
+  return {version:GOAL_POLICY_VERSION,profile:goal.profile,target:goal.target,items:Object.fromEntries(categories.flatMap(c=>[...(c.goal?[['category:'+c.slug,c.queueMemory]]:[]),...c.children.filter(u=>u.goal).map(u=>['unit:'+u.slug,u.queueMemory])]))};
 }
 
 export function unconfiguredGoal() {

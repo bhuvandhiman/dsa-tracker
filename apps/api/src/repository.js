@@ -2,7 +2,7 @@ import { overview, practiceDay } from './retention-policy.js';
 import { createHash } from 'node:crypto';
 import { DomainError } from './domain.js';
 import { candidateUnits, classifyProblem, patternInventory, unitForPlacement, retentionUnits } from './pattern-catalog.js';
-import { GOAL_POLICY_VERSION, applyGoalOrdering, goalCoverage, unconfiguredGoal } from './goal-policy.js';
+import { GOAL_POLICY_VERSION, applyGoalOrdering, goalCoverage, goalQueueSnapshot, unconfiguredGoal } from './goal-policy.js';
 import { isDsaTrackingProblem, splitDsaTrackingProblems } from './problem-scope.js';
 import { exportBackup, restoreBackup } from './backup.js';
 
@@ -87,14 +87,18 @@ export function createRepository(pool) {
       const trackedIds=new Set(problems.map(problem=>problem.id));
       const events=(await pool.query(`SELECT problem_id AS "problemId",attempted_at AS at,assistance,practice_unit AS "practiceUnit" FROM attempts WHERE deleted_at IS NULL UNION ALL SELECT i.problem_id,i.submitted_at,'unknown',NULL FROM imported_submissions i WHERE NOT EXISTS(SELECT 1 FROM attempts a WHERE a.problem_id=i.problem_id AND a.deleted_at IS NULL AND (a.submission_id=i.submission_id OR (a.attempted_at AT TIME ZONE 'Asia/Calcutta')::date=(i.submitted_at AT TIME ZONE 'Asia/Calcutta')::date))`)).rows.filter(event=>trackedIds.has(event.problemId));
       const result=overview(problems,events);
-      const savedGoal=(await pool.query('SELECT profile,target FROM workspace_goal WHERE singleton=true')).rows[0];
+      const savedGoal=(await pool.query('SELECT profile,target,queue_snapshot FROM workspace_goal WHERE singleton=true')).rows[0];
       if(!savedGoal) return {...result,excluded,goal:unconfiguredGoal()};
       const solvedRows=(await pool.query(`SELECT problem_id FROM attempts WHERE deleted_at IS NULL
         UNION SELECT problem_id FROM historical_solves
         UNION SELECT problem_id FROM imported_submissions`)).rows;
       const solvedIds=new Set(solvedRows.map(row=>row.problem_id));
       const goal=goalCoverage(problems.filter(problem=>solvedIds.has(problem.id)),savedGoal);
-      const categories=applyGoalOrdering(result.categories,goal);
+      const categories=applyGoalOrdering(result.categories,goal,savedGoal.queue_snapshot);
+      const snapshot=goalQueueSnapshot(categories,goal);
+      // Optimistic update prevents a concurrent refresh or goal edit from
+      // overwriting newer derived queue memory.
+      await pool.query('UPDATE workspace_goal SET queue_snapshot=$1 WHERE singleton=true AND profile=$2 AND target=$3 AND queue_snapshot IS NOT DISTINCT FROM $4::jsonb AND queue_snapshot IS DISTINCT FROM $1::jsonb',[JSON.stringify(snapshot),savedGoal.profile,savedGoal.target,savedGoal.queue_snapshot?JSON.stringify(savedGoal.queue_snapshot):null]);
       return {...result,excluded,goal,categories};
     },
     async goal() {
@@ -104,7 +108,7 @@ export function createRepository(pool) {
     async setGoal({profile,target}) {
       const row=(await pool.query(`INSERT INTO workspace_goal(singleton,profile,target,policy_version,updated_at)
         VALUES(true,$1,$2,$3,CURRENT_TIMESTAMP)
-        ON CONFLICT(singleton) DO UPDATE SET profile=EXCLUDED.profile,target=EXCLUDED.target,policy_version=EXCLUDED.policy_version,updated_at=CURRENT_TIMESTAMP
+        ON CONFLICT(singleton) DO UPDATE SET profile=EXCLUDED.profile,target=EXCLUDED.target,policy_version=EXCLUDED.policy_version,updated_at=CURRENT_TIMESTAMP,queue_snapshot=CASE WHEN workspace_goal.profile IS DISTINCT FROM EXCLUDED.profile OR workspace_goal.target IS DISTINCT FROM EXCLUDED.target THEN NULL ELSE workspace_goal.queue_snapshot END
         RETURNING profile,target,policy_version AS "policyVersion",updated_at AS "updatedAt"`,[profile,target,GOAL_POLICY_VERSION])).rows[0];
       return {configured:true,...row};
     },

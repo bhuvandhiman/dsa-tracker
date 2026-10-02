@@ -1,35 +1,54 @@
-# Practice strength and readiness
+# Pattern progress, focus emphasis, and practice strength
 
-Scores are product heuristics, not measured recall probabilities. Research and limitations are documented in retention-research.md. Numeric defaults live in retention-policy.js, practice-policy.js, and goal-policy.js.
+All learning scores are product heuristics, not measured recall probabilities. Research and its limitations are in retention-research.md. Defaults live in retention-policy.js, practice-policy.js, and goal-policy.js.
 
-## Visible progress
+## Three separate signals
 
-Breadth B = 1 - exp(-distinctProblems / patternBreadthTarget). Reinforcement D = 1 - exp(-weightedRevisits / 10). Independent revisits contribute 1, hints 0.5, solution-assisted 0.2, and imported unknown assistance 0. Each identity contributes breadth once; reinforcement requires separate practice days.
+Bar length shows progress within its own pattern: 65% of actual difficulty-balanced goal coverage plus 35% of current practice strength, bounded to 0–100. There is no shared maximum-target denominator. Without a configured goal, it shows practice strength alone. Unknown practice dates contribute an experience baseline while retention remains unassessed. Other has no scored progress bar. Public attention-point labels and hover explanations are removed.
 
-Experience E = 100 * (0.5B + 0.3D) / 0.8. Dated strength = E + (100 - E) * 0.2R, bounded to 0–100. Practice adds (1-R) times 0.6 for independent work, 0.4 for hints, 0.2 for solutions, or 0.3 for imported unknown assistance. Only recency R decays, with a default 30-day half-life outside earned holds. Breadth and reinforcement persist. Strong sustained practice can exceed the former artificial 94% cap.
+Bar color and a visible badge show focus emphasis: coral/high, mustard/medium, teal/lower. Category importance is its selected profile weight divided by that profile's largest category weight. Subpattern importance multiplies that ratio by its target divided by its parent's largest subpattern target. Ratios at least 0.5 are high, at least 0.25 medium, otherwise lower. These thresholds and profile weights are preparation policy, not empirical interview probabilities. Manual learning data never changes a pattern's importance color. Changing the profile can change it.
 
-Without dates, the experience baseline remains visible but retention is unassessed. Imported solves never acquire invented practice dates or assistance labels.
+Queue position combines actual coverage need and committed practice need, weighted by profile-specific targets. Raw attention = 0.65 * actual remaining goal credits + 0.35 * pattern target * committed practice weakness. Every accepted coverage credit is counted immediately; no per-subpattern rounding hides progress. Practice strength itself does not change when switching profiles.
 
-With a configured goal, the main pattern bar is Practice priority, using the same two-point bands that rank the queue. Higher fill means more attention needed. The label shows buffered attention points, not a percentage. Categories share a scale equal to the largest category target; subpatterns share the largest target within their parent. These fixed goal scales avoid changing every bar when a neighbor is practiced. Hover or focus exposes raw coverage and practice contributions, profile, actual/committed gaps, and band rounding. Without a goal, bars show committed practice weakness on a 100-point scale. Other remains unscored. Practice strength and difficulty completion remain separate.
+## Practice strength and holds
 
-## Meaningful blocks and holds
+Breadth B = 1 - exp(-distinctProblems / patternBreadthTarget). Reinforcement D = 1 - exp(-weightedRevisits / 10). Independent revisits contribute 1, hints 0.5, solution-assisted 0.2, imported unknown 0. Separate local practice days are required for revisits.
 
-A block requires at least four distinct problems within one practiced subpattern and four evidence credits: independent = 1, hint = 0.5, solution = 0.2, unknown = 0. The strongest assistance evidence for each problem counts once within a pending block. Repeating one problem cannot complete a block. Partial work carries forward and clears when its block completes. Subsequent blocks may revisit the same set on later days.
+Experience E = 100 * (0.5B + 0.3D) / 0.8. Dated strength = E + (100-E) * 0.2R. Practice adds (1-R) times 0.6 independent, 0.4 hint, 0.2 solution, or 0.3 imported unknown. Only recency R decays, with a default thirty-day half-life outside holds; breadth and reinforcement persist. Assistance is not inferred from an accepted submission. Imported unknown assistance cannot earn blocks.
 
-The first completed block holds recency steady for three days. Each later block completed on a different local date from that subpattern's preceding block extends its hold by two days, capped at fourteen. Multiple same-day blocks do not extend the duration. After the hold, gradual decay resumes. Partial blocks improve the visible score without extending the earned hold. These are adjustable product defaults, not scientifically established DSA intervals.
+A block requires at least four distinct problems in one subpattern and four weighted credits: independent 1, hints 0.5, solution 0.2, unknown 0. Each pending identity contributes its strongest evidence once. Repeating one problem cannot complete a block. Later blocks can revisit the same set on later days.
 
-Daily grouping uses Asia/Calcutta. Explicit evidence wins over imported unknown; otherwise the strongest assistance and latest time win within a problem/day. Child summaries are separate. Category summaries aggregate distinct identities while checking blocks separately by practiced subpattern, preventing unrelated partial practice from earning a combined hold.
+The first block earns a three-day recency hold. Each later block completed on a different local date from the preceding block extends the duration by two days, capped at fourteen. Same-day blocks do not extend the duration. Partial work can grow the bar without extending the earned hold. After the hold, gradual decay resumes. These are adjustable defaults, not established DSA memory intervals. Asia/Calcutta defines local days.
 
-## Stable attention queue
+## Stable downward movement
 
-Queue practice weakness uses evidence committed through its last completed practice block, plus legacy solved identities. Later partial practice grows the visible bar immediately but does not refresh queue evidence. Committed evidence still decays after its earned hold.
+Committed practice weakness still uses evidence through the last completed weighted practice block, plus legacy solved identities. Visible progress uses all current evidence.
 
-Coverage affects queue attention in four-credit increments within each subpattern; completing a target releases any final smaller remainder. Actual coverage and difficulty bars always update immediately. Coverage counts accepted identities regardless of assistance; dated practice blocks apply separate assistance weighting.
+Migration 011 adds derived queue_snapshot memory to workspace_goal. Categories and subpatterns have separate namespaced anchors. A falling attention score cannot lower its ranking anchor until four additional difficulty-balanced coverage credits accumulate, a new weighted practice block completes, or the remaining coverage target is completed. Increasing need can raise the anchor immediately. Two-point bands use catalog order for ties. Partial progress remains visible throughout.
 
-Attention = 0.65 * committed remaining goal credits + 0.35 * profile target * committed practice weakness. Two-credit score bands use catalog order for ties. This reduces small reorders through deterministic bucketing, not persisted hysteresis. Profile-specific targets preserve interview/deep-understanding emphasis. Without a goal, ranking uses committed practice weakness in two-point bands. Other stays last.
+The snapshot stores baseline credits, block count, remaining gap, and ranking anchor. Profile, target, or policy-version changes reset it. Credits or completed-block counts falling below their saved baseline replay the ranking after corrections. Optimistic updates prevent a concurrent refresh or goal edit from overwriting newer queue memory. Repository/process restarts reuse the persisted snapshot. It travels with workspace_goal in same-schema backups.
 
-## Evidence and correction
+Original practice, notes, tags, assistance, dates, placements and selected goal settings are preserved. Recorded approaches determine practice evidence; primary classification determines coverage. Corrections recalculate the relevant signals. No scheduler, daily check-in, revision countdown, or fabricated practice date is required.
 
-Attempts retain their stored practice_unit and approach_source independently of browsing placement. Placement corrections move coverage and legacy classification without rewriting recorded approaches. Editing or deleting practice recalculates blocks, holds, readiness, and ranking from remaining evidence. Imported evidence overlapping a recorded problem/day or submission is suppressed while the recording exists.
 
-No scheduler, daily check-in, countdown, or schema migration is required. Scores are calculated at request time and refreshed by the dashboard. Original attempts, notes, tags, and settings are preserved.
+## Split priority presentation
+
+The latest presentation replaces the single progress fill with two equal halves. Coral is the selected-focus coverage push (`gap / largest target at this level`); mustard is the target-weighted retention push (`target * committed practice need / largest target at this level`). Category rows share the maximum category target; subpatterns share the maximum sibling target. Multiplying the two percentages by their shared scale and the existing 65/35 ranking weights reconstructs the current raw attention score. Equal visual space does not change these weights. Larger fills indicate need, not mastery or recall probability. Unknown dates are labelled undated and hatched.
+
+The small dashed-end coverage threshold shows credits earned since the current queue anchor against the four-credit release requirement. Completed practice blocks and goal completion are separate release routes. Crossing a threshold permits recalculation; it cannot guarantee a rank change against other patterns. Persisted queue anchors still apply, and practice records, classification, goal quotas and ordering weights are unchanged.
+
+
+Presentation correction: the user rejected separate half-tracks. Current UI stacks adjacent coral and mustard segments in one continuous track, with widths equal to 65% of focusPush and 35% of retentionPush. Total fill is exactly raw attention / shared scale. The internal dashed mark projects the remaining credits to the next four-credit coverage release (or coverage completion), holding retention constant. It is not a guaranteed rank boundary; practice-block release and recency changes remain independent. The separate threshold mini-track was removed.
+
+
+## Threshold audit (v8)
+
+A coverage gate is based on credited goal coverage since the last derived baseline. Its requirement is the smaller of four credits and the remaining baseline gap; complete goals have no coverage gate or dashed marker. Bulk gains retain the remainder after each group of four. Every credited solve changes the coral segment immediately, but the pattern's own committed rank score cannot fall before coverage completion or a full coverage/revision block. Other patterns can still rise past it.
+
+Revision progress comes directly from pending weighted distinct problems in one subpattern. Independent=1, hint=0.5, solution=0.2 and unknown=0. Four weighted credits and at least four distinct problems are required. Category progress displays the most advanced individual subpattern; siblings never pool their pending credits. Revision blocks can release ranking even when no new coverage is earned. Same-problem/same-day duplicates and future or missing dates cannot advance a gate. On completion the counter starts the next block, labelled Next revision/Next coverage.
+
+The API owns the marker and counters; the browser no longer duplicates threshold arithmetic. The dashed marker projects the next coverage release, holding retention constant, and never pretends to predict a revision score or guarantee a new rank. Actual revision progress is shown alongside coverage. No phantom 0/4 coverage marker remains after completion.
+
+Committed evidence has a fingerprint so corrections to dates/assistance replay ranking even when the number of completed blocks stays the same. Removed/restored blocks replay their hold and gate. Derived memory also tracks the last observed credit count to detect partial-credit corrections, ignores malformed numeric baselines, and clears on actual goal-profile/target changes (including switching away and back before a refresh). Saving identical goal settings preserves the gate. The policy version is v8; old derived anchors are rebuilt once, while recorded evidence and selected settings remain unchanged.
+
+Unknown-assistance historical imports are excluded from the committed evidence fingerprint so a newly imported backdated date cannot masquerade as a correction and bypass the meaningful-practice gate. Such dates can inform displayed recency, but cannot earn revision credits or unlock a held rank.
