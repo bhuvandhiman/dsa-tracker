@@ -1,3 +1,4 @@
+import { retentionUnits } from '../apps/api/src/pattern-catalog.js';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 
@@ -9,7 +10,9 @@ const files = new Map([
   ['/theme.js', ['../apps/extension/src/theme.js','text/javascript']],
 ]);
 const server = createServer(async (request, response) => {
-  const entry = files.get(new URL(request.url,'http://127.0.0.1').pathname);
+  const path=new URL(request.url,'http://127.0.0.1').pathname;
+  if(path==='/patterns.json'){response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});response.end(JSON.stringify(retentionUnits));return;}
+  const entry = files.get(path);
   if (!entry) { response.writeHead(404); response.end('Not found'); return; }
   try { const body = await readFile(new URL(entry[0],import.meta.url)); response.writeHead(200,{'Content-Type':entry[1], 'Cache-Control':'no-store'}); response.end(body); }
   catch { response.writeHead(500); response.end('Fixture unavailable'); }

@@ -1,4 +1,4 @@
-import { retentionUnits } from './pattern-catalog.js';
+import { retentionUnits, selectedTopicUnit } from './pattern-catalog.js';
 import { GOAL_PROFILES, GOAL_TARGETS } from './goal-policy.js';
 import { mapTopics } from './platforms/leetcode-topics.js';
 import { identifyLeetCodeProblem } from './platforms/leetcode.js';
@@ -93,7 +93,7 @@ export function libraryInput(query) {
 }
 
 export function captureInput(body) {
-  object(body, ['requestId', 'url', 'title', 'difficulty', 'topics', 'selectedTopics', 'assistance', 'attemptedAt', 'practiceUnit', 'approachSource', 'captureSource', 'submissionId', 'username']);
+  object(body, ['requestId', 'url', 'title', 'difficulty', 'topics', 'selectedTopics', 'assistance', 'attemptedAt', 'practiceUnit', 'approachSource', 'captureSource', 'submissionId', 'username', 'classification']);
   if (body.username !== undefined && (typeof body.username !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(body.username))) invalid('A valid signed-in LeetCode username is required.');
   const topicList = value => {
     if (!Array.isArray(value) || value.length > 30 || value.some(t => typeof t !== 'string' || !t.trim() || t.length > 100)) invalid('Topics must contain up to 30 short names.');
@@ -105,6 +105,21 @@ export function captureInput(body) {
   const possible = mapTopics(topics);
   const used = selected.length ? mapTopics(selected) : possible;
   const problem = problemInput({ url: body.url, title: body.title, difficulty: body.difficulty ?? null, patternSlugs: possible.length ? possible : ['uncategorized'] });
+  let chosenUnit=null;
+  if(body.classification!==undefined){
+    object(body.classification,['mode','unit']);
+    if(body.classification.mode==='topics'){
+      if(body.classification.unit!==undefined)invalid('Topic classification cannot include a manual pattern.');
+      if(!selected.length)invalid('Choose at least one topic or select Other to choose a pattern.');
+      chosenUnit=selectedTopicUnit(problem,topics,selected);
+    }else if(body.classification.mode==='manual')chosenUnit=placementInput({unit:body.classification.unit});
+    else invalid('Choose topic or manual classification.');
+    if(!chosenUnit||chosenUnit==='other')invalid('These topics do not identify a learning pattern. Select Other and choose a pattern.');
+    if(body.practiceUnit!==undefined&&body.practiceUnit!==chosenUnit)invalid('The practiced pattern must match the classification choice.');
+    // The same explicit choice places the problem and records this attempt.
+    // Provider topics remain untouched; old payloads keep their original hash.
+    problem.placementOverride=chosenUnit;
+  }
   const attempt = attemptInput({ requestId: body.requestId, problemId: 1, assistance: body.assistance,
     attemptedAt: body.attemptedAt, patternSlugs: (used.length ? used : ['uncategorized']) });
   const { requestId, assistance, attemptedAt, patternSlugs, notes } = attempt;
@@ -113,7 +128,11 @@ export function captureInput(body) {
   if (body.approachSource !== undefined && !['inferred','confirmed'].includes(body.approachSource)) invalid('Invalid approach source.');
   if (body.captureSource !== undefined && !['manual','accepted'].includes(body.captureSource)) invalid('Invalid capture source.');
   if (body.submissionId != null && !/^\d{1,30}$/.test(body.submissionId)) invalid('Invalid submission identity.');
-  return { ...(body.username ? {username:body.username} : {}), providerTopics:topics, problem, attempt: { ...fields, practiceUnit:body.practiceUnit??null, approachSource:body.approachSource||'inferred', captureSource:body.captureSource||'manual', submissionId:body.submissionId??null, selectedTopics:selected, patternSource: selected.length ? 'explicit' : 'inferred' } };
+  const captureIdentity=body.classification===undefined?null:{
+    problem:{platform:problem.platform,externalId:problem.externalId,title:problem.title,url:problem.url,difficulty:problem.difficulty,topics},
+    attempt:{requestId,assistance,attemptedAt,selectedTopics:selected,classification:body.classification.mode==='manual'?{mode:'manual',unit:body.classification.unit}:{mode:'topics'},practiceUnit:body.practiceUnit??null,captureSource:body.captureSource||'manual',submissionId:body.submissionId??null},
+  };
+  return { ...(captureIdentity?{captureIdentity}:{}), ...(body.username ? {username:body.username} : {}), providerTopics:topics, problem, attempt: { ...fields, practiceUnit:chosenUnit||body.practiceUnit||null, approachSource:chosenUnit?'confirmed':body.approachSource||'inferred', captureSource:body.captureSource||'manual', submissionId:body.submissionId??null, selectedTopics:selected, patternSource: chosenUnit||selected.length ? 'explicit' : 'inferred' } };
 }
 
 export function goalInput(body) {

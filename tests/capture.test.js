@@ -112,3 +112,30 @@ test('adapter recognizes Submit but excludes Run and repeated shortcuts',()=>{
   assert.equal(adapter.isSubmitShortcut({key:'Enter',ctrlKey:true,repeat:true}),false);
   assert.equal(adapter.isSubmit({closest:()=>null}),false);
 });
+
+
+test('required topic classification chooses specialized tags and preserves provider evidence',()=>{
+  const classified=captureInput({...payload,classification:{mode:'topics'},selectedTopics:['Array','Hash Table']});
+  assert.equal(classified.problem.placementOverride,'hashing');
+  assert.equal(classified.attempt.practiceUnit,'hashing');
+  assert.equal(classified.attempt.approachSource,'confirmed');
+  assert.deepEqual(classified.providerTopics,['Array','Hash Table']);
+  assert.throws(()=>captureInput({...payload,classification:{mode:'topics'},selectedTopics:[]}),{status:400});
+  assert.throws(()=>captureInput({...payload,classification:{mode:'topics'},selectedTopics:['Hash Table'],practiceUnit:'two-pointers'}),{status:400});
+  assert.throws(()=>captureInput({...payload,topics:['Unrecognized Topic'],selectedTopics:['Unrecognized Topic'],classification:{mode:'topics'}}),{status:400});
+});
+test('selected traversals keep Tree context and disambiguate Graph techniques',()=>{
+  const base={...payload,url:'https://leetcode.com/problems/classification-fixture/',classification:{mode:'topics'}};
+  assert.equal(captureInput({...base,topics:['Tree','Depth-First Search','Breadth-First Search'],selectedTopics:['Depth-First Search']}).attempt.practiceUnit,'tree-dfs');
+  assert.equal(captureInput({...base,topics:['Graph','Depth-First Search','Breadth-First Search'],selectedTopics:['Depth-First Search']}).attempt.practiceUnit,'graph-dfs');
+  assert.equal(captureInput({...base,topics:['Graph','Depth-First Search','Breadth-First Search'],selectedTopics:['Breadth-First Search']}).attempt.practiceUnit,'graph-bfs');
+  assert.equal(captureInput({...base,topics:['Graph','Depth-First Search','Breadth-First Search'],selectedTopics:['Depth-First Search','Breadth-First Search']}).attempt.practiceUnit,'graphs-general');
+});
+test('Other allows any learning pattern but rejects nonexistent and unclassified choices',()=>{
+  const manual=captureInput({...payload,classification:{mode:'manual',unit:'interval-dp'},selectedTopics:[]});
+  assert.equal(manual.problem.placementOverride,'interval-dp');
+  assert.equal(manual.attempt.practiceUnit,'interval-dp');
+  assert.equal(manual.attempt.patternSource,'explicit');
+  for(const unit of ['other','not-a-pattern',null,''])assert.throws(()=>captureInput({...payload,classification:{mode:'manual',unit}}),{status:400});
+  assert.throws(()=>captureInput({...payload,classification:{mode:'topics',unit:'hashing'},selectedTopics:['Hash Table']}),{status:400});
+});

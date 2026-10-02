@@ -6,6 +6,10 @@ import { GOAL_POLICY_VERSION, applyGoalOrdering, goalCoverage, goalQueueSnapshot
 import { isDsaTrackingProblem, splitDsaTrackingProblems } from './problem-scope.js';
 import { exportBackup, restoreBackup } from './backup.js';
 
+// New classification captures hash normalized user choices, not a derived
+// unit that a future classifier refinement could change. Legacy hashes stay exact.
+const captureHash=input=>createHash('sha256').update(JSON.stringify(input.captureIdentity||{problem:input.problem,attempt:input.attempt})).digest('hex');
+
 const problemSelect = `SELECT p.id, p.platform, p.external_id AS "externalId", p.title, p.url, p.difficulty, p.provider_topics AS "providerTopics",
   (SELECT unit_slug FROM problem_placements WHERE problem_id=p.id) AS "placementOverride",
   COALESCE((SELECT json_agg(pp.pattern_slug ORDER BY pp.pattern_slug) FROM problem_patterns pp WHERE pp.problem_id=p.id), '[]') AS "patternSlugs",
@@ -72,7 +76,7 @@ export function createRepository(pool) {
     async captureStatus(input) {
       const row=(await pool.query('SELECT id,deleted_at,request_hash FROM attempts WHERE id=$1',[input.attempt.requestId])).rows[0];
       if(!row)return {status:'missing'};
-      const hash=createHash('sha256').update(JSON.stringify({problem:input.problem,attempt:input.attempt})).digest('hex');
+      const hash=captureHash(input);
       const a=input.attempt;
       const oldHash=!a.practiceUnit&&a.approachSource==='inferred'&&a.captureSource==='manual'&&!a.submissionId ? createHash('sha256').update(JSON.stringify({problem:input.problem,attempt:{requestId:a.requestId,assistance:a.assistance,attemptedAt:a.attemptedAt,patternSlugs:a.patternSlugs,notes:a.notes,patternSource:a.patternSource}})).digest('hex') : null;
       return {status:row.deleted_at?'removed':[hash,oldHash].includes(row.request_hash)?'saved':'conflict',id:row.id};
@@ -202,7 +206,7 @@ export function createRepository(pool) {
       return {problem:{...problem,placement:classifyProblem(problem),candidates:candidateUnits(problem)},attempts:history.slice(offset,offset+limit),more:history.length>offset+limit,legacy:problem.historicallySolved,units:retentionUnits};
     },
     async capture(input) {
-      const hash = createHash('sha256').update(JSON.stringify({problem:input.problem,attempt:input.attempt})).digest('hex');
+      const hash = captureHash(input);
       // Older extension drafts must still recover a committed save after an upgrade.
       const a = input.attempt;
       const legacyHash = !a.practiceUnit && a.approachSource === 'inferred' && a.captureSource === 'manual' && !a.submissionId
@@ -224,6 +228,7 @@ export function createRepository(pool) {
           const old=(await client.query('SELECT request_hash,deleted_at FROM attempts WHERE id=$1',[a.requestId])).rows[0];
           if (old.deleted_at || (old.request_hash !== hash && old.request_hash !== legacyHash)) throw new DomainError(409,'This recording ID was already used. Refresh the panel before making a new recording.');
         } else {
+          if(p.placementOverride)await client.query('INSERT INTO problem_placements(problem_id,unit_slug) VALUES($1,$2) ON CONFLICT(problem_id) DO UPDATE SET unit_slug=EXCLUDED.unit_slug',[id,p.placementOverride]);
           for (const slug of p.patternSlugs) await client.query('INSERT INTO problem_patterns VALUES($1,$2) ON CONFLICT DO NOTHING',[id,slug]);
           for (const slug of a.patternSlugs) await client.query('INSERT INTO attempt_patterns VALUES($1,$2)',[a.requestId,slug]);
         }

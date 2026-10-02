@@ -14,13 +14,14 @@ globalThis.DsaLegacy={account:async()=> 'fixture-account'};
 const themeListeners=new Set();
 globalThis.chrome={storage:{local:{async get(key){return {[key]:localStorage.getItem(key)};},async set(values){for(const [key,value] of Object.entries(values)){localStorage.setItem(key,value);for(const listener of themeListeners)listener({[key]:{newValue:value}},'local');}}},onChanged:{addListener:listener=>themeListeners.add(listener),removeListener:listener=>themeListeners.delete(listener)}}};
 const simulatedRuntime = { async sendMessage(message) {
-  if (message.type === 'GET_PRACTICE_CONTEXT') return {units:[{slug:'hashing',name:'Hash maps & sets'},{slug:'two-pointers',name:'Two pointers'},{slug:'other',name:'Needs classification'}],practiceUnit:'hashing'};
+  if(message.type==='GET_PRACTICE_CONTEXT'&&document.querySelector('#context-offline').checked)return {error:'Pattern lookup unavailable.'};
+  if (message.type === 'GET_PRACTICE_CONTEXT') return {units:await (await fetch('/patterns.json')).json(),practiceUnit:'hashing'};
   if (message.type === 'GET_PENDING_CAPTURE') return { pending,draft,queue };
   if(message.type==='SAVE_EDITABLE_DRAFT'){draft=message.draft;return {kept:true};}
   if(message.type==='QUEUE_CAPTURE'){queue.push(message.evidence);return {queue};}
   if(message.type==='SHIFT_CAPTURE'){queue.shift();return {queue};}
   pending = message.payload;
-  if (document.querySelector('#offline').checked) return { saved: false, error: 'API offline. Retry save.' };
+  if (document.querySelector('#offline').checked) {document.querySelector('#opened').textContent='Pending recording: '+JSON.stringify(pending);return { saved: false, error: 'API offline. Retry save.' };}
   document.querySelector('#opened').textContent = 'Saved ' + (++saves) + ' recording: ' + JSON.stringify(pending);
   pending = null;
   draft = null;

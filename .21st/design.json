@@ -189,6 +189,21 @@
       "date": "2026-10-02",
       "direction": "Audit consistency without changing the approved strength or queue design",
       "reason": "Retain additive experience/recent-practice bars, focus badges and policy v8. Count zero-target extras in raw summaries, distinguish unknown dates, refresh parent metrics after primary edits, preserve URL search, and remove obsolete urgency styles. Manual placement uses the authoritative catalog without scoring the queue."
+    },
+    {
+      "date": "2026-10-02",
+      "direction": "Clickable problem titles with difficulty-colored text",
+      "reason": "User requested replacing the LeetCode logo column with direct external links on problem titles. Easy uses teal, Medium readable amber, Hard coral/red, with theme-aware text colors. Preserve inline problem rows and sorting."
+    },
+    {
+      "date": "2026-10-02",
+      "direction": "Simplify extension recording to assistance and optional topics",
+      "reason": "User removed the approach selector and browser-time input. Assign the practice unit automatically and mark it inferred. Retain original event timestamps and exact frozen pending payloads across retries; no extra form configuration."
+    },
+    {
+      "date": "2026-10-02",
+      "direction": "Required classification topics with an Other pattern picker",
+      "reason": "User requires topic choices to drive classification. Other opens a searchable list of every learning pattern. Selected topics resolve one primary unit and recorded practice through the shared classifier; manual choice overrides it. Preserve provider tags, internal timestamps and exact older pending retries."
     }
   ],
   "evidence": [

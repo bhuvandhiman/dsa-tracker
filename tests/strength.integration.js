@@ -135,3 +135,49 @@ test('dashboard counts use one snapshot when an import commits during its reads'
   const fresh=await repo.retention(),updated=fresh.categories.find(item=>item.slug==='arrays-hashing');
   assert.equal(updated.summary.coverageSolved,1);assert.equal(updated.goal.actual,1);
 });
+
+
+test('automatic capture resolves one unit and keeps event time without a confirmed approach',async t=>{
+  const pool=await database(t);await migrate(pool);const repo=createRepository(pool);
+  const raw={requestId:randomUUID(),url:'https://leetcode.com/problems/automatic-graph-fixture/',title:'Automatic graph fixture',topics:['Graph','Breadth-First Search','Depth-First Search'],selectedTopics:['Depth-First Search'],assistance:'independent',attemptedAt:'2025-01-01T12:34:56.000Z',captureSource:'accepted',submissionId:'7654321',approachSource:'inferred'};
+  // A failed context lookup omits practiceUnit: the API still classifies from
+  // provider evidence. Optional tags must not guess a confirmed technique.
+  const saved=await repo.capture(captureInput(raw));
+  assert.equal(saved.attempt.practiceUnit,'graphs-general');
+  assert.equal(saved.attempt.approachSource,'inferred');
+  assert.equal(saved.attempt.captureSource,'accepted');
+  assert.equal(new Date(saved.attempt.attemptedAt).toISOString(),raw.attemptedAt);
+  assert.deepEqual(saved.attempt.selectedTopics,['Depth-First Search']);
+  const graphs=(await repo.retention()).categories.find(item=>item.slug==='graphs');
+  assert.equal(graphs.children.find(unit=>unit.slug==='graphs-general').distinctSolved,1);
+  assert.equal(graphs.children.find(unit=>unit.slug==='graph-dfs').distinctSolved,0);
+  assert.equal(graphs.children.find(unit=>unit.slug==='graph-bfs').distinctSolved,0);
+  assert.equal((await repo.capture(captureInput(raw))).created,false);
+});
+
+
+test('topic and Other choices place primary coverage and practice atomically without rewriting older attempts',async t=>{
+  const pool=await database(t);await migrate(pool);const repo=createRepository(pool);await repo.setGoal({profile:'interview',target:500});
+  const raw={requestId:randomUUID(),url:'https://leetcode.com/problems/selected-pattern-fixture/',title:'Selected pattern fixture',difficulty:'medium',topics:['Graph','Depth-First Search','Breadth-First Search'],selectedTopics:['Depth-First Search'],assistance:'independent',attemptedAt:'2025-01-01T12:00:00.000Z',classification:{mode:'topics'}};
+  const input=captureInput(raw),first=await repo.capture(input);
+  assert.equal(first.attempt.practiceUnit,'graph-dfs');
+  assert.equal(first.attempt.approachSource,'confirmed');
+  const other=captureInput({...raw,requestId:randomUUID(),selectedTopics:[],classification:{mode:'manual',unit:'union-find'}});
+  const second=await repo.capture(other);assert.equal(second.attempt.practiceUnit,'union-find');
+  let graphs=(await repo.retention()).categories.find(item=>item.slug==='graphs');
+  assert.equal(graphs.summary.coverageSolved,1);
+  assert.equal(graphs.children.find(unit=>unit.slug==='union-find').coverageSolved,1);
+  assert.equal(graphs.children.find(unit=>unit.slug==='graph-dfs').coverageSolved,0);
+  assert.equal(graphs.children.find(unit=>unit.slug==='graph-dfs').distinctSolved,1);
+  assert.deepEqual((await pool.query('SELECT provider_topics FROM problems WHERE id=$1',[first.attempt.problem.id])).rows[0].provider_topics,['Breadth-First Search','Depth-First Search','Graph']);
+  assert.equal((await repo.capture(input)).created,false);
+  assert.equal((await repo.captureStatus(input)).status,'saved');
+  const refined=structuredClone(input);refined.problem.placementOverride='graph-bfs';refined.attempt.practiceUnit='graph-bfs';
+  assert.equal((await repo.capture(refined)).created,false);
+  assert.equal((await repo.captureStatus(refined)).status,'saved');
+  graphs=(await repo.retention()).categories.find(item=>item.slug==='graphs');
+  assert.equal(graphs.children.find(unit=>unit.slug==='union-find').coverageSolved,1);
+  await assert.rejects(repo.capture(captureInput({...raw,classification:{mode:'manual',unit:'graph-bfs'}})),{status:409});
+  const placements=await pool.query('SELECT unit_slug FROM problem_placements WHERE problem_id=$1',[first.attempt.problem.id]);
+  assert.equal(placements.rows[0].unit_slug,'union-find');
+});

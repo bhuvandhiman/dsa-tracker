@@ -169,6 +169,14 @@ export function classifyProblem(problem) {
   const child = category.children.find(c=>c.slug===placement.subpattern);
   return {...placement, unit:placement.subpattern || (category.children.length?category.slug+'-general':category.slug), name:category.name, subpatternName:child?.name || null, source:problem.placementOverride?'manual':inferred?.source==='curated'?'curated':inferred?'topic-fallback':'unclassified'};
 }
+// Selected traversal techniques still need their structural family: selecting
+// DFS on a Tree problem must not silently turn it into a Graph problem.
+export function selectedTopicUnit(problem,topics,selectedTopics) {
+  const chosen=[...selectedTopics],tags=new Set(mapTopics(chosen));
+  if((tags.has('depth-first-search')||tags.has('breadth-first-search'))&&!tags.has('trees')&&!tags.has('graphs')&&mapTopics(topics).includes('trees'))chosen.push('Tree');
+  return classifyProblem({...problem,providerTopics:chosen}).unit;
+}
+
 export function patternInventory(problems) {
   return navigationCategories.map(category=>{
     const members = problems.filter(p=>p.placement.category===category.slug);
