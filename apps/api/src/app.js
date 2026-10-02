@@ -3,8 +3,9 @@ import { DomainError } from './domain.js';
 import { dataRoutes } from './data-routes.js';
 import { createAuthenticator } from './auth.js';
 import { goalInput } from './domain.js';
+import { createExtensionAuth } from './extension-auth.js';
 
-export function createApp({ repository = null, auth = {mode:'local',configured:false}, repositoryForUser = null, authenticate = createAuthenticator(auth), installation = {} } = {}) {
+export function createApp({ repository = null, auth = {mode:'local',configured:false}, repositoryForUser = null, authenticate = createAuthenticator(auth), extensionAuth = createExtensionAuth(auth), installation = {} } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use((request,response,next)=>{
@@ -25,6 +26,10 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
     response.set('Cache-Control','no-store');
     response.json({mode:auth.mode,configured:auth.configured,...(auth.configured?{url:auth.url,key:auth.key}:{}),installation});
   });
+  for(const kind of ['login','refresh'])app.post(`/api/auth/extension/${kind}`,async(request,response)=>{
+    response.set('Cache-Control','no-store');
+    response.json(await extensionAuth(kind,request.body));
+  });
 
   // Match known data resources only, so unrelated URLs retain a JSON 404 even without a database.
   const routes = dataRoutes(repository);
@@ -33,6 +38,7 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
     if(auth.mode==='supabase'){
       response.set('Cache-Control','no-store');
       const user=await authenticate(request);
+      if(request.get('X-Recall-Workspace')&&request.get('X-Recall-Workspace')!==user.id)throw new DomainError(409,'Recall account changed. Sign in again in extension Settings.');
       if(!repositoryForUser)throw new DomainError(503,'Private workspace storage is not configured.');
       const privateRepository=await repositoryForUser(user);
       if(request.path==='/session'&&request.method==='GET')return response.json({user,setup:await privateRepository.setup()});
@@ -50,6 +56,7 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
       }
       return dataRoutes(privateRepository)(request,response,next);
     }
+    if(request.get('X-Recall-Workspace')&&request.get('X-Recall-Workspace')!=='local')throw new DomainError(409,'Recall account mode changed. Reload extension Settings.');
     if(['/session','/setup'].includes(request.path))throw new DomainError(503,'Online accounts are not configured yet.');
     return routes(request, response, next);
   });

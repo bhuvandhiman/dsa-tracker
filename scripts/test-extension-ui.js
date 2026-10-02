@@ -6,7 +6,7 @@ import { extname } from 'node:path';
 const server=createServer(async(request,response)=>{
   const path=new URL(request.url,'http://127.0.0.1').pathname;
   const name=path === '/' ? 'popup.html' : path.slice(1);
-  if (!/^(popup\.html|setup\.html|popup\.css|setup\.css|src\/[a-z/-]+\.js|fixture\.js)$/.test(name)) {response.writeHead(404);response.end();return;}
+  if (!/^(popup\.html|setup\.html|popup\.css|setup\.css|account\.css|src\/[a-z/-]+\.js|fixture\.js)$/.test(name)) {response.writeHead(404);response.end();return;}
   const url=name === 'fixture.js' ? new URL('../tests/fixtures/extension-ui.js',import.meta.url) : new URL('../apps/extension/'+name,import.meta.url);
   try {
     let body=await readFile(url,'utf8');

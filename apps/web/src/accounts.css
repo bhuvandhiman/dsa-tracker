@@ -19,10 +19,6 @@
 .account-back { display:inline-flex; min-height:44px; align-items:center; margin-bottom:15px; color:var(--muted); font-size:12px; }
 .account-form-panel h2 { font-size:33px; line-height:1.2; letter-spacing:-1.1px; }
 .account-intro { font-size:14px; line-height:1.7; margin:12px 0 25px; color:var(--muted); }
-.google-button { display:flex; justify-content:center; align-items:center; gap:13px; width:100%; padding:14px; min-height:50px; font-size:14px; font-weight:700; background:var(--surface-raised); color:var(--ink); border:1px solid var(--line); border-radius:14px; }
-.google-button:hover:not(:disabled) { background:var(--surface); }
-.account-divider { display:flex; align-items:center; gap:14px; margin:23px 0; font-size:11px; color:var(--muted); }
-.account-divider::before, .account-divider::after { content:''; height:1px; background:var(--line); flex:1; }
 .account-form { display:flex; flex-direction:column; gap:19px; }
 .account-form label, .account-password-field { display:flex; flex-direction:column; gap:9px; font-size:13px; font-weight:700; }
 .account-form input { min-height:50px; background:var(--surface-raised); }

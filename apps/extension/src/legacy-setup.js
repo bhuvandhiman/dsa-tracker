@@ -1,19 +1,21 @@
+import { recallAccount } from './account-worker.js';
 // First-run state is per installation. Uninstalling clears Chrome extension storage.
-let initialized;
-async function setupState() {
-  initialized ||= (async()=>{
-    const old=(await chrome.storage.local.get('legacySetup')).legacySetup;
-    if(!old) await chrome.storage.local.set({legacySetup:{installationId:crypto.randomUUID(),decision:'pending',offset:0}});
-  })();
-  await initialized;
-  return (await chrome.storage.local.get('legacySetup')).legacySetup;
+const initializing=new Map();
+async function setupState(expected) {
+  const scope=await recallAccount.assertScope(expected),key=recallAccount.key(scope,'legacySetup');
+  if(!initializing.has(key))initializing.set(key,(async()=>{
+    const old=(await chrome.storage.local.get(key))[key];
+    if(!old)await chrome.storage.local.set({[key]:{installationId:crypto.randomUUID(),decision:'pending',offset:0}});
+    return {...(await chrome.storage.local.get(key))[key],workspaceScope:scope};
+  })());
+  try{return await initializing.get(key);}finally{initializing.delete(key);}
 }
 chrome.runtime.onInstalled.addListener(async details=>{
-  const state=await setupState();
+  let state;try{state=await setupState();}catch{if(details.reason==='install')await chrome.tabs.create({url:chrome.runtime.getURL('setup.html')});return;}
   if(details.reason==='install'&&state.decision==='pending') await chrome.tabs.create({url:chrome.runtime.getURL('setup.html')});
 });
 chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   if(message?.type!=='LEGACY_SETUP_STATE') return;
   if(sender.id!==chrome.runtime.id||![chrome.runtime.getURL('setup.html'),chrome.runtime.getURL('popup.html')].includes(sender.url)) {sendResponse({error:'Invalid setup sender'});return;}
-  setupState().then(sendResponse,()=>sendResponse({error:'Could not read setup state.'}));return true;
+  setupState(message.workspaceScope).then(sendResponse,error=>sendResponse({error:error.message}));return true;
 });

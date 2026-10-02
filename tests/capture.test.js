@@ -6,16 +6,29 @@ import { captureInput } from '../apps/api/src/domain.js';
 const read = path => readFileSync(new URL('../apps/extension/src/'+path,import.meta.url),'utf8');
 const problem={url:'https://leetcode.com/problems/two-sum/',platform:'leetcode',problemId:'two-sum'};
 const payload={requestId:'00000000-0000-4000-8000-000000000001',url:problem.url,title:'Two Sum',difficulty:'easy',topics:['Array','Hash Table'],selectedTopics:[],assistance:'hint',attemptedAt:'2025-01-01T00:00:00.000Z'};
-function worker(fetcher,storage={}) {
+function worker(fetcher,storage={},account) {
   let listener;
-  const context=vm.createContext({URL,AbortSignal,fetch:fetcher,chrome:{
-    storage:{local:{async get(key){return {[key]:storage[key]};},async set(data){Object.assign(storage,data);},async remove(key){delete storage[key];}}},
-    runtime:{id:'test',onMessage:{addListener(fn){listener=fn;}}},
+  const context=vm.createContext({URL,AbortSignal,fetch:fetcher,trustedPage:sender=>sender.id==='test',recallAccount:account||{scope:async()=>'local',assertScope:async()=>'local',key:(_scope,key)=>key,request:(path,options)=>fetcher('http://127.0.0.1:3001/api'+path,options)},chrome:{
+    storage:{local:{async get(key){return key===null?{...storage}:Object.fromEntries((Array.isArray(key)?key:[key]).map(k=>[k,storage[k]]));},async set(data){Object.assign(storage,data);},async remove(key){delete storage[key];}}},
+    runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onMessage:{addListener(fn){listener=fn;}}},
   }});
   vm.runInContext(read('adapters/leetcode.js'),context);
   vm.runInContext(read('service-worker.js').replace(/^import .*;\r?$/gm,''),context);
   return {context,storage,send(message,sender={id:'test',frameId:0,tab:{id:1},url:problem.url}) {return new Promise(resolve=>listener(message,sender,resolve));}};
 }
+test('worker isolates pending recordings and rejects stale account captures',async()=>{
+  let scope='a';let requests=0;const storage={['recall-pending:'+problem.url]:payload};
+  const account={scope:async()=>scope,assertScope:async expected=>{if(expected!==scope)throw new Error('Account changed');return scope;},key:(owner,key)=>`recall-user:${owner}:${key}`,request:async()=>{requests++;throw new Error('offline');}};
+  const ui=worker(()=>assert.fail('Unexpected request'),storage,account);
+  await ui.send({type:'SAVE_CAPTURE',problem,payload,workspaceScope:'a'});
+  assert.equal(requests,1);assert.equal((await ui.send({type:'GET_PENDING_CAPTURE',problem})).pending.requestId,payload.requestId);
+  scope='b';assert.equal((await ui.send({type:'GET_PENDING_CAPTURE',problem})).pending,null);
+  assert.match((await ui.send({type:'SAVE_CAPTURE',problem,payload,workspaceScope:'a'})).error,/account changed/i);assert.equal(requests,1);
+  const page={id:'test',url:'chrome-extension://test/setup.html'};
+  assert.equal((await ui.send({type:'LIST_RECORDINGS'},page)).records.length,0);
+  scope='a';assert.equal((await ui.send({type:'LIST_RECORDINGS'},page)).records.length,1);
+  assert.ok(storage['recall-pending:'+problem.url]);
+});
 test('capture maps only problem topics; skipped selections use inferred defaults',()=>{
   const input=captureInput(payload);
   assert.deepEqual(input.providerTopics,['Array','Hash Table']);

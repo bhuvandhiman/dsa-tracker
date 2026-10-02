@@ -7,6 +7,7 @@ export default function useAuth(){
   const generation=useRef(0);
   const [reload,setReload]=useState(0);
   useEffect(()=>{
+    const epoch=generation;
     const controller=new AbortController();let unsubscribe=()=>{},active=true;
     async function hydrate(session,config,client){
       const current=++generation.current;
@@ -30,7 +31,7 @@ export default function useAuth(){
         await hydrate(data.session,config,client);
       }catch(error){if(active)setState({loading:false,config:null,client:null,user:null,setup:null,error:error.message});}
     }
-    void load();return()=>{active=false;generation.current++;controller.abort();unsubscribe();};
+    void load();return()=>{active=false;epoch.current++;controller.abort();unsubscribe();};
   },[reload]);
   return {...state,retry:()=>setReload(value=>value+1),refresh:async()=>{const current=++generation.current,account=await request('/session');if(current===generation.current)setState(value=>({...value,...account,error:''}));return account;},async signOut(){generation.current++;const {error}=await state.client.auth.signOut();if(error)throw error;window.location.hash='/home';}};
 }

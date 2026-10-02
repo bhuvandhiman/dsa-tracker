@@ -9,8 +9,22 @@ const fixtureStorage={
 globalThis.chrome={storage:{local:fixtureStorage,onChanged:{addListener:listener=>fixtureChanges.add(listener),removeListener:listener=>fixtureChanges.delete(listener)}},
   runtime:{getURL:path=>location.origin+'/'+path,async sendMessage(message){
     if(message.type==='PING')return {status:'worker-ready',version:'UI fixture'};
-    if(message.type==='LEGACY_SETUP_STATE')return (await fixtureStorage.get('legacySetup')).legacySetup;
-    if(message.type==='LIST_RECORDINGS')return {records:[{kind:'draft',url:'https://leetcode.com/problems/two-sum/',value:{}},{kind:'queue',url:'https://leetcode.com/problems/3sum/',value:[{},{}]}]};
+    const account=JSON.parse(sessionStorage.getItem('fixture-account')||'null');
+    if(message.type==='RECALL_ACCOUNT_STATUS')return {mode:'supabase',connected:Boolean(account),scope:account?.id||null,email:account?.email||''};
+    if(message.type==='RECALL_SIGN_IN'){
+      if(message.password!=='fixture-password')return {error:'Check your email and password, and confirm your email before signing in.'};
+      sessionStorage.setItem('fixture-account',JSON.stringify({id:message.email.startsWith('other')?'ea631c58-72ad-4a67-89d8-f6a4ae5d1642':'fa631c58-72ad-4a67-89d8-f6a4ae5d1641',email:message.email}));return {connected:true};
+    }
+    if(message.type==='RECALL_SIGN_OUT'){sessionStorage.removeItem('fixture-account');return {signedOut:true};}
+    if(!account)return {error:'Sign into your Recall account in extension Settings, then retry.'};
+    if(message.workspaceScope!==undefined&&message.workspaceScope!==account.id)return {error:'Recall account changed. Refresh this page.'};
+    const key=name=>'fixture-user:'+account.id+':'+name;
+    if(message.type==='LEGACY_SETUP_STATE'){const stored=(await fixtureStorage.get(key('legacySetup')))[key('legacySetup')];if(!stored)await fixtureStorage.set({[key('legacySetup')]:initialSetup});return {...stored||initialSetup,workspaceScope:account.id};}
+    if(message.type==='RECALL_STATE_GET'){const names=message.names,values=await fixtureStorage.get(names.map(key));return {data:Object.fromEntries(names.map(name=>[name,values[key(name)]]))};}
+    if(message.type==='RECALL_STATE_SET'){await fixtureStorage.set(Object.fromEntries(Object.entries(message.values).map(([name,value])=>[key(name),value])));return {kept:true};}
+    if(message.type==='RECALL_STATE_REMOVE'){for(const name of message.names)await fixtureStorage.remove(key(name));return {kept:true};}
+    if(message.type==='RECALL_API')return {data:message.path==='/ready'?{status:'ready',account:'fixture-account'}:message.method==='POST'?{added:1,alreadyPresent:0,excluded:0}:{completed:false}};
+    if(message.type==='LIST_RECORDINGS')return {records:[]};
     return {};
   }},
   tabs:{async query(){return [{id:1,active:true}];},async create({url}){location.href=url;},async sendMessage(_id,message){

@@ -1,6 +1,6 @@
 # Recall accounts and setup
 
-The account phase adds split signup/login screens, Google and email/password
+The account phase adds split signup/login screens with email/password
 authentication through Supabase, email confirmation/resend, password recovery,
 server-verified private workspaces and a three-step setup. Real sign-ins require
 your Supabase project configuration. No real account or email was created during
@@ -34,12 +34,13 @@ development verification.
 
    If you use `localhost` instead, add the equivalent localhost URLs. Production
    requires the final HTTPS origin, deliberately configured in a later phase.
-5. Enable the Google provider. Configure its client ID and secret in Supabase,
-   using the provider's displayed Supabase callback URL as the Google OAuth
-   authorized redirect URI. Those credentials do not belong in this repository.
+5. Google login is deferred. No Google Cloud project or Google provider setup
+   is needed for the current email/password flow.
 6. Restart the API and reload the frontend. Open `#/signup`. Test a real confirmed
-   email signup, Google login, logout and password-reset link in the same browser
-   where each flow began. Configure email delivery/SMTP before a public launch.
+   email signup, email/password login, logout and password-reset link in the same
+   browser where each flow began. The default Supabase email sender only delivers
+   to organization-team addresses and has tight limits. Test with your team email;
+   configure custom SMTP before inviting other users.
 
 The client uses Supabase's PKCE flow and session refresh. The API validates every
 private request against Supabase Auth's user endpoint. Browser-supplied user IDs
@@ -47,7 +48,7 @@ cannot select workspaces. Missing, revoked or unconfirmed sessions are rejected.
 An Auth outage returns an error rather than falling back to the local workspace.
 
 Official references: [password authentication](https://supabase.com/docs/guides/auth/passwords),
-[Google setup](https://supabase.com/docs/guides/auth/social-login/auth-google),
+[email delivery](https://supabase.com/docs/guides/auth/auth-smtp),
 [PKCE](https://supabase.com/docs/guides/auth/sessions/pkce-flow),
 [public and secret keys](https://supabase.com/docs/guides/getting-started/api-keys).
 
@@ -85,16 +86,26 @@ is ready. Native video controls are already implemented. Later, set
 the page changes its button and instructions to the store flow. Restart the API
 after changing either setting.
 
-The installation acknowledgement is a user confirmation, not automatic extension
-detection or pairing. The bundled extension still connects to the local API.
-Authenticated extension pairing, account-specific drafts/retries and hosted
-imports are **the next phase**. Loading the ZIP alone does not connect an
-extension to a Supabase account. Keep local mode for the working local recorder
-until that pairing phase is implemented.
+The installation acknowledgement is a user confirmation. The bundled extension
+connects to the local API and supports email/password authentication:
+
+1. Restart `npm run dev` after updating the API.
+2. Reload Recall on `chrome://extensions`, then refresh your LeetCode tabs.
+3. Open Recall extension Settings and sign in with the same confirmed email and
+   password used on the website. Website login does not sign in the extension.
+4. Keep a signed-in LeetCode tab open, then import previously solved problems.
+
+Passwords are forwarded once to the configured Supabase project and never saved.
+Tokens live in Chrome's session storage, unavailable to content scripts. Sign in
+again after Chrome restarts or the extension reloads; sessions refresh while Chrome
+is running. Imports, drafts, queues and unfinished saves use account-specific
+local storage. Switching accounts blocks old pages until refreshed. Existing
+unscoped local drafts remain preserved for local mode and are not automatically
+assigned to a Supabase account. Hosted imports still require deployment work.
 
 ## Validation and local fixtures
 
-`npm run check`: lint, 205 unit tests and production build.
+`npm run check`: lint, 217 unit tests and production build.
 `npm run test:db`: 13 isolated PostgreSQL integration tests, including cross-account
 solve/goal/capture/backup isolation and rollback/pool reuse. Owned test schemas
 are cleaned up; existing practice data is not used as test data.
@@ -108,17 +119,26 @@ npm run test:accounts
 In a second terminal, start web Vite with `API_PROXY_TARGET=http://127.0.0.1:8766`
 and port `5175`. Open `http://127.0.0.1:5175/#/signup`.
 Fixture login is `fixture@example.test` / `fixture-password`.
-`http://127.0.0.1:8766/fixture` provides reset/failure controls. The simulated
-Google button redirects locally; no Google, email or production database calls
-occur. Never deploy this test server.
+`http://127.0.0.1:8766/fixture` provides reset/failure controls. No external
+account, email or production database calls occur. Never deploy this test server.
 
 Browser verification covers confirmation/resend, invalid/valid login, local PKCE
 callback, saved focus/target, setup reload, failed-save retry, setup completion,
 logout/private-route protection, password-recovery request and show/hide control.
 Light/dark layouts fit 390px and 320px without horizontal overflow. The ZIP
-download was verified, and its 24 entries match extension source byte for byte.
-Real Google/email delivery and password changes await project configuration.
+download was verified, and its 29 entries match extension source byte for byte.
+Real email delivery and password changes require project configuration.
+Google sign-in was subsequently removed from the UI at the user's request; the
+current flow is email/password only.
+
+`npm run test:extension-ui` serves real extension pages on port 8766 with simulated
+Chrome account/import messages. Use `fixture@example.test` / `fixture-password`;
+an email starting with `other` selects a separate simulated workspace. Do not run
+it at the same time as `test:accounts`. This fixture does not contact Supabase,
+LeetCode or PostgreSQL. Automated extension tests cover session refresh, logout
+during refresh, stale-account rejection, trusted message senders, draft isolation
+and API mode changes. Real account sign-in and LeetCode imports need user checks.
 
 The API remains loopback-only. Public HTTPS hosting, trusted production origins,
 operational backups/monitoring, privacy information and account deletion remain
-launch work, after extension pairing.
+launch work.

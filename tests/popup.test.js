@@ -3,15 +3,15 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../apps/extension/src/popup.js', import.meta.url), 'utf8');
-function popup({ ping, tabs, reply, create } = {}) {
-  const elements = Object.fromEntries(['#worker', '#problem', '#refresh', '#record', '#launch-status'].map((key) => [key, {
+const source = readFileSync(new URL('../apps/extension/src/popup.js', import.meta.url), 'utf8').replace(/^import .*;\r?$/gm,'');
+function popup({ ping, tabs, reply, create, apiReply } = {}) {
+  const elements = Object.fromEntries(['#worker', '#problem', '#refresh', '#record', '#launch-status', '#api'].map((key) => [key, {
     textContent: '', disabled: false, addEventListener(_event, listener) { this.click = listener; },
   }]));
   const messages = [];
   const opened = [];
   const context = vm.createContext({
-    URL, window: { close() {} },
+    URL, connection:async()=>({connected:true,scope:'local'}),api:apiReply|| (async()=>({status:'ready'})),window: { close() {} },
     document: { querySelector: (selector) => elements[selector] },
     chrome: {
       runtime: { sendMessage: ping || (async () => ({ status: 'worker-ready', version: '0.1.0' })) },
@@ -151,9 +151,18 @@ test('rapid record clicks open one panel and messaging errors allow recovery', a
   await ui.ready;
   await ui.elements['#record'].click();
   assert.equal(ui.opened.length, 0);
-  assert.match(ui.elements['#launch-status'].textContent, /Could not open/);
+  assert.match(ui.elements['#launch-status'].textContent, /Cannot create tab/);
   fail = false;
   await ui.elements['#refresh'].click();
   await Promise.all([ui.elements['#record'].click(), ui.elements['#record'].click()]);
   assert.equal(ui.opened.length, 1);
+});
+test('popup blocks recording when Recall sign-in or database readiness fails',async()=>{
+  const ui=popup({apiReply:async()=>{throw new Error('Sign into Recall in Settings');}});await ui.ready;
+  assert.equal(ui.elements['#record'].disabled,true);assert.match(ui.elements['#api'].textContent,/Sign into Recall/);
+  await ui.elements['#record'].click();assert.equal(ui.opened.length,0);
+});
+test('popup rechecks its workspace before opening the recorder after an account switch',async()=>{
+  let changed=false;const ui=popup({apiReply:async()=>{if(changed)throw new Error('Recall account changed');return {status:'ready'};}});await ui.ready;changed=true;
+  await ui.elements['#record'].click();assert.equal(ui.opened.length,0);assert.match(ui.elements['#launch-status'].textContent,/account changed/);
 });

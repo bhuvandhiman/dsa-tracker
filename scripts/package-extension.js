@@ -5,7 +5,7 @@ import { deflateRawSync } from 'node:zlib';
 
 const root=fileURLToPath(new URL('../apps/extension/',import.meta.url));
 const output=fileURLToPath(new URL('../apps/web/public/downloads/recall-extension.zip',import.meta.url));
-const allowed=['manifest.json','icons','src','popup.html','popup.css','setup.html','setup.css'];
+const allowed=['manifest.json','icons','src','popup.html','popup.css','setup.html','setup.css','account.css'];
 const entries=[];
 async function collect(relative){
   const location=path.join(root,relative);

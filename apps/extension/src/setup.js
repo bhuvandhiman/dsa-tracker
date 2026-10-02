@@ -1,20 +1,17 @@
+import { api, scopedStorage, connection } from './account-page.js';
 import { runLegacyImport } from './legacy-runner.js';
 import { connectLeetCode } from './leetcode-connection.js';
 const status=document.querySelector('#status'), start=document.querySelector('#import'), skip=document.querySelector('#skip');
 let state, busy=false, failure='';
-const store=async value=>{await chrome.storage.local.set({legacySetup:value});state=value;};
-async function api(path,body) {
-  let response;
-  try {response=await fetch('http://127.0.0.1:3001/api'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined,credentials:'omit',redirect:'error',signal:AbortSignal.timeout(15000)});} catch {throw new Error('Start the local Recall API, then resume importing.');}
-  const data=await response.json();if(!response.ok)throw new Error(data.error||'Could not save this batch.');return data;
-}
+const store=async value=>{await scopedStorage.set({legacySetup:value});state=value;};
+
 function render() {
   const pending=state?.decision==='pending';
   start.hidden=false; skip.hidden=!pending;
-  start.disabled=busy; skip.disabled=busy||!pending;
+  start.disabled=busy||!state; skip.disabled=busy||!pending;
   // Once an import has started, keep its checkpoint instead of silently abandoning it.
   skip.hidden=!pending||Boolean(state?.snapshot);
-  start.textContent=state?.snapshot?'Resume import':pending?'Import previously solved problems':'Reimport accepted problems';
+  start.textContent=state?.snapshot?'Resume import':pending||!state?'Import previously solved problems':'Reimport accepted problems';
   if(state?.decision==='complete')status.textContent=`Import complete${state.username?' for '+state.username:''}${state.count!==undefined?' · '+state.count+' problems':''}${state.completedAt?' · '+new Date(state.completedAt).toLocaleString():''}. Your previously solved problems are ready in Recall.`;
   if(state?.decision==='skipped')status.textContent='Setup complete. New practice will be recorded through the LeetCode panel.';
 }
@@ -24,9 +21,9 @@ start.addEventListener('click',async()=>{
   try {
     await navigator.locks.request('recall-legacy-import',{ifAvailable:true},async lock=>{
     if(!lock)throw new Error('Import is already running in another setup tab.');
-    state=(await chrome.storage.local.get('legacySetup')).legacySetup;
+    state=(await scopedStorage.get('legacySetup')).legacySetup;
     if(state?.decision!=='pending') {
-      await chrome.storage.local.remove('retentionSetup');
+      await scopedStorage.remove('retentionSetup');
       await store({installationId:crypto.randomUUID(),username:state?.username,decision:'pending',offset:0});
     }
     const saved=await api('/imports/legacy/'+state.installationId);
@@ -41,10 +38,10 @@ skip.addEventListener('click',async()=>{
   if(busy)return;
   try{await navigator.locks.request('recall-legacy-import',{ifAvailable:true},async lock=>{
     if(!lock)throw new Error('Import is already running in another setup tab.');
-    state=(await chrome.storage.local.get('legacySetup')).legacySetup;
+    state=(await scopedStorage.get('legacySetup')).legacySetup;
     if(state?.decision!=='pending'||state.snapshot)return;
     await store({installationId:state.installationId,decision:'skipped'});
-  });}catch(error){status.textContent=error.message;}finally{render();document.dispatchEvent(new Event('legacy-skipped'));}
+  });}catch(error){state=null;render();status.textContent=error.message;}finally{render();document.dispatchEvent(new Event('legacy-skipped'));}
 });
-try {state=await chrome.runtime.sendMessage({type:'LEGACY_SETUP_STATE'});if(state.error)throw new Error(state.error);status.textContent='Import accepted problems, or resume an interrupted import. Recent available dates are included automatically.';render();}
-catch(error){status.textContent=error.message;}
+try {const account=await connection();state=await chrome.runtime.sendMessage({type:'LEGACY_SETUP_STATE',workspaceScope:account.scope});if(state.error)throw new Error(state.error);status.textContent='Import accepted problems, or resume an interrupted import. Recent available dates are included automatically.';render();}
+catch(error){state=null;render();status.textContent=error.message;}

@@ -22,7 +22,8 @@ overflow, keyboard FAQ disclosure, section focus and workspace/pattern entry.
 
 ## Phase 2 — implemented; real project configuration pending
 
-Split signup/login screens use Google and email/password through Supabase Auth.
+Split signup/login screens use email/password through Supabase Auth. Google
+sign-in is deferred at the user's request.
 Confirmation/resend and password recovery are implemented. The API verifies
 sessions and isolates all data resources in per-user workspaces. Existing local
 data remains in local mode; an explicit backup/restore can transfer it.
@@ -34,13 +35,15 @@ store link. See [account setup](account-setup.md) for Supabase configuration,
 validation and the existing-data boundary. Real sign-in/email delivery requires
 your project URL, public key and provider settings.
 
-## Phase 3 — extension connection and onboarding
+## Phase 3 — local extension connection implemented
 
-Connect the extension to the authenticated workspace. Isolate local drafts,
-queues and retries per account. Extend the existing setup to verify a real
-connection and offer import; preserve the distinction between historical solves
-and dated practice. The current installation acknowledgement does not claim a
-paired extension or working hosted import.
+Sign into the extension with the same confirmed email/password as the website.
+Authenticated imports and saves reach the verified owner's private workspace.
+Local drafts, queues, import checkpoints and retries are isolated per account;
+historical solves remain separate from dated practice. Credentials use session
+storage, so Chrome restarts and extension reloads require sign-in again. The
+installation acknowledgement remains manual. Real user flows and hosted imports
+still need verification/deployment; fixture tests do not claim those are complete.
 
 ## Phase 4 — launch
 

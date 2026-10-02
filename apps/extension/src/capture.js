@@ -1,7 +1,7 @@
 // This panel lives in an isolated shadow root; page styles cannot break the form.
 globalThis.DsaCapture = {
   start(doc, page, runtime) {
-    let panel = null, currentUrl = null, timer = null, generation = 0, submission = null, keepDraft = null, returnFocus = null, disposeTheme = null;
+    let panel = null, currentUrl = null, timer = null, generation = 0, submission = null, keepDraft = null, returnFocus = null, disposeTheme = null, currentScope = null;
     const context = () => {
       const adapter = DsaAdapters.find(item => item.getProblem(page.location.href));
       return adapter ? { adapter, problem: adapter.getDetails(doc,page.location.href), topics: adapter.getTopics(doc) } : null;
@@ -12,23 +12,23 @@ globalThis.DsaCapture = {
       if (!current) return;
       if (panel && currentUrl === current.problem.url) {
         if(evidence.captureSource==='accepted') {
-          await runtime.sendMessage({type:'QUEUE_CAPTURE',problem:current.problem,evidence:{...evidence,eventId:evidence.submissionId||crypto.randomUUID(),attemptedAt:evidence.attemptedAt||new Date().toISOString()}});
-          const status=panel.shadowRoot?.querySelector('[role=status]'); if(status)status.textContent='Another Accepted submission is kept in the queue. Save this recording to open it next.';
+          const result=await runtime.sendMessage({type:'QUEUE_CAPTURE',problem:current.problem,workspaceScope:currentScope,evidence:{...evidence,eventId:evidence.submissionId||crypto.randomUUID(),attemptedAt:evidence.attemptedAt||new Date().toISOString()}});
+          const status=panel.shadowRoot?.querySelector('[role=status]'); if(status)status.textContent=result?.error||'Another Accepted submission is kept in the queue. Save this recording to open it next.';
         }
         return;
       }
       close();
       const token = generation;
-      let pending = null, draft = null, queue = [];
-      try { const stored=await runtime.sendMessage({ type: 'GET_PENDING_CAPTURE', problem: current.problem }); pending=stored?.pending;draft=stored?.draft;queue=stored?.queue||[]; } catch { /* A fresh panel can still explain a save failure. */ }
+      let pending = null, draft = null, queue = [], workspaceScope = null, connectionError;
+      try { const stored=await runtime.sendMessage({ type: 'GET_PENDING_CAPTURE', problem: current.problem }); connectionError=stored?.error||'';workspaceScope=stored?.workspaceScope;currentScope=workspaceScope;pending=stored?.pending;draft=stored?.draft;queue=stored?.queue||[]; } catch { connectionError='Reload Recall and sign in through extension Settings.'; }
       if (token !== generation || context()?.problem.url !== current.problem.url) return;
       let catalog=[];
       const restored = pending || draft;
       if(restored&&evidence.captureSource==='accepted'&&(evidence.submissionId!==restored.submissionId||evidence.attemptedAt!==restored.attemptedAt)){
-        const result=await runtime.sendMessage({type:'QUEUE_CAPTURE',problem:current.problem,evidence:{...evidence,eventId:evidence.submissionId||crypto.randomUUID()}});queue=result?.queue||queue;
+        const result=await runtime.sendMessage({type:'QUEUE_CAPTURE',problem:current.problem,workspaceScope,evidence:{...evidence,eventId:evidence.submissionId||crypto.randomUUID()}});connectionError=result?.error||connectionError;queue=result?.queue||queue;
       }
       if(draft)evidence={...evidence,captureSource:draft.captureSource,submissionId:draft.submissionId};
-      if(!restored&&queue.length){evidence=queue[0];await runtime.sendMessage({type:'SHIFT_CAPTURE',problem:current.problem});}
+      if(!restored&&queue.length){evidence=queue[0];const result=await runtime.sendMessage({type:'SHIFT_CAPTURE',problem:current.problem,workspaceScope});connectionError=result?.error||connectionError;}
       let topics = pending?.topics || current.topics;
       const problem = current.problem;
       let payload = pending;
@@ -102,7 +102,7 @@ globalThis.DsaCapture = {
       search.addEventListener('input',renderPatterns);pattern.addEventListener('change',()=>{manualUnit=pattern.value;});renderTopics();renderPatterns();
       const status=node('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
       const collect=()=>({assistance:assistance.querySelector('input:checked')?.value||'',classification:other.checked?{mode:'manual',unit:manualUnit}:{mode:'topics'},selectedTopics:[...topicRows.querySelectorAll('input:checked')].map(input=>input.value),attemptedAt,captureSource:evidence.captureSource||'manual',submissionId:evidence.submissionId||null});
-      keepDraft=()=>{if(!payload)try{void runtime.sendMessage({type:'SAVE_EDITABLE_DRAFT',problem,draft:collect()}).catch(()=>{});}catch{/* A reloaded extension cannot store the draft until the page is refreshed. */}};
+      keepDraft=()=>{if(!payload)try{void runtime.sendMessage({type:'SAVE_EDITABLE_DRAFT',problem,workspaceScope,draft:collect()}).catch(()=>{});}catch{/* A reloaded extension cannot store the draft until the page is refreshed. */}};
       form.addEventListener('change',()=>{if(!payload&&!busy)status.textContent='';keepDraft?.();});
       form.addEventListener('input',()=>keepDraft?.());
       root.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();close();}});
@@ -124,7 +124,7 @@ globalThis.DsaCapture = {
             const username=await DsaLegacy.account();
             payload={requestId:crypto.randomUUID(),username,url:problem.url,title:heading.textContent,difficulty:problem.difficulty??null,topics,...values,approachSource:'confirmed'};
           }
-          const result=await runtime.sendMessage({ type:'SAVE_CAPTURE', problem, payload });
+          const result=await runtime.sendMessage({ type:'SAVE_CAPTURE', problem,workspaceScope, payload });
           if (!result?.saved) {
             if (result?.editable) { payload=null; lock(false); }
             throw new Error(result?.error || 'Could not confirm the save. Use Retry save.');
@@ -132,7 +132,7 @@ globalThis.DsaCapture = {
           if (generation === token && currentUrl === problem.url) {
             keepDraft=null;close();
             const notice=doc.createElement('div');notice.setAttribute('role','status');notice.textContent='Recall: practice saved.';notice.style.cssText='position:fixed;right:16px;bottom:24px;z-index:2147483647;background:#fafbe9;color:#202720;border:1px solid #2c8075;padding:16px;border-radius:12px;font:14px Trebuchet MS,Segoe UI,sans-serif';if(root.host.getAttribute('data-theme')==='dark'){notice.style.background='#232d26';notice.style.color='#f3f2df';notice.style.borderColor='#82cabb';}doc.documentElement.append(notice);page.setTimeout(()=>notice.remove(),4000);
-            const stored=await runtime.sendMessage({type:'GET_PENDING_CAPTURE',problem});
+            const stored=await runtime.sendMessage({type:'GET_PENDING_CAPTURE',problem,workspaceScope});
             if(stored?.queue?.length)await open();
           }
         } catch (error) { status.textContent=error.message || 'Reload the extension and refresh this page, then retry.'; submit.textContent=payload ? 'Retry save' : 'Save practice'; }
@@ -140,10 +140,11 @@ globalThis.DsaCapture = {
       });
       const reconcile=node('button','Check whether this recording was saved');reconcile.type='button';reconcile.hidden=!pending;
       const release=node('button','Keep conflict copy and start a separate recording');release.type='button';release.hidden=true;
-      release.addEventListener('click',async()=>{release.disabled=true;try{const result=await runtime.sendMessage({type:'RELEASE_CONFLICT',problem});if(!result.released)throw new Error(result.error||'Could not release conflict.');payload=null;lock(false);reconcile.hidden=true;release.hidden=true;submit.textContent='Save practice';status.textContent='The old choices are archived in extension Settings. Check the form before creating a separate recording.';}catch(error){status.textContent=error.message;}finally{release.disabled=false;}});
-      reconcile.addEventListener('click',async()=>{reconcile.disabled=true;try{const result=await runtime.sendMessage({type:'RECONCILE_CAPTURE',problem});if(result.status==='saved'){keepDraft=null;close();return;}release.hidden=result.status!=='conflict';status.textContent=result.status==='removed'?'This recording was removed. Restore it in the dashboard Workspace page.':result.status==='conflict'?'This ID belongs to different saved choices. Keep a copy before starting a separate recording.':'No saved recording was found. Retry saves the same request ID.';}catch(error){status.textContent=error.message;}finally{reconcile.disabled=false;}});
+      release.addEventListener('click',async()=>{release.disabled=true;try{const result=await runtime.sendMessage({type:'RELEASE_CONFLICT',problem,workspaceScope});if(!result.released)throw new Error(result.error||'Could not release conflict.');payload=null;lock(false);reconcile.hidden=true;release.hidden=true;submit.textContent='Save practice';status.textContent='The old choices are archived in extension Settings. Check the form before creating a separate recording.';}catch(error){status.textContent=error.message;}finally{release.disabled=false;}});
+      reconcile.addEventListener('click',async()=>{reconcile.disabled=true;try{const result=await runtime.sendMessage({type:'RECONCILE_CAPTURE',problem,workspaceScope});if(result.error)throw new Error(result.error);if(result.status==='saved'){keepDraft=null;close();return;}release.hidden=result.status!=='conflict';status.textContent=result.status==='removed'?'This recording was removed. Restore it in the dashboard Workspace page.':result.status==='conflict'?'This ID belongs to different saved choices. Keep a copy before starting a separate recording.':'No saved recording was found. Retry saves the same request ID.';}catch(error){status.textContent=error.message;}finally{reconcile.disabled=false;}});
       form.append(assistance,topicFields,status,submit,reconcile,release); section.append(header,heading,form); root.append(style,section); doc.documentElement.append(panel);dismiss.focus();
       if(!pending)status.textContent=draft?`Your editable draft was restored.${queue.length?' New Accepted submissions are queued.':''}`:'';
+      if(connectionError)status.textContent=connectionError;
       async function loadContext(){
         try{
           if(!pending&&!topics.length&&globalThis.DsaLegacy?.topics){
@@ -152,14 +153,14 @@ globalThis.DsaCapture = {
             topics=metadata.topics;problem.difficulty??=metadata.difficulty;problem.title||=metadata.title;
             renderTopics();
           }
-          const response=await runtime.sendMessage({type:'GET_PRACTICE_CONTEXT',problem,topics});
+          const response=await runtime.sendMessage({type:'GET_PRACTICE_CONTEXT',problem,workspaceScope,topics});
           if(token!==generation)return;
           if(!response?.units?.length)throw new Error('Pattern catalog unavailable.');
           catalog=response.units.filter(unit=>unit.slug!=='other');renderPatterns();
           if(!busy&&!pending)status.textContent=draft?'Your editable draft was restored.':'';
           keepDraft?.();
           retry.hidden=true;
-        }catch{if(token===generation){matchesNote.textContent='Patterns unavailable. Retry problem details to load them.';if(!busy&&!pending)status.textContent='Pattern list unavailable. You can still classify using the detected topics.';retry.hidden=false;}}
+        }catch{if(token===generation){matchesNote.textContent='Patterns unavailable. Retry problem details to load them.';if(!busy&&!pending)status.textContent=connectionError||'Pattern list unavailable. You can still classify using the detected topics.';retry.hidden=false;}}
       }
       const retry=node('button','Retry problem details');retry.type='button';retry.hidden=true;
       let detailsReady;

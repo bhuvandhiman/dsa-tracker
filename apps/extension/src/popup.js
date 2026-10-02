@@ -1,3 +1,4 @@
+import { api, connection } from './account-page.js';
 const worker = document.querySelector('#worker');
 const problem = document.querySelector('#problem');
 const refresh = document.querySelector('#refresh');
@@ -6,6 +7,7 @@ const launchStatus = document.querySelector('#launch-status');
 let checking = false;
 let opening = false;
 let currentProblem = null;
+let recallReady = false;
 
 async function readProblem() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -25,6 +27,7 @@ async function checkExtension() {
   refresh.disabled = true;
   record.disabled = true;
   currentProblem = null;
+  recallReady = false;
   launchStatus.textContent = '';
   worker.textContent = 'Checking extension…';
   problem.textContent = 'Checking this tab…';
@@ -39,13 +42,14 @@ async function checkExtension() {
       accountStatus.textContent='LeetCode signed in as '+data.username;
     }).catch(error=>{accountStatus.textContent=error.message;});
   }
-  if(apiStatus){
+  const readiness=apiStatus?(async()=>{
     apiStatus.textContent='Checking local API and database…';
-    fetch('http://127.0.0.1:3001/api/ready',{signal:AbortSignal.timeout(10000),credentials:'omit',redirect:'error'}).then(async response=>{
-      const data=await response.json();if(!response.ok||data.status!=='ready')throw new Error(data.error||'Database is not ready.');
+    await connection().then(()=>api('/ready')).then(async data=>{
+      if(data.status!=='ready')throw new Error('Database is not ready.');
+      recallReady=true;
       apiStatus.textContent=`API ready · database connected · ${data.account?'workspace account: '+data.account:'account binds on first recording or import'}`;
-    }).catch(error=>{apiStatus.textContent='Local API/database unavailable. Start Recall, then Check again. '+error.message;});
-  }
+    }).catch(error=>{apiStatus.textContent=error.message;});
+  })():Promise.resolve();
   try {
     const response = await chrome.runtime.sendMessage({ type: 'PING' });
     worker.textContent = response?.status === 'worker-ready' ? `Extension loaded · v${response.version}` : 'Service worker did not respond as expected.';
@@ -58,19 +62,21 @@ async function checkExtension() {
   } catch (error) {
     problem.textContent = error.message.startsWith('Unexpected reply') ? error.message : 'Open a problem on leetcode.com, then refresh that page if the extension was just loaded.';
   } finally {
+    await readiness;
     checking = false;
     refresh.disabled = false;
-    record.disabled = !currentProblem;
+    record.disabled = !currentProblem || !recallReady;
   }
 }
 
 async function openRecorder() {
-  if (checking || opening || !currentProblem) return;
+  if (checking || opening || !currentProblem || !recallReady) return;
   opening = true;
   record.disabled = true;
   refresh.disabled = true;
   launchStatus.textContent = 'Opening recording panel…';
   try {
+    await api('/ready');
     // Re-read on click: LeetCode may have navigated since the popup was opened.
     currentProblem = await readProblem();
     if (!currentProblem) throw new Error('Open a LeetCode problem, then check again.');
@@ -79,13 +85,13 @@ async function openRecorder() {
     const result = await chrome.tabs.sendMessage(tab.id, { type: 'SHOW_RECORDER' });
     if (!result?.opened) throw new Error('Panel unavailable');
     window.close();
-  } catch {
+  } catch(error) {
     currentProblem = null;
-    launchStatus.textContent = 'Could not open the panel. Return to the LeetCode problem and click Check again.';
+    launchStatus.textContent = error.message || 'Could not open the panel. Return to the LeetCode problem and click Check again.';
   } finally {
     opening = false;
     refresh.disabled = false;
-    record.disabled = !currentProblem;
+    record.disabled = !currentProblem || !recallReady;
   }
 }
 refresh.addEventListener('click', checkExtension);

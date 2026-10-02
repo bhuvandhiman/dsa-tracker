@@ -59,7 +59,8 @@ test('legacy API bounds batch size, maps standard topics and rejects invented da
 test('first-run setup persists decisions across worker restarts and ignores foreign senders',async()=>{
   const stored={};const tabs=[];
   function load(){let onInstall,listener;const context=vm.createContext({crypto:{randomUUID:()=>installationId},chrome:{storage:{local:{async get(){return stored;},async set(value){Object.assign(stored,value);}}},tabs:{async create(value){tabs.push(value);}},runtime:{id:'recall',getURL:path=>'chrome-extension://recall/'+path,onInstalled:{addListener(fn){onInstall=fn;}},onMessage:{addListener(fn){listener=fn;}}}}});
-    vm.runInContext(readFileSync(new URL('../apps/extension/src/legacy-setup.js',import.meta.url),'utf8'),context);
+    context.recallAccount={assertScope:async()=>'local',key:(_scope,key)=>key};
+    vm.runInContext(readFileSync(new URL('../apps/extension/src/legacy-setup.js',import.meta.url),'utf8').replace(/^import .*;\r?$/gm,''),context);
     return {onInstall,send:(message,sender={id:'recall',url:'chrome-extension://recall/popup.html'})=>new Promise(resolve=>listener(message,sender,resolve))};
   }
   const initial=load();await initial.onInstall({reason:'install'});assert.equal(tabs.length,1);
