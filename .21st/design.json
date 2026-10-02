@@ -184,6 +184,11 @@
       "date": "2026-10-02",
       "direction": "Show uncapped difficulty solve totals against capped goals",
       "reason": "User requested counts such as 20/16. Rows, segmented summaries and pattern hover details show actual primary solves / target, while fills continue to use capped goal credits. Extra displayed counts do not change any existing strength, ranking or threshold calculation."
+    },
+    {
+      "date": "2026-10-02",
+      "direction": "Audit consistency without changing the approved strength or queue design",
+      "reason": "Retain additive experience/recent-practice bars, focus badges and policy v8. Count zero-target extras in raw summaries, distinguish unknown dates, refresh parent metrics after primary edits, preserve URL search, and remove obsolete urgency styles. Manual placement uses the authoritative catalog without scoring the queue."
     }
   ],
   "evidence": [

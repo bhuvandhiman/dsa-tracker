@@ -54,7 +54,7 @@ export default function App() {
     </header>
 
     <main id="main" tabIndex={-1}>
-      {['dashboard','patterns'].includes(route.page) && <LiveDashboard route={route} />}
+      {['dashboard','patterns'].includes(route.page) && <LiveDashboard key={`${route.page}:${route.slug || ''}:${route.query}`} route={route} />}
       {route.page === 'settings' && <Workflows />}
       <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><span className="footer-flower" aria-hidden="true">✳</span></footer>
     </main>

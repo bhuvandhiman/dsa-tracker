@@ -1,12 +1,13 @@
 import { applyGoalOrdering } from '../apps/api/src/goal-policy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifiedSolves, patternProgress, difficultyCoverage, difficultyProgress, retentionOverview, evidenceLabel, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
+import { classifiedSolves, difficultyCoverage, difficultyProgress, retentionOverview, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
 
 test('classified solves stay independent of practiced approaches and capped credits across API versions',()=>{
   assert.equal(classifiedSolves({coverageSolved:6,distinctSolved:2,goal:{credited:3}}),6);
   assert.equal(classifiedSolves({distinctSolved:2,goal:{actual:{easy:0,medium:1,hard:1,unknown:0},credited:0}}),2);
   assert.equal(classifiedSolves({goal:{actual:12,credited:5}}),12);
+  assert.equal(classifiedSolves({goal:{actual:12,unknownDifficulty:2,credited:5}}),14);
   assert.equal(classifiedSolves({distinctSolved:2}),null);
 });
 
@@ -19,9 +20,6 @@ test('pattern picker uses catalog order, keeps unclassified last, and preserves 
 test('catalog order stays consistent across dated, undated, and unpracticed evidence', () => {
   const input = [item('new',0),item('undated',1,{solved:20}),item('strong',2,{assessed:true,solved:1,strength:70}),item('weak',3,{assessed:true,solved:1,strength:10})];
   assert.deepEqual(orderedPatterns(input).map(row => row.slug),['new','undated','strong','weak']);
-  assert.equal(evidenceLabel(input[2].summary),'Practice strength');
-  assert.equal(evidenceLabel(input[1].summary),'Experience · dates unknown');
-  assert.equal(evidenceLabel(input[0].summary),'No practice yet');
 });
 test('child evidence uses the same catalog order despite different strength scores', () => {
   assert.deepEqual(orderedPatterns([{slug:'b',order:1,assessed:true,strength:10},{slug:'a',order:0,assessed:true,strength:90}]).map(row => row.slug),['a','b']);
@@ -68,11 +66,11 @@ test('difficulty coverage keeps pattern-specific credits and excludes zero-targe
   const goal={categories:[
     {slug:'arrays',name:'Arrays',difficulty:{easy:{target:10,credited:4,actual:30}}},
     {slug:'trees',name:'Trees',difficulty:{easy:{target:5,credited:5,actual:8}}},
-    {slug:'empty',name:'Empty',difficulty:{easy:{target:0,credited:0}}},
+    {slug:'empty',name:'Empty',difficulty:{easy:{target:0,credited:0,actual:3}}},
   ]};
   const result=difficultyCoverage(goal,'easy');
   assert.equal(result.credited,9);assert.equal(result.target,15);
-  assert.equal(result.actual,38);
+  assert.equal(result.actual,41);
   assert.deepEqual(result.patterns.map(item=>[item.slug,item.credited,item.target]),[['arrays',4,10],['trees',5,5]]);
   assert.deepEqual(difficultyCoverage({},'hard'),{patterns:[],credited:0,actual:0,target:0});
 });
@@ -86,15 +84,6 @@ test('extra solved counts are visible without changing capped or balanced goal f
   assert.equal(difficultyProgress({difficulty:{hard:0},actual:{hard:3},creditedByDifficulty:{hard:0}},'hard').fill,0);
   assert.equal(difficultyProgress({difficulty:{easy:{target:16,credited:12}}},'easy').actual,12);
 });
-
-test('priority progress uses the API balance and preserves unscored states', () => {
-  assert.equal(patternProgress({slug:'graphs',priorityDetails:{bandScore:32},patternProgress:42.5,priority:95}),42.5);
-  assert.equal(patternProgress({slug:'graphs',queuePriority:50,summary:{displayStrength:50}}),50);
-  assert.equal(patternProgress({slug:'bfs',queuePriority:51,displayStrength:50}),50);
-  assert.equal(patternProgress({slug:'new',priority:null}),null);
-  assert.equal(patternProgress({slug:'other',patternProgress:80,priority:20}),null);
-});
-
 
 test('strength bar uses current evidence and authoritative practice progress across API versions',async()=>{
   const {strengthBarModel}=await import('../apps/web/src/dashboard-model.js');

@@ -82,3 +82,14 @@ test('goal routes validate input and expose the saved configuration', async (t) 
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: 'balanced', target: 500 }),
   })).status, 400);
 });
+
+
+test('manual placement catalog is complete without dashboard reads or queue writes',async t=>{
+  const base=await serverFor(t,{retention(){throw new Error('Must not calculate the queue');}});
+  const response=await fetch(`${base}/patterns/placements`);
+  assert.equal(response.status,200);
+  const {units}=await response.json();
+  const {retentionUnits}=await import('../apps/api/src/pattern-catalog.js');
+  assert.deepEqual(units,retentionUnits);
+  assert.equal(new Set(units.map(unit=>unit.slug)).size,units.length);
+});

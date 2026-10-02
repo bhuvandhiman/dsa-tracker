@@ -13,3 +13,11 @@ test('dashboard client preserves cancellation and reports connection failures', 
   t.mock.method(globalThis,'fetch',async () => {throw new TypeError('Failed to fetch');});
   await assert.rejects(request('/retention'),/Cannot reach the local API/);
 });
+
+
+test('proxy failures and invalid responses produce useful messages instead of JSON parser errors',async t=>{
+  t.mock.method(globalThis,'fetch',async()=>({ok:false,status:502,json:async()=>{throw new SyntaxError('Unexpected end of JSON input');}}));
+  await assert.rejects(request('/retention'),/local API is unavailable/);
+  t.mock.method(globalThis,'fetch',async()=>({ok:true,status:200,json:async()=>{throw new SyntaxError('Unexpected token');}}));
+  await assert.rejects(request('/retention'),/unreadable response/);
+});

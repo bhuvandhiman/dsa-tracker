@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { backupSummary, subpatternQuery, nextProblemSort, safeProblemUrl } from '../apps/web/src/workflow-model.js';
+import { validPageOffset, undatedPracticeLabel, backupSummary, subpatternQuery, nextProblemSort, safeProblemUrl } from '../apps/web/src/workflow-model.js';
 import { readRoute } from '../apps/web/src/navigation.js';
 import { historyInput, libraryInput, placementChangeInput } from '../apps/api/src/domain.js';
 
@@ -52,4 +52,18 @@ test('manual placement is explicit and still restricted to catalog patterns',()=
   assert.throws(()=>placementChangeInput({unit:'not-a-pattern',manual:true}),/valid primary pattern/);
   assert.throws(()=>placementChangeInput({unit:'hashing',manual:'true'}),/boolean/);
   assert.throws(()=>placementChangeInput({unit:'hashing',extra:true}),/unsupported/);
+});
+
+
+test('moving the final item off a page returns to the last available page',()=>{
+  assert.equal(validPageOffset(25,25),0);
+  assert.equal(validPageOffset(50,26),25);
+  assert.equal(validPageOffset(25,26),25);
+  assert.equal(validPageOffset(0,0),0);
+  assert.equal(validPageOffset(75,0),0);
+});
+test('missing practice dates do not label imported or recorded solves as unpracticed',()=>{
+  assert.equal(undatedPracticeLabel({historical:true}),'Dates unknown');
+  assert.equal(undatedPracticeLabel({practiced:true}),'Dates unknown');
+  assert.equal(undatedPracticeLabel({historical:false,practiced:false}),'Not yet');
 });

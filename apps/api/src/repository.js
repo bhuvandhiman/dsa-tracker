@@ -41,8 +41,8 @@ export function createRepository(pool) {
     const saved=(await client.query('SELECT username FROM workspace_account FOR UPDATE')).rows[0];
     if(saved.username!==username)throw new DomainError(409,'Use the original LeetCode account: '+saved.username);
   }
-  async function classifiedProblems() {
-    const rows = (await pool.query(problemSelect)).rows;
+  async function classifiedProblems(client=pool) {
+    const rows = (await client.query(problemSelect)).rows;
     return rows.map(problem => ({...problem, placement:classifyProblem(problem)}));
   }
   return {
@@ -82,24 +82,31 @@ export function createRepository(pool) {
       return {units:retentionUnits,practiceUnit:classifyProblem(saved||problem).unit};
     },
     async retention() {
-      const classified=await classifiedProblems();
-      const {tracked:problems,excluded}=splitDsaTrackingProblems(classified);
-      const trackedIds=new Set(problems.map(problem=>problem.id));
-      const events=(await pool.query(`SELECT problem_id AS "problemId",attempted_at AS at,assistance,practice_unit AS "practiceUnit" FROM attempts WHERE deleted_at IS NULL UNION ALL SELECT i.problem_id,i.submitted_at,'unknown',NULL FROM imported_submissions i WHERE NOT EXISTS(SELECT 1 FROM attempts a WHERE a.problem_id=i.problem_id AND a.deleted_at IS NULL AND (a.submission_id=i.submission_id OR (a.attempted_at AT TIME ZONE 'Asia/Calcutta')::date=(i.submitted_at AT TIME ZONE 'Asia/Calcutta')::date))`)).rows.filter(event=>trackedIds.has(event.problemId));
-      const result=overview(problems,events);
-      const savedGoal=(await pool.query('SELECT profile,target,queue_snapshot FROM workspace_goal WHERE singleton=true')).rows[0];
-      if(!savedGoal) return {...result,excluded,goal:unconfiguredGoal()};
-      const solvedRows=(await pool.query(`SELECT problem_id FROM attempts WHERE deleted_at IS NULL
-        UNION SELECT problem_id FROM historical_solves
-        UNION SELECT problem_id FROM imported_submissions`)).rows;
-      const solvedIds=new Set(solvedRows.map(row=>row.problem_id));
-      const goal=goalCoverage(problems.filter(problem=>solvedIds.has(problem.id)),savedGoal);
-      const categories=applyGoalOrdering(result.categories,goal,savedGoal.queue_snapshot);
-      const snapshot=goalQueueSnapshot(categories,goal);
+      // Counts, classification and evidence must describe the same committed
+      // workspace, even if an import or edit completes between these queries.
+      const {response,savedGoal,snapshot}=await transaction(async client=>{
+        await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+        const classified=await classifiedProblems(client);
+        const {tracked:problems,excluded}=splitDsaTrackingProblems(classified);
+        const trackedIds=new Set(problems.map(problem=>problem.id));
+        const events=(await client.query(`SELECT problem_id AS "problemId",attempted_at AS at,assistance,practice_unit AS "practiceUnit" FROM attempts WHERE deleted_at IS NULL UNION ALL SELECT i.problem_id,i.submitted_at,'unknown',NULL FROM imported_submissions i WHERE NOT EXISTS(SELECT 1 FROM attempts a WHERE a.problem_id=i.problem_id AND a.deleted_at IS NULL AND (a.submission_id=i.submission_id OR (a.attempted_at AT TIME ZONE 'Asia/Calcutta')::date=(i.submitted_at AT TIME ZONE 'Asia/Calcutta')::date))`)).rows.filter(event=>trackedIds.has(event.problemId));
+        const result=overview(problems,events);
+        const savedGoal=(await client.query('SELECT profile,target,queue_snapshot FROM workspace_goal WHERE singleton=true')).rows[0];
+        if(!savedGoal) return {response:{...result,excluded,goal:unconfiguredGoal()}};
+        const solvedRows=(await client.query(`SELECT problem_id FROM attempts WHERE deleted_at IS NULL
+          UNION SELECT problem_id FROM historical_solves
+          UNION SELECT problem_id FROM imported_submissions`)).rows;
+        const solvedIds=new Set(solvedRows.map(row=>row.problem_id));
+        const goal=goalCoverage(problems.filter(problem=>solvedIds.has(problem.id)),savedGoal);
+        const categories=applyGoalOrdering(result.categories,goal,savedGoal.queue_snapshot);
+        const snapshot=goalQueueSnapshot(categories,goal);
+        return {response:{...result,excluded,goal,categories},savedGoal,snapshot};
+      });
+      if(!savedGoal)return response;
       // Optimistic update prevents a concurrent refresh or goal edit from
       // overwriting newer derived queue memory.
       await pool.query('UPDATE workspace_goal SET queue_snapshot=$1 WHERE singleton=true AND profile=$2 AND target=$3 AND queue_snapshot IS NOT DISTINCT FROM $4::jsonb AND queue_snapshot IS DISTINCT FROM $1::jsonb',[JSON.stringify(snapshot),savedGoal.profile,savedGoal.target,savedGoal.queue_snapshot?JSON.stringify(savedGoal.queue_snapshot):null]);
-      return {...result,excluded,goal,categories};
+      return response;
     },
     async goal() {
       const row=(await pool.query('SELECT profile,target,policy_version AS "policyVersion",updated_at AS "updatedAt" FROM workspace_goal WHERE singleton=true')).rows[0];

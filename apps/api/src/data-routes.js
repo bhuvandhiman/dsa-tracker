@@ -1,3 +1,4 @@
+import { retentionUnits } from './pattern-catalog.js';
 import { mapTopics } from './platforms/leetcode-topics.js';
 import { historyInput } from './domain.js';
 import { Router } from 'express';
@@ -46,6 +47,7 @@ export function dataRoutes(repository) {
   router.put('/attempts/:id', async (request,response) => response.json({ attempt: await repository.correctAttempt(uuid(request.params.id),correctionInput(request.body)) }));
   router.delete('/attempts/:id', async (request,response) => response.json(await repository.removeAttempt(uuid(request.params.id),revisionInput(request.body))));
   router.delete('/imports/:id', async (request,response) => response.json(await repository.removeImport(positiveId(request.params.id))));
+  router.get('/patterns/placements', (_request,response)=>response.json({units:retentionUnits}));
   router.get('/patterns', async (_request, response) => response.json({ patterns: await repository.listPatterns() }));
   router.get('/problems', async (request, response) => {
     const page = pageInput(request.query);

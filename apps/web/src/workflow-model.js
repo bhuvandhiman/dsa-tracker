@@ -20,3 +20,12 @@ export function backupSummary(value) {
   if (!entries.length || entries.some(([,rows])=>!Array.isArray(rows))) throw new Error('Backup tables are invalid.');
   return {records:entries.reduce((sum,[,rows])=>sum+rows.length,0),problems:value.tables.problems?.length || 0,attempts:value.tables.attempts?.length || 0};
 }
+
+
+export function validPageOffset(offset,total,limit=25) {
+  return Math.min(offset,Math.max(0,Math.ceil(total/limit)-1)*limit);
+}
+
+export function undatedPracticeLabel(problem) {
+  return problem.historical||problem.practiced?'Dates unknown':'Not yet';
+}

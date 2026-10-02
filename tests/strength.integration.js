@@ -107,3 +107,31 @@ test('pre-upgrade frozen captures recover their original hash without duplicate 
   assert.equal((await repo.listAttempts({limit:20,offset:0})).length,1);
   await assert.rejects(repo.capture(captureInput({...raw,assistance:'solution'})),{status:409});
 });
+
+
+test('dashboard counts use one snapshot when an import commits during its reads',async t=>{
+  const pool=await database(t);await migrate(pool);const repo=createRepository(pool);
+  const id=(await pool.query("INSERT INTO problems(platform,external_id,title,url,difficulty) VALUES('leetcode','two-sum','Two Sum','https://leetcode.com/problems/two-sum/','easy') RETURNING id")).rows[0].id;
+  await pool.query("INSERT INTO problem_patterns VALUES($1,'arrays-hashing')",[id]);
+  await repo.setGoal({profile:'interview',target:500});
+  let imported=false;
+  async function query(target,sql,params) {
+    const result=await target.query(sql,params);
+    if(!imported&&sql.startsWith('SELECT p.id')) {
+      imported=true;
+      await pool.query('INSERT INTO historical_solves(problem_id) VALUES($1)',[id]);
+    }
+    return result;
+  }
+  const concurrent=createRepository({query:(sql,params)=>query(pool,sql,params),connect:async()=>{
+    const client=await pool.connect();
+    return {query:(sql,params)=>query(client,sql,params),release:()=>client.release()};
+  }});
+  const snapshot=await concurrent.retention();
+  const arrays=snapshot.categories.find(item=>item.slug==='arrays-hashing');
+  assert.equal(imported,true);
+  assert.equal(arrays.summary.coverageSolved,arrays.goal.actual);
+  assert.equal(arrays.summary.coverageSolved,0);
+  const fresh=await repo.retention(),updated=fresh.categories.find(item=>item.slug==='arrays-hashing');
+  assert.equal(updated.summary.coverageSolved,1);assert.equal(updated.goal.actual,1);
+});

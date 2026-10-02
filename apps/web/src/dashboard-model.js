@@ -16,11 +16,6 @@ export function filterPatterns(items, query) {
   return items.filter(item => [item.name, ...(item.children || []).map(child => child.name)].some(name => name.toLocaleLowerCase().includes(term)));
 }
 
-export function evidenceLabel(item) {
-  if (item.assessed) return 'Practice strength';
-  return item.distinctSolved > 0 ? 'Experience · dates unknown' : 'No practice yet';
-}
-
 export function percent(value) {
   return Math.max(0, Math.min(100, Number(value) || 0));
 }
@@ -30,18 +25,10 @@ export function classifiedSolves(item) {
   // Older API snapshots expose uncapped primary counts in goal.actual. Never
   // substitute recorded approach counts or capped difficulty credits.
   const actual=item.goal?.actual;
-  if (Number.isFinite(actual)) return actual;
+  if (Number.isFinite(actual)) return actual+(item.goal.unknownDifficulty||0);
   if (actual && ['easy','medium','hard','unknown'].every(key=>Number.isFinite(actual[key])))
     return actual.easy+actual.medium+actual.hard+actual.unknown;
   return null;
-}
-
-export function patternProgress(item) {
-  if (item.slug === 'other') return null;
-  if(Number.isFinite(item.patternProgress))return percent(item.patternProgress);
-  const evidence=item.summary||item,strength=evidence.displayStrength;
-  if(!Number.isFinite(strength))return null;
-  return item.goal&&Number.isFinite(item.goal.coverage)?percent(0.65*item.goal.coverage+0.35*strength):percent(strength);
 }
 
 export function retentionOverview(categories) {
@@ -58,9 +45,9 @@ export function retentionOverview(categories) {
 export function difficultyCoverage(goal, bucket) {
   const patterns = (goal.categories || []).map(category => ({
     slug: category.slug, name: category.name, ...difficultyProgress(category, bucket),
-  })).filter(item => item.target > 0);
+  }));
   return {
-    patterns,
+    patterns:patterns.filter(item => item.target > 0),
     credited: patterns.reduce((sum, item) => sum + item.credited, 0),
     actual: patterns.reduce((sum, item) => sum + item.actual, 0),
     target: patterns.reduce((sum, item) => sum + item.target, 0),

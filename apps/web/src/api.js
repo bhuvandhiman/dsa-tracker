@@ -3,7 +3,12 @@ export async function request(path, { signal, ...options } = {}) {
   const timer = setTimeout(() => timeout.abort(), 12000);
   try {
     const response = await fetch(`/api${path}`, { ...options, signal: signal ? AbortSignal.any([signal, timeout.signal]) : timeout.signal, headers: { 'Content-Type': 'application/json', ...options.headers } });
-    const body = await response.json();
+    let body;
+    try { body = await response.json(); }
+    catch (error) {
+      if (signal?.aborted || timeout.signal.aborted) throw error;
+      throw new Error(response.status >= 500 ? 'The local API is unavailable. Start it and try again.' : 'The local API returned an unreadable response. Please restart it and try again.', {cause:error});
+    }
     if (!response.ok) throw new Error(body.error || `Request failed (${response.status}).`);
     return body;
   } catch (error) {
