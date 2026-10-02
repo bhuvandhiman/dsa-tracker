@@ -1,4 +1,12 @@
-import { percent, priorityProgress } from './dashboard-model.js';
+import { useId, useState } from 'react';
+import { percent, priorityProgress, priorityExplanation, priorityScore } from './dashboard-model.js';
+
+export function PriorityBar({item,name}) {
+  const id=useId(),fill=priorityProgress(item),explanation=priorityExplanation(item);
+  const [dismissed,setDismissed]=useState(false);
+  if(fill===null)return null;
+  return <div className="priority-bar-explanation" tabIndex={0} role="img" aria-label={`${name}: ${priorityScore(item)} priority points`} aria-describedby={id} onMouseEnter={()=>setDismissed(false)} onFocus={()=>setDismissed(false)} onKeyDown={event=>{if(event.key==='Escape'){event.stopPropagation();setDismissed(true);}}}><div className="pattern-retention-track"><span style={{width:`${fill}%`}} /></div><span className="priority-bar-tooltip" id={id} role="tooltip" hidden={dismissed}>{explanation}</span></div>;
+}
 
 export function NextAction({ next, expanded = false, disclosure = false }) {
   return <span className={`next-action ${next && !expanded ? 'next-action-play' : ''}`} aria-hidden="true">{next && !expanded ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7Z" /></svg> : <span>{disclosure ? expanded ? '⌃' : '⌄' : '↗'}</span>}</span>;
@@ -26,8 +34,8 @@ export function DifficultyMetrics({ goal, name, goalConfigured }) {
 }
 
 function PriorityMetric({ item, priorityItem, name }) {
-  const progress = priorityProgress(priorityItem);
-  return <div className="pattern-retention"><div className="pattern-retention-label"><strong>{priorityItem.slug === 'other' ? 'Needs classification' : 'Estimated readiness'}</strong><span>{progress === null ? '—' : `${Math.round(progress)}%`}</span></div>{progress !== null && <div className="pattern-retention-track" role="img" aria-label={`${name}: ${Math.round(progress)}% estimated readiness.`}><span style={{width:`${progress}%`}} /></div>}<small>{item.assessed ? `Practice strength ${Math.round(percent(item.strength))}%` : item.distinctSolved > 0 ? 'Retention undated' : 'Retention not assessed'} · {item.datedDistinctSolved} practiced · {item.legacyDistinctSolved} prior solves</small></div>;
+  const score = priorityScore(priorityItem);
+  return <div className="pattern-retention"><div className="pattern-retention-label"><strong>{priorityItem.slug === 'other' ? 'Needs classification' : 'Practice priority'}</strong><span>{score === null ? '—' : `${score} pts`}</span></div><PriorityBar item={priorityItem} name={name} /><small>{item.assessed ? `Practice strength ${Math.round(percent(item.strength))}%` : item.distinctSolved > 0 ? 'Retention undated' : 'Retention not assessed'} · {item.datedDistinctSolved} practiced · {item.legacyDistinctSolved} prior solves</small></div>;
 }
 
 export default function PatternMetrics({ item, priorityItem = item, goal, name, goalConfigured }) {

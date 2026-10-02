@@ -510,3 +510,10 @@ button:disabled { opacity: .65; cursor: not-allowed; }
 .priority-explanation { color: var(--muted); font-size: 12px; line-height: 1.7; margin-top: 20px; }
 .priority-explanation summary { cursor: pointer; min-height: 32px; }
 .priority-explanation p { max-width: 760px; margin-top: 8px; }
+
+.priority-bar-explanation { position: relative; min-width: 0; outline-offset: 4px; border-radius: 7px; }
+.priority-bar-tooltip { display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); color: var(--ink); font-size: 12px; line-height: 1.6; font-weight: 400; z-index: 20; box-shadow: 0 6px 18px #0002; pointer-events: auto; }
+.priority-bar-explanation:hover > .priority-bar-tooltip, .priority-bar-explanation:focus > .priority-bar-tooltip { display: block; }
+.priority-pattern-content .priority-bar-explanation { margin-top: 10px; }
+.priority-pattern-content .pattern-retention-track { height: 8px; }
+.priority-bar-explanation > .priority-bar-tooltip[hidden] { display: none; }

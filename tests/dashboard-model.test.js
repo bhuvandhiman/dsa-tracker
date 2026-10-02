@@ -77,9 +77,9 @@ test('difficulty coverage keeps pattern-specific credits and excludes zero-targe
 });
 
 test('priority progress uses the API balance and preserves unscored states', () => {
-  assert.equal(priorityProgress({slug:'graphs',priorityProgress:42.5,priority:95}),42.5);
-  assert.equal(priorityProgress({slug:'graphs',summary:{displayStrength:50}}),50);
-  assert.equal(priorityProgress({slug:'bfs',displayStrength:50}),50);
+  assert.equal(priorityProgress({slug:'graphs',priorityDetails:{bandScore:32},priorityProgress:42.5,priority:95}),42.5);
+  assert.equal(priorityProgress({slug:'graphs',queuePriority:50,summary:{displayStrength:80}}),50);
+  assert.equal(priorityProgress({slug:'bfs',queuePriority:51,displayStrength:80}),50);
   assert.equal(priorityProgress({slug:'new',priority:null}),null);
   assert.equal(priorityProgress({slug:'other',priorityProgress:80,priority:20}),null);
 });

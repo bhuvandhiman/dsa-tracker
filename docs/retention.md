@@ -10,7 +10,7 @@ Experience E = 100 * (0.5B + 0.3D) / 0.8. Dated strength = E + (100 - E) * 0.2R,
 
 Without dates, the experience baseline remains visible but retention is unassessed. Imported solves never acquire invented practice dates or assistance labels.
 
-With a configured goal, the main pattern bar is Estimated readiness: 65% of actual coverage against that pattern's own difficulty quotas plus 35% of current practice strength (or undated experience baseline). Without a goal, it shows practice strength alone. Readiness is separate from queue importance; high readiness does not erase a large interview-relevant coverage gap. Other remains unscored. Difficulty bars continue to show exact credits.
+With a configured goal, the main pattern bar is Practice priority, using the same two-point bands that rank the queue. Higher fill means more attention needed. The label shows buffered attention points, not a percentage. Categories share a scale equal to the largest category target; subpatterns share the largest target within their parent. These fixed goal scales avoid changing every bar when a neighbor is practiced. Hover or focus exposes raw coverage and practice contributions, profile, actual/committed gaps, and band rounding. Without a goal, bars show committed practice weakness on a 100-point scale. Other remains unscored. Practice strength and difficulty completion remain separate.
 
 ## Meaningful blocks and holds
 

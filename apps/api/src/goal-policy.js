@@ -1,7 +1,7 @@
 import { navigationCategories, unitsFor, unitForPlacement } from './pattern-catalog.js';
 import { practicePolicy } from './practice-policy.js';
 
-export const GOAL_POLICY_VERSION = '2026-10-02.v5';
+export const GOAL_POLICY_VERSION = '2026-10-02.v6';
 export const GOAL_TARGETS = Object.freeze([300, 500, 1000]);
 
 export const GOAL_PROFILES = Object.freeze({
@@ -297,14 +297,14 @@ function attentionScore(item) {
   return (1 - PRACTICE_ATTENTION_SHARE) * gap + PRACTICE_ATTENTION_SHARE * target * practiceNeed(item);
 }
 
-function withPriorityProgress(item) {
+function withPriorityProgress(item,scale,profileName) {
   const score = attentionScore(item);
-  const target = Number(item.goal?.target) || 0;
-  const coverage = item.goal?.coverage ?? (target ? 100 * (1 - item.goal.deficit / target) : 0);
-  const strength = item.summary?.displayStrength ?? item.displayStrength ?? (Number.isFinite(item.priority) ? 100 - item.priority : 0);
-  // Readiness uses this pattern's actual progress. Queue importance is separate.
-  const readiness = 0.65 * coverage + 0.35 * strength;
-  return {...item, dashboardPriority:score, priorityProgress:item.slug === 'other' || !item.goal ? null : Math.max(0, Math.min(100, readiness))};
+  const gap=remainingGoalGap(item),target=Math.max(gap,Number(item.goal?.target)||0);
+  const bandScore=Math.floor(score/practicePolicy.bufferCredits)*practicePolicy.bufferCredits;
+  const scored=item.slug!=='other'&&Boolean(item.goal);
+  return {...item,dashboardPriority:score,
+    priorityProgress:scored?Math.max(0,Math.min(100,100*bandScore/scale)):null,
+    priorityDetails:scored?{score,bandScore,scale,profileName:profileName||'Selected goal',coverageContribution:0.65*gap,practiceContribution:0.35*target*practiceNeed(item),committedGap:gap,actualGap:item.goal.deficit,target,bufferCredits:practicePolicy.bufferCredits}:null};
 }
 
 function compareGoalAttention(a, b) {
@@ -319,18 +319,20 @@ function compareGoalAttention(a, b) {
 // attention on the dashboard.
 export function applyGoalOrdering(categories, goal) {
   const byCategory = new Map(goal.categories.map(category => [category.slug, category]));
+  const scale=Math.max(1,...goal.categories.map(c=>Number(c.target)||c.deficit||0));
   return categories.map(category => {
     const categoryGoal = byCategory.get(category.slug) || null;
     const byUnit = new Map((categoryGoal?.units || []).map(unit => [unit.slug, unit]));
+    const unitScale=Math.max(1,...(categoryGoal?.units||[]).map(u=>Number(u.target)||u.deficit||0));
     const children = category.children
-      .map(unit => withPriorityProgress({ ...unit, goal: byUnit.get(unit.slug) || null }))
+      .map(unit => withPriorityProgress({ ...unit, goal: byUnit.get(unit.slug) || null },unitScale,goal.profileName))
       .sort(compareGoalAttention);
     return withPriorityProgress({
       ...category,
       goal: categoryGoal,
       children,
       attention: children[0]?.slug || null,
-    });
+    },scale,goal.profileName);
   }).sort(compareGoalAttention);
 }
 

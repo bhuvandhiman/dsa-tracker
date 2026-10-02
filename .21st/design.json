@@ -139,6 +139,11 @@
       "date": "2026-10-01",
       "direction": "Rank-consistent priority balance bars",
       "reason": "User requires bar fill to follow the same profile-aware queue as ranking, combining solved coverage and retention rather than plotting pure retention. Use 65% remaining goal credits plus 35% target-weighted practice weakness, including completed targets. Invert attention on a fixed goal-matrix scale; preserve true retention separately and leave Other unscored."
+    },
+    {
+      "reason": "Higher fill means more attention needed. Show priority points and a focusable explanation of coverage/practice contributions; retain difficulty completion bars and practice strength separately.",
+      "date": "2026-10-02",
+      "direction": "Practice priority bars follow ranking bands"
     }
   ],
   "evidence": [

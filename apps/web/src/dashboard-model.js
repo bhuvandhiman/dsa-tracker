@@ -38,10 +38,24 @@ export function classifiedSolves(item) {
 
 export function priorityProgress(item) {
   if (item.slug === 'other') return null;
-  if (Number.isFinite(item.priorityProgress)) return percent(item.priorityProgress);
-  // Unconfigured workspaces retain the API's practice-only ranking.
-  const strength = item.summary?.displayStrength ?? item.displayStrength;
-  return Number.isFinite(strength) ? percent(strength) : null;
+  if(item.priorityDetails&&Number.isFinite(item.priorityProgress)) return percent(item.priorityProgress);
+  if(item.goal)return null;
+  const score=Number.isFinite(item.queuePriority)?item.queuePriority:item.priority;
+  return Number.isFinite(score)?percent(2*Math.floor(score/2)):null;
+}
+
+export function priorityExplanation(item) {
+  const d=item.priorityDetails;
+  if(d) return `${d.profileName}: coverage gap ${d.coverageContribution.toFixed(1)} + practice need ${d.practiceContribution.toFixed(1)} = ${d.score.toFixed(1)} attention points. Ranking band: ${d.bandScore} points. ${d.actualGap} actual goal credits remaining; ${d.committedGap} used by the practice-block queue. Similar scores share a ${d.bufferCredits}-point band and use catalog order. Bars share a ${d.scale}-point scale at this level. More fill means more attention needed.`;
+  return 'Practice-only priority: based on practice evidence committed through completed blocks, with earned holds and gradual recency decay. Similar scores share a two-point band. More fill means more attention needed.';
+}
+
+export function priorityScore(item) {
+  if(item.slug==='other')return null;
+  if(item.priorityDetails)return item.priorityDetails.bandScore;
+  if(item.goal)return null;
+  const score=Number.isFinite(item.queuePriority)?item.queuePriority:item.priority;
+  return Number.isFinite(score)?2*Math.floor(score/2):null;
 }
 
 export function retentionOverview(categories) {
