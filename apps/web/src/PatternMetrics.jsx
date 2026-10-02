@@ -1,4 +1,4 @@
-import { percent, capabilityBarModel } from './dashboard-model.js';
+import { percent, strengthBarModel, practiceEvidenceLabel } from './dashboard-model.js';
 
 export function FocusBadge({item}) {
   const emphasis=item.emphasis;
@@ -7,21 +7,21 @@ export function FocusBadge({item}) {
 }
 
 export function FocusLegend({goal}) {
-  return <div className="focus-legend" aria-label="Practice and retention segments">{goal.configured&&<strong>{goal.profileName}</strong>}<span className="priority-key priority-key-foundation">Foundation</span><span className="priority-key priority-key-retention">Retention strength</span></div>;
+  return <div className="focus-legend" aria-label="Practice strength contributions">{goal.configured&&<strong>{goal.profileName}</strong>}<span className="priority-key priority-key-experience">Experience</span><span className="priority-key priority-key-recent">Recent practice</span></div>;
 }
 
-export function CapabilityBar({item,name}) {
-  const model=capabilityBarModel(item);
+export function StrengthBar({item,name}) {
+  const model=strengthBarModel(item);
   if(!model)return <p className="data-note">Record practice to start tracking strength.</p>;
-  const {foundationWidth,retentionWidth,releaseMark,coverage,practice,assessed,held}=model;
+  const {score,experienceWidth,recentWidth,practice,assessed,steps,blocks}=model;
+  const unknownLabel=(item.summary||item).distinctSolved>0?'Dates unknown':'No dated practice';
   const practiceName=item.children?.find(unit=>unit.slug===practice?.unit)?.name||item.name||name;
   const practiceEarned=Math.round((practice?.earned||0)*100)/100;
-  const coverageText=coverage?(coverage.active?`Next coverage ${coverage.earned}/${coverage.required} credits`:'Coverage complete'):null;
-  const revisionText=practice?`Next revision ${practiceEarned}/${practice.required} credits`:null;
-  return <div className="split-priority" role="img" aria-label={`${name}: foundation occupies ${Math.round(foundationWidth)}% of the bar, ${assessed?`retention strength ${Math.round(retentionWidth)}%.`:'retention unassessed.'} ${assessed?'Estimated practice strength, not measured recall':'Retention is unassessed because practice dates are unknown'}. ${coverageText||'Choose a coverage focus'}. ${revisionText?`${revisionText} weighted distinct practice credits in ${practiceName}; at least ${practice.minimumDistinct} distinct problems required.`:''} ${releaseMark!==null?'Dashed line marks the next foundation block, holding retention constant.':''} ${held?'Queue held until a meaningful block completes.':''} Release permits a score update, not a guaranteed rank change.`}>
-    <div className="split-priority-labels"><span className="priority-key priority-key-foundation">Foundation</span><span className="priority-key priority-key-retention">Retention{!assessed?' · unassessed':''}</span></div>
-    <div className="split-priority-track"><span className="split-priority-foundation" style={{width:`${foundationWidth}%`}} /><span className={`split-priority-retention ${assessed?'':'is-undated'}`} style={{width:`${retentionWidth}%`}} />{releaseMark!==null&&<i className="priority-release-marker" style={{left:`${releaseMark}%`}} aria-hidden="true" />}</div>
-    {(coverageText||revisionText)&&<div className="queue-threshold">{coverageText&&<span>{releaseMark!==null&&<i className="threshold-key" aria-hidden="true" />}{coverageText}</span>}{revisionText&&<span>{revisionText}{item.children?.length>1&&practice?.earned>0?` · ${practiceName}`:''}</span>}</div>}
+  return <div className="strength-bar">
+    <div className="strength-bar-heading"><strong>Practice strength</strong><span className={!assessed?'strength-bar-unknown':undefined}>{assessed?`${Math.round(score)}%`:unknownLabel}</span></div>
+    <div className="split-priority-labels"><span className="priority-key priority-key-experience">Experience</span><span className="priority-key priority-key-recent">Recent practice{!assessed?' · unassessed':''}</span></div>
+    <div className="split-priority-track" role="img" aria-label={`${name}: ${assessed?`${Math.round(score)}% estimated practice strength`:'experience only; retention unassessed because practice dates are unknown'}. Experience contributes ${experienceWidth.toFixed(1)} percentage points${assessed?`, recent practice contributes ${recentWidth.toFixed(1)} percentage points`:''}. This is not a tested recall percentage.`}><span className="split-priority-experience" style={{width:`${experienceWidth}%`}} /><span className="split-priority-recent" style={{width:`${recentWidth}%`}} /></div>
+    {steps.length>0&&<div className="practice-block"><span className="practice-block-dots" role="img" aria-label={`Practice block: ${practiceEarned} of ${practice.required} weighted credits from ${practice.distinct??0} distinct problems in ${practiceName}; at least ${practice.minimumDistinct} distinct problems required.`}>{steps.map((fill,index)=><span className="practice-block-dot" key={index}><i style={{width:`${100*fill}%`}} /></span>)}</span><span>Practice block {practiceEarned}/{practice.required}{item.children?.length>1&&practice?.earned>0?` · ${practiceName}`:''}</span>{blocks>0&&<span className="practice-block-completed">{blocks} {blocks===1?'block':'blocks'} completed</span>}</div>}
   </div>;
 }
 
@@ -41,7 +41,7 @@ export function RetentionMetric({ item, name, prominent = false }) {
 
 export function DifficultyMetrics({ goal, name, goalConfigured }) {
   if (!goal) return <p className="data-note">{goalConfigured ? 'Outside the coverage goal' : 'Choose a coverage goal on the dashboard.'}</p>;
-  return <div className="row-difficulty-metrics">{['easy','medium','hard'].map(bucket => {
+  return <div className="row-difficulty-metrics"><strong className="goal-coverage-label">Goal coverage</strong>{['easy','medium','hard'].map(bucket => {
     const value = goal.difficulty[bucket];
     const target = typeof value === 'number' ? value : value.target;
     const credited = typeof value === 'number' ? goal.creditedByDifficulty[bucket] : value.credited;
@@ -51,7 +51,7 @@ export function DifficultyMetrics({ goal, name, goalConfigured }) {
 }
 
 function PriorityMetric({ item, priorityItem, name }) {
-  return <div className="pattern-retention"><div className="pattern-retention-label"><strong>{priorityItem.slug === 'other' ? 'Needs classification' : 'Practice & retention'}</strong></div>{priorityItem.slug!=='other'&&<CapabilityBar item={priorityItem} name={name} />}<small>{item.assessed ? `Practice strength ${Math.round(percent(item.strength))}%` : item.distinctSolved > 0 ? 'Retention undated' : 'Retention not assessed'} · {item.datedDistinctSolved} practiced · {item.legacyDistinctSolved} prior solves</small></div>;
+  return <div className="pattern-retention">{priorityItem.slug==='other'?<strong>Needs classification</strong>:<StrengthBar item={priorityItem} name={name} />}<small>{practiceEvidenceLabel(item)}</small></div>;
 }
 
 export default function PatternMetrics({ item, priorityItem = item, goal, name, goalConfigured }) {

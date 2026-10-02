@@ -85,15 +85,13 @@ test('priority progress uses the API balance and preserves unscored states', () 
 });
 
 
-test('capability bar uses authoritative gates and never invents a revision marker',async()=>{
-  const {capabilityBarModel}=await import('../apps/web/src/dashboard-model.js');
-  const item={slug:'graphs',goal:{deficit:2},capabilitySignals:{foundation:50,retention:20,foundationShare:0.65,retentionShare:0.35,coverageMark:45},queueGate:{held:true,coverage:{active:true,earned:1,required:2},practice:{earned:3,required:4,minimumDistinct:4}}};
-  const model=capabilityBarModel(item);
-  assert.equal(model.foundationWidth,32.5);assert.equal(model.retentionWidth,7);
-  assert.equal(model.releaseMark,45);assert.equal(model.practice.earned,3);assert.equal(model.held,true);
-  assert.equal(capabilityBarModel({...item,queueGate:{...item.queueGate,coverage:{active:false}}}).releaseMark,null);
-  assert.equal(capabilityBarModel({...item,capabilitySignals:{...item.capabilitySignals,coverageMark:undefined}}).releaseMark,null);
-  assert.equal(capabilityBarModel({slug:'graphs',goal:{deficit:3}}),null);
-  assert.equal(capabilityBarModel({slug:'other'}),null);
-  assert.equal(capabilityBarModel({slug:'graphs',queuePriority:80,breadth:0.4,assessed:true,strength:20,practiceBlock:{earned:2}}).retentionWidth,7);
+test('strength bar uses current evidence and authoritative practice progress across API versions',async()=>{
+  const {strengthBarModel}=await import('../apps/web/src/dashboard-model.js');
+  const item={slug:'graphs',summary:{assessed:true,strength:60,experienceScore:50},queueGate:{practice:{earned:2.5,required:4,minimumDistinct:4}}};
+  const model=strengthBarModel(item);
+  assert.equal(model.experienceWidth,50);assert.equal(model.recentWidth,10);assert.equal(model.score,60);
+  assert.deepEqual(model.steps,[1,1,0.5,0]);
+  assert.equal(strengthBarModel({slug:'graphs',goal:{coverage:100}}),null);
+  assert.equal(strengthBarModel({slug:'other',experienceScore:50}),null);
+  assert.equal(strengthBarModel({...item.summary,slug:'graphs',practiceBlock:{earned:2,required:4}}).recentWidth,10);
 });

@@ -34,3 +34,7 @@ The dashed line is a coverage-release projection holding retention constant. It 
 The API must restart to load policy v8. Old derived queue anchors rebuild once on upgrade; historical practice, notes, classification and selected goals are preserved. Temporary verification servers are stopped after QA. No signed-in LeetCode actions were needed for this policy audit.
 
 Presentation follow-up: the latest user-approved bar grows with foundation and current dated retention. Its dashed marker now projects additional foundation toward the same audited coverage gate; it sits ahead of the fill. The old urgency projection remains in the API for compatibility, but current UI uses capabilitySignals.coverageMark. Gate behavior and audit regressions remain unchanged.
+
+## Strength presentation follow-up (2026-10-02)
+
+The forward coverage projection is no longer shown on the strength bar: it mixed a queue/coverage milestone with a changing retention contribution. The UI now separates weighted practice-block dots from the strength track and shows completed-block totals after reset. Coverage and practice gate calculations, persistence, correction/restore replay, profile resets, and policy v8 remain unchanged. Fractional hint work, repeated single-problem rejection, reset after completion, immediate partial strength growth and hold/decay are tested. The UI disclosure explicitly describes both coverage and practice release routes without promising a rank change.

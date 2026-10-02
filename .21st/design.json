@@ -174,6 +174,11 @@
       "date": "2026-10-02",
       "direction": "Growing foundation/retention bar with separate focus badge",
       "reason": "User approved capability fills instead of urgency. Pink uses own-pattern coverage; yellow uses current dated practice strength, including partial work. Unknown retention remains unassessed. Queue order and audited gates stay intact; the marker projects growing foundation."
+    },
+    {
+      "date": "2026-10-02",
+      "direction": "One strength estimate, additive experience/recent-practice segments, separate practice-block dots",
+      "reason": "User approved resolving mixed scales and duplicated coverage. Pink is the existing experienceScore; yellow is strength minus experienceScore. Their widths sum to the assessed strength percentage. Unknown dates expose experience without claiming assessed retention. Keep focus badges and stable queue policy, show brief contributing-need or held-state reasons, distinguish primary solves from recorded practice evidence, label capped difficulty counts as Goal coverage, and replace the moving coverage marker with weighted practice-block dots."
     }
   ],
   "evidence": [

@@ -67,17 +67,39 @@ export function difficultyCoverage(goal, bucket) {
 }
 
 
-// Capability fills use each pattern's own foundation and current dated strength.
-// Queue gates and marker metadata remain authoritative API values.
-export function capabilityBarModel(item) {
+// Both segments are contributions to the SAME strength score. Goal coverage and
+// focus affect the queue, never the strength fill. Old API snapshots already
+// expose experienceScore, so they can be decomposed without fabricated evidence.
+export function strengthBarModel(item) {
   if(item.slug==='other')return null;
   const evidence=item.summary||item;
-  const signals=item.capabilitySignals;
-  const foundation=signals?.foundation??(Number.isFinite(item.goal?.coverage)?item.goal.coverage:Number.isFinite(evidence.breadth)?100*evidence.breadth:null);
-  const retention=signals?(Number.isFinite(signals.retention)?signals.retention:null):evidence.assessed&&Number.isFinite(evidence.strength)?evidence.strength:null;
-  if(foundation===null&&retention===null)return null;
-  const foundationWidth=(signals?.foundationShare??0.65)*percent(foundation);
-  const retentionWidth=(signals?.retentionShare??0.35)*percent(retention);
-  const coverage=item.queueGate?.coverage||null;
-  return {foundationWidth,retentionWidth,releaseMark:coverage?.active&&Number.isFinite(signals?.coverageMark)?percent(signals.coverageMark):null,coverage,practice:item.queueGate?.practice||evidence.practiceBlock||null,assessed:retention!==null,held:Boolean(item.queueGate?.held)};
+  const assessed=Boolean(evidence.assessed&&Number.isFinite(evidence.strength));
+  const score=assessed?percent(evidence.strength):null;
+  const base=evidence.strengthComponents?.experience??evidence.experienceScore;
+  if(!Number.isFinite(base))return null;
+  const experienceWidth=Math.min(percent(base),score??100);
+  const recentWidth=assessed?Math.max(0,score-experienceWidth):0;
+  const practice=item.queueGate?.practice||evidence.practiceBlock||null;
+  const required=Number.isFinite(practice?.required)&&practice.required>0?practice.required:null;
+  const earned=required?Math.max(0,Math.min(required,Number(practice.earned)||0)):0;
+  return {score,experienceWidth,recentWidth,assessed,practice,blocks:evidence.completedPracticeBlocks||0,
+    steps:required?Array.from({length:Math.ceil(required)},(_,index)=>Math.max(0,Math.min(1,earned-index))):[]};
+}
+
+export function recommendationReason(item) {
+  if(item.slug==='other')return 'Needs classification';
+  if(item.queueGate?.held)return 'Queue held · block unfinished';
+  const evidence=item.summary||item;
+  const details=item.priorityDetails;
+  if(details&&details.actualGap>0&&details.coverageContribution>=details.practiceContribution)return 'Coverage gap';
+  if(!evidence.assessed)return evidence.distinctSolved>0?'Practice dates unknown':'Build experience';
+  return details?.score===0?'Goal balanced':'Refresh practice';
+}
+
+export function practiceEvidenceLabel(item) {
+  const total=item.distinctSolved;
+  if(!Number.isFinite(total))return 'Practice evidence unavailable';
+  const label=`${total} distinct practice ${total===1?'problem':'problems'}`;
+  if(!Number.isFinite(item.datedDistinctSolved)||!Number.isFinite(item.legacyDistinctSolved))return label;
+  return `${label} · ${item.datedDistinctSolved} dated · ${item.legacyDistinctSolved} dates unknown`;
 }

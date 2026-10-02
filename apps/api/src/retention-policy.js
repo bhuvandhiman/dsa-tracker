@@ -101,6 +101,7 @@ function summarizePractice(daily,now,distinctProblems,breadthTarget) {
   const datedDistinctSolved=seen.size;
   return {
     assessed:previous!==null,strength,displayStrength:strength??experienceScore,retention:strength,
+    strengthComponents:{experience:experienceScore,recentPractice:strength===null?null:Math.max(0,strength-experienceScore)},
     breadth,breadthTarget,reinforcement,recency:previous===null?null:recency,weightedRevisits,revisitCount,
     datedDistinctSolved,legacyDistinctSolved:Math.max(0,totalDistinct-datedDistinctSolved),
     lastPracticedAt:previous===null?null:new Date(previous).toISOString(),experienceScore,
