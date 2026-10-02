@@ -90,6 +90,7 @@ test('thresholds survive API refresh, revision, correction, restore and goal swi
   }
   const unit=data=>data.categories.find(c=>c.slug==='arrays-hashing').children.find(u=>u.slug==='hashing');
   const baseline=unit(await repo.retention());
+  assert.equal(baseline.capabilitySignals.retention,null);
   await repo.importHistory(ids);
   let current=unit(await repo.retention());assert.equal(current.queueGate.coverage.earned,3);
   assert.ok(current.rankingPriority<baseline.rankingPriority);
@@ -109,6 +110,10 @@ test('thresholds survive API refresh, revision, correction, restore and goal swi
     const attempt=attemptInput({requestId:randomUUID(),problemId:ids[i],assistance:'independent',patternSlugs:['hash-table'],attemptedAt:at});
     requests.push(attempt);await repo.createAttempt(attempt);await repo.createAttempt(attempt);
     current=unit(await repo.retention());
+    assert.equal(current.capabilitySignals.retention,current.strength);
+    assert.ok(current.capabilitySignals.retention>0);
+    const filled=0.65*current.capabilitySignals.foundation+0.35*current.capabilitySignals.retention;
+    assert.ok(current.capabilitySignals.coverageMark>=filled);
     if(i<3) {assert.equal(current.queueGate.practice.earned,i+1);assert.equal(current.rankingPriority,anchor);}
   }
   assert.equal(current.completedPracticeBlocks,1);assert.equal(current.queueGate.practice.earned,0);

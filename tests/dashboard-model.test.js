@@ -85,15 +85,15 @@ test('priority progress uses the API balance and preserves unscored states', () 
 });
 
 
-test('continuous bar uses authoritative gates and never invents a revision marker',async()=>{
-  const {priorityBarModel}=await import('../apps/web/src/dashboard-model.js');
-  const item={slug:'graphs',goal:{deficit:2},prioritySignals:{focusPush:50,retentionPush:20,retentionAssessed:true,releaseMark:35},queueGate:{held:true,coverage:{active:true,earned:1,required:2},practice:{earned:3,required:4,minimumDistinct:4}}};
-  const model=priorityBarModel(item);
-  assert.equal(model.focusWidth,32.5);assert.equal(model.retentionWidth,7);
-  assert.equal(model.releaseMark,35);assert.equal(model.practice.earned,3);assert.equal(model.held,true);
-  assert.equal(priorityBarModel({...item,queueGate:{...item.queueGate,coverage:{active:false}}}).releaseMark,null);
-  assert.equal(priorityBarModel({...item,prioritySignals:{...item.prioritySignals,releaseMark:undefined}}).releaseMark,null);
-  assert.equal(priorityBarModel({slug:'graphs',goal:{deficit:3}}),null);
-  assert.equal(priorityBarModel({slug:'other'}),null);
-  assert.equal(priorityBarModel({slug:'graphs',queuePriority:80,practiceBlock:{earned:2}}).retentionWidth,80);
+test('capability bar uses authoritative gates and never invents a revision marker',async()=>{
+  const {capabilityBarModel}=await import('../apps/web/src/dashboard-model.js');
+  const item={slug:'graphs',goal:{deficit:2},capabilitySignals:{foundation:50,retention:20,foundationShare:0.65,retentionShare:0.35,coverageMark:45},queueGate:{held:true,coverage:{active:true,earned:1,required:2},practice:{earned:3,required:4,minimumDistinct:4}}};
+  const model=capabilityBarModel(item);
+  assert.equal(model.foundationWidth,32.5);assert.equal(model.retentionWidth,7);
+  assert.equal(model.releaseMark,45);assert.equal(model.practice.earned,3);assert.equal(model.held,true);
+  assert.equal(capabilityBarModel({...item,queueGate:{...item.queueGate,coverage:{active:false}}}).releaseMark,null);
+  assert.equal(capabilityBarModel({...item,capabilitySignals:{...item.capabilitySignals,coverageMark:undefined}}).releaseMark,null);
+  assert.equal(capabilityBarModel({slug:'graphs',goal:{deficit:3}}),null);
+  assert.equal(capabilityBarModel({slug:'other'}),null);
+  assert.equal(capabilityBarModel({slug:'graphs',queuePriority:80,breadth:0.4,assessed:true,strength:20,practiceBlock:{earned:2}}).retentionWidth,7);
 });

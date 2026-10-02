@@ -67,15 +67,17 @@ export function difficultyCoverage(goal, bucket) {
 }
 
 
-// Threshold placement and counters come from the queue policy, never a UI projection.
-export function priorityBarModel(item) {
+// Capability fills use each pattern's own foundation and current dated strength.
+// Queue gates and marker metadata remain authoritative API values.
+export function capabilityBarModel(item) {
   if(item.slug==='other')return null;
   const evidence=item.summary||item;
-  const signals=item.prioritySignals;
-  if(!signals) {
-    if(item.goal)return null;
-    return {focusWidth:0,retentionWidth:percent(Number.isFinite(item.queuePriority)?item.queuePriority:100),releaseMark:null,coverage:null,practice:evidence.practiceBlock||null,assessed:Boolean(evidence.assessed),held:false};
-  }
-  const coverage=item.queueGate?.coverage||{active:item.goal?.deficit>0,earned:signals.releaseCredits,required:signals.releaseTarget};
-  return {focusWidth:0.65*percent(signals.focusPush),retentionWidth:0.35*percent(signals.retentionPush),releaseMark:coverage.active&&Number.isFinite(signals.releaseMark)?percent(signals.releaseMark):null,coverage,practice:item.queueGate?.practice||evidence.practiceBlock||null,assessed:Boolean(signals.retentionAssessed),held:Boolean(item.queueGate?.held)};
+  const signals=item.capabilitySignals;
+  const foundation=signals?.foundation??(Number.isFinite(item.goal?.coverage)?item.goal.coverage:Number.isFinite(evidence.breadth)?100*evidence.breadth:null);
+  const retention=signals?(Number.isFinite(signals.retention)?signals.retention:null):evidence.assessed&&Number.isFinite(evidence.strength)?evidence.strength:null;
+  if(foundation===null&&retention===null)return null;
+  const foundationWidth=(signals?.foundationShare??0.65)*percent(foundation);
+  const retentionWidth=(signals?.retentionShare??0.35)*percent(retention);
+  const coverage=item.queueGate?.coverage||null;
+  return {foundationWidth,retentionWidth,releaseMark:coverage?.active&&Number.isFinite(signals?.coverageMark)?percent(signals.coverageMark):null,coverage,practice:item.queueGate?.practice||evidence.practiceBlock||null,assessed:retention!==null,held:Boolean(item.queueGate?.held)};
 }

@@ -319,6 +319,7 @@ function withPriorityProgress(item,importance,profileName,previous,scale) {
   return {...item,dashboardPriority:score,
     rankingPriority,queueMemory,queueGate:scored?queueGate:null,
     prioritySignals:scored?{focusPush:100*gap/scale,retentionPush:100*target*practiceNeed(item)/scale,scale,retentionAssessed:Boolean(evidence.assessed),releaseCredits:earned,releaseTarget:required,releaseMark}:null,
+    capabilitySignals:scored?{foundation:coverage,retention:evidence.assessed&&Number.isFinite(evidence.strength)?evidence.strength:null,foundationShare:0.65,retentionShare:0.35,coverageMark:gap>0&&target>0?Math.min(100,0.65*(coverage+100*remaining/target)+0.35*(evidence.assessed&&Number.isFinite(evidence.strength)?evidence.strength:0)):null}:null,
     patternProgress:scored?progress:null,
     emphasis:scored?{tier,label: `${tier==='lower'?'Lower':tier==='high'?'High':'Medium'} emphasis`,profileName:profileName||'Selected focus'}:null,
     priorityDetails:scored?{score,coverageContribution:0.65*gap,practiceContribution:0.35*target*practiceNeed(item),actualGap:gap,target,profileName:profileName||'Selected focus'}:null};

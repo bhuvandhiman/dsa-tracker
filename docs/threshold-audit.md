@@ -32,3 +32,5 @@ The dashed line is a coverage-release projection holding retention constant. It 
 - Browser QA confirms category and subpattern counters and 320px layout; document clientWidth and scrollWidth are both 305px with the scrollbar present.
 
 The API must restart to load policy v8. Old derived queue anchors rebuild once on upgrade; historical practice, notes, classification and selected goals are preserved. Temporary verification servers are stopped after QA. No signed-in LeetCode actions were needed for this policy audit.
+
+Presentation follow-up: the latest user-approved bar grows with foundation and current dated retention. Its dashed marker now projects additional foundation toward the same audited coverage gate; it sits ahead of the fill. The old urgency projection remains in the API for compatibility, but current UI uses capabilitySignals.coverageMark. Gate behavior and audit regressions remain unchanged.
