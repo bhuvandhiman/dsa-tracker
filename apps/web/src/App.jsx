@@ -3,6 +3,7 @@ import './styles.css';
 import LiveDashboard from './LiveDashboard.jsx';
 import Workflows from './Workflows.jsx';
 import { readRoute } from './navigation.js';
+import PublicPages from './PublicPages.jsx';
 
 function Icon({ name, ...props }) {
   const paths = {
@@ -23,11 +24,22 @@ export default function App() {
   useEffect(() => {
     function navigate() {
       setRoute(readRoute(window.location.hash));
-      requestAnimationFrame(() => { document.getElementById('main')?.focus({preventScroll:true}); window.scrollTo(0,0); });
     }
     window.addEventListener('hashchange', navigate);
     return () => window.removeEventListener('hashchange', navigate);
   }, []);
+  const publicPage = ['home','about'].includes(route.page);
+  useEffect(() => {
+    const titles={home:'Recall — Know which DSA pattern to practice next',about:'About Recall',dashboard:'Dashboard · Recall',patterns:'Patterns · Recall',settings:'Workspace · Recall'};
+    document.title=titles[route.page] || 'Recall';
+    const frame=requestAnimationFrame(()=>{
+      const section=route.page==='home'&&['how-it-works','questions'].includes(route.section)?document.getElementById(route.section):null;
+      const target=section || document.getElementById('main');
+      target?.focus({preventScroll:true});
+      if(section)section.scrollIntoView({block:'start'});else window.scrollTo(0,0);
+    });
+    return ()=>cancelAnimationFrame(frame);
+  },[route]);
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('recall-theme') === 'dark' ? 'dark' : 'light'; }
     catch { return 'light'; }
@@ -38,25 +50,33 @@ export default function App() {
     catch { /* Theme switching still works when browser storage is unavailable. */ }
   }, [theme]);
   const themeAction = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-  return <div className="workspace">
+  return <div className={`workspace ${publicPage?'public-site':''}`}>
     <a className="skip-link" href="#main" onClick={event => {event.preventDefault(); document.getElementById('main')?.focus();}}>Skip to content</a>
     <header className="topbar">
-      <a className="brand" href="#/dashboard" aria-label="Recall home"><span className="brand-mark"><Icon name="book" /></span><span>recall<span className="brand-dot">.</span></span></a>
+      <a className="brand" href="#/home" aria-label="Recall home"><span className="brand-mark"><Icon name="book" /></span><span>recall<span className="brand-dot">.</span></span></a>
       <nav className="navigation" aria-label="Main navigation">
+        {publicPage?<>
+        <a className={`nav-link ${route.page==='home'&&!route.section?'active':''}`} aria-current={route.page==='home'&&!route.section?'page':undefined} href="#/home">Home</a>
+        <a className={`nav-link ${route.section==='how-it-works'?'active':''}`} aria-current={route.section==='how-it-works'?'location':undefined} href="#/home?section=how-it-works">How it works</a>
+        <a className={`nav-link ${route.page==='about'?'active':''}`} aria-current={route.page==='about'?'page':undefined} href="#/about">About</a>
+        </>:<>
         <a className={`nav-link ${route.page === 'dashboard' ? 'active' : ''}`} aria-current={route.page === 'dashboard' ? 'page' : undefined} href="#/dashboard"><Icon name="home" />Dashboard</a>
         <a className={`nav-link ${route.page === 'patterns' ? 'active' : ''}`} aria-current={route.page === 'patterns' ? 'page' : undefined} href="#/patterns"><Icon name="grid" />Patterns</a>
         <a className={`nav-link ${route.page === 'settings' ? 'active' : ''}`} aria-current={route.page === 'settings' ? 'page' : undefined} href="#/settings"><Icon name="workspace" />Workspace</a>
+        </>}
       </nav>
       <div className="topbar-actions">
-        <span className="workspace-label"><span className="status-dot" />Your learning space</span>
+        {!publicPage&&<span className="workspace-label"><span className="status-dot" />Your learning space</span>}
         <button className="theme-toggle" type="button" aria-label={themeAction} title={themeAction} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button>
+        {publicPage&&<a className="primary-button public-nav-cta" href="#/dashboard">Open workspace <Icon name="arrow" /></a>}
       </div>
     </header>
 
     <main id="main" tabIndex={-1}>
+      {publicPage&&<PublicPages page={route.page} />}
       {['dashboard','patterns'].includes(route.page) && <LiveDashboard key={`${route.page}:${route.slug || ''}:${route.query}`} route={route} />}
       {route.page === 'settings' && <Workflows />}
-      <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><span className="footer-flower" aria-hidden="true">✳</span></footer>
+      <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><nav className="footer-links" aria-label="Footer"><a href="#/home">Home</a><a href="#/about">About</a><a href="#/home?section=questions">FAQ</a></nav><span className="footer-flower" aria-hidden="true">✳</span></footer>
     </main>
   </div>;
 }

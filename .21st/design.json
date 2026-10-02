@@ -204,6 +204,11 @@
       "date": "2026-10-02",
       "direction": "Required classification topics with an Other pattern picker",
       "reason": "User requires topic choices to drive classification. Other opens a searchable list of every learning pattern. Selected topics resolve one primary unit and recorded practice through the shared classifier; manual choice overrides it. Preserve provider tags, internal timestamps and exact older pending retries."
+    },
+    {
+      "date": "2026-10-02",
+      "direction": "Pattern-led public home and About, before accounts",
+      "reason": "Phase 1 introduces Recall with a full-page ivory canvas, bold type, a ranked pattern preview using shared product metrics, editorial workflow sections and native FAQ disclosures. Keep existing themes and local workspace access; label illustrative data, explain retention estimates honestly, and defer authentication and hosted sync to phase 2."
     }
   ],
   "evidence": [

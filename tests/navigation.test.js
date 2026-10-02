@@ -2,6 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { patternLink, readRoute } from '../apps/web/src/navigation.js';
 
+test('public entry and About stay separate from workspace and legacy links',()=>{
+  for(const hash of ['', '#', '#/', '#/home'])assert.equal(readRoute(hash).page,'home');
+  assert.equal(readRoute('#/about').page,'about');
+  assert.deepEqual(readRoute('#/home?section=how-it-works'),{page:'home',section:'how-it-works'});
+  assert.equal(readRoute('#/about/unknown').page,'dashboard');
+  assert.equal(readRoute('#/patterns/graphs').page,'patterns');
+  assert.equal(readRoute('#/settings').page,'settings');
+  assert.equal(readRoute('#main').page,'dashboard');
+});
+
 test('patterns and dashboard are separate routes with direct detail links', () => {
   assert.equal(readRoute('#/dashboard').page,'dashboard');
   assert.deepEqual(readRoute('#/patterns/trees'),{page:'patterns',slug:'trees',query:''});
