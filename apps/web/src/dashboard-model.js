@@ -25,6 +25,17 @@ export function percent(value) {
   return Math.max(0, Math.min(100, Number(value) || 0));
 }
 
+export function classifiedSolves(item) {
+  if (Number.isFinite(item.coverageSolved)) return item.coverageSolved;
+  // Older API snapshots expose uncapped primary counts in goal.actual. Never
+  // substitute recorded approach counts or capped difficulty credits.
+  const actual=item.goal?.actual;
+  if (Number.isFinite(actual)) return actual;
+  if (actual && ['easy','medium','hard','unknown'].every(key=>Number.isFinite(actual[key])))
+    return actual.easy+actual.medium+actual.hard+actual.unknown;
+  return null;
+}
+
 export function priorityProgress(item) {
   if (item.slug === 'other') return null;
   if (Number.isFinite(item.priorityProgress)) return percent(item.priorityProgress);

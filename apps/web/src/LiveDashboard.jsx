@@ -4,7 +4,7 @@ import SubpatternProblems from './SubpatternProblems.jsx';
 import { useEffect, useState } from 'react';
 import { request } from './api.js';
 import { patternLink } from './navigation.js';
-import { filterPatterns, prioritizedPatterns } from './dashboard-model.js';
+import { classifiedSolves, filterPatterns, prioritizedPatterns } from './dashboard-model.js';
 
 function GoalForm({ goal, onSaved }) {
   const [profile, setProfile] = useState(goal.profile || 'interview');
@@ -44,7 +44,8 @@ function PatternDetail({ category, goalConfigured, query }) {
       <section className="detail-coverage" aria-label={`${category.name} difficulty coverage`}><p className="eyebrow">Build balanced coverage</p><h2>Coverage by difficulty.</h2>{category.goal ? <><div className="difficulty-coverage-list">{['easy','medium','hard'].map(bucket => <DifficultyBar key={bucket} goal={coverageGoal} bucket={bucket} />)}</div><p className="coverage-help">Each segment is a subpattern. Hover, tap, or focus to see its progress.</p></> : <p className="data-note">{goalConfigured ? 'Outside the coverage goal.' : 'Choose a coverage goal on the dashboard.'}</p>}</section>
     </div>
     <div className="section-heading"><h2>Subpatterns</h2><span className="data-note">{children.length} approaches</span></div>
-    <div className="subpattern-list">{children.map((child,index) => <SubpatternProblems key={child.slug} slug={child.slug} name={child.name} next={index === 0 && category.slug !== 'other'}><div className="subpattern-row-heading"><span className="pattern-icon" aria-hidden="true">{String(index+1).padStart(2,'0')}</span><div><h3>{child.name}</h3><p>{child.distinctSolved} distinct {child.distinctSolved === 1 ? 'solve' : 'solves'}{child.goal?.deficit > 0 ? ` · ${child.goal.deficit} credits remaining` : ''}</p></div></div><PatternMetrics item={child} goal={child.goal} name={`${category.name}, ${child.name}`} goalConfigured={goalConfigured} /></SubpatternProblems>)}</div>
+    <p className="data-note">Coverage counts each problem in its primary pattern. Practice strength follows the recorded approach. Difficulty credits are capped by your goal.</p>
+    <div className="subpattern-list">{children.map((child,index) => <SubpatternProblems key={child.slug} slug={child.slug} name={child.name} next={index === 0 && category.slug !== 'other'}><div className="subpattern-row-heading"><span className="pattern-icon" aria-hidden="true">{String(index+1).padStart(2,'0')}</span><div><h3>{child.name}</h3><p>{classifiedSolves(child) ?? '—'} classified {classifiedSolves(child) === 1 ? 'solve' : 'solves'}{child.goal?.deficit > 0 ? ` · ${child.goal.deficit} credits remaining` : ''}</p></div></div><PatternMetrics item={child} goal={child.goal} name={`${category.name}, ${child.name}`} goalConfigured={goalConfigured} /></SubpatternProblems>)}</div>
   </div>;
 }
 export default function LiveDashboard({ route }) {

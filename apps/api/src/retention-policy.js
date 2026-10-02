@@ -128,6 +128,7 @@ function trendFor(events,legacyProblemIds,now,breadthTarget,current) {
 }
 export function overview(problems,events,_preferences={},now=Date.now()) {
   const placements=new Map(problems.map(p=>[p.id,unitForPlacement(p.placement)]));
+  const solvedIds=new Set([...problems.filter(p=>p.historicallySolved).map(p=>p.id),...events.map(e=>e.problemId)]);
   const groups=navigationCategories.map((category,index)=>{
     const members=problems.filter(p=>p.placement.category===category.slug);
     const unitSlugs=unitsFor(category).map(unit=>unit.slug);
@@ -143,7 +144,7 @@ export function overview(problems,events,_preferences={},now=Date.now()) {
       const days=freshness.lastPracticedAt?Math.floor((now-new Date(freshness.lastPracticedAt))/day):null;
       const reason=!experienced?'No solved problems here yet':!freshness.assessed?distinctSolved+' previous '+(distinctSolved===1?'solve':'solves')+' · dates unavailable':freshness.breadth<0.5?'Only a few problems solved in this pattern':days>=30?'No practice here for '+Math.floor(days/7)+' weeks':freshness.weightedRevisits<3?'Most practice here was one-time solves':'Practiced recently with repeat work';
       const trend30Days=trendFor(evidence,legacyProblemIds,now,breadthTargets[unit.slug]??policy.defaultBreadthTarget,freshness);
-      return {...unit,...freshness,count:matching.length,distinctSolved,experienced,priority,queuePriority,reason,trend30Days,order};
+      return {...unit,...freshness,count:matching.length,coverageSolved:matching.filter(p=>solvedIds.has(p.id)).length,distinctSolved,experienced,priority,queuePriority,reason,trend30Days,order};
     }).sort((a,b)=>Math.floor((b.queuePriority??-1)/practicePolicy.bufferCredits)-Math.floor((a.queuePriority??-1)/practicePolicy.bufferCredits)||a.order-b.order);
     const attention=children.find(c=>c.priority!==null);
     const categoryEvidence=events.filter(e=>unitSlugs.includes(e.practiceUnit||placements.get(e.problemId))).map(e=>({...e,practiceUnit:e.practiceUnit||placements.get(e.problemId)}));
@@ -154,7 +155,7 @@ export function overview(problems,events,_preferences={},now=Date.now()) {
     const days=summaryFreshness.lastPracticedAt?Math.floor((now-new Date(summaryFreshness.lastPracticedAt))/day):null;
     const reason=!experienced?'No solved problems here yet':!summaryFreshness.assessed?distinctSolved+' previous '+(distinctSolved===1?'solve':'solves')+' · dates unavailable':summaryFreshness.breadth<0.5?'Only a few problems solved across this pattern':days>=30?'No practice here for '+Math.floor(days/7)+' weeks':summaryFreshness.weightedRevisits<3?'Most practice here was one-time solves':'Practiced recently with repeat work';
     const trend30Days=trendFor(categoryEvidence,legacyProblemIds,now,categoryBreadthTargets[category.slug]??policy.defaultBreadthTarget,summaryFreshness);
-    const summary={name:category.name,...summaryFreshness,distinctSolved,experienced,reason,trend30Days};
+    const summary={name:category.name,...summaryFreshness,coverageSolved:members.filter(p=>solvedIds.has(p.id)).length,distinctSolved,experienced,reason,trend30Days};
     const priority=experienced&&category.slug!=='other'?100-summary.displayStrength:null;
     const queuePriority=experienced&&category.slug!=='other'?100-summary.queueStrength:null;
     return {slug:category.slug,name:category.name,count:members.length,tracked:children.filter(c=>c.assessed).length,children,summary,attention:attention?.slug||null,priority,queuePriority,order:index};

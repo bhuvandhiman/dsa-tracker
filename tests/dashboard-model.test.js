@@ -1,7 +1,14 @@
 import { applyGoalOrdering } from '../apps/api/src/goal-policy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { priorityProgress, difficultyCoverage, retentionOverview, evidenceLabel, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
+import { classifiedSolves, priorityProgress, difficultyCoverage, retentionOverview, evidenceLabel, filterPatterns, orderedPatterns, prioritizedPatterns, percent } from '../apps/web/src/dashboard-model.js';
+
+test('classified solves stay independent of practiced approaches and capped credits across API versions',()=>{
+  assert.equal(classifiedSolves({coverageSolved:6,distinctSolved:2,goal:{credited:3}}),6);
+  assert.equal(classifiedSolves({distinctSolved:2,goal:{actual:{easy:0,medium:1,hard:1,unknown:0},credited:0}}),2);
+  assert.equal(classifiedSolves({goal:{actual:12,credited:5}}),12);
+  assert.equal(classifiedSolves({distinctSolved:2}),null);
+});
 
 const item = (slug, order, { assessed = false, solved = 0, strength = null, gap = 0 } = {}) => ({ slug, name:slug, order, goal:{deficit:gap}, summary:{assessed,distinctSolved:solved,strength,lastPracticedAt:'2026-09-01T00:00:00Z'} });
 test('pattern picker uses catalog order, keeps unclassified last, and preserves input', () => {

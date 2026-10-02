@@ -22,8 +22,8 @@ export const categories = [
 const other = {slug:'other', name:'Other / needs classification', children:[]};
 export const navigationCategories = [...categories, other];
 
-// Exact identities take precedence over broad tags. Add reviewed mappings here,
-// never guess a DP subtype or BFS vs DFS from an undifferentiated Graph tag.
+// Reviewed identity refinements fill vocabulary gaps after clear technique tags.
+// Never guess a DP subtype or BFS vs DFS from an undifferentiated Graph tag.
 const known = {};
 function group(category, subpattern, slugs) {
   if (category === 'advanced-graphs') category = 'graphs';
@@ -131,8 +131,8 @@ export function candidateUnits(problem) {
   // Explicit technique tags outrank structural families and problem-name rules.
   const specialized = fallbackPriority.filter(tag => !['trees','graphs','arrays-hashing','math','dynamic-programming','greedy','stack','hash-table'].includes(tag));
   for(const tag of specialized) if(tags.has(tag)) add(topicPlacements[tag],'topic');
-  const addTraversalFamily=(family,dfsPlacement,bfsPlacement)=>{
-    if(!tags.has(family)) return;
+  const addTraversalFamily=(family,dfsPlacement,bfsPlacement,enabled=tags.has(family))=>{
+    if(!enabled) return;
     const hasDfs=tags.has('depth-first-search');
     const hasBfs=tags.has('breadth-first-search');
     if(hasDfs&&hasBfs) {
@@ -145,14 +145,16 @@ export function candidateUnits(problem) {
     if(hasBfs) add(bfsPlacement,'topic-combination');
   };
   addTraversalFamily('trees',{category:'trees',subpattern:'tree-dfs'},{category:'trees',subpattern:'tree-bfs'});
-  addTraversalFamily('graphs',{category:'graphs',subpattern:'graph-dfs'},{category:'graphs',subpattern:'graph-bfs'});
+  // State-space and matrix traversal often has no Graph tag. Tree traversal
+  // stays in Trees; otherwise explicit BFS/DFS is enough to identify traversal.
+  addTraversalFamily('graphs',{category:'graphs',subpattern:'graph-dfs'},{category:'graphs',subpattern:'graph-bfs'},!tags.has('trees')&&(tags.has('graphs')||tags.has('depth-first-search')||tags.has('breadth-first-search')));
   // Retain exact refinements only where provider vocabulary cannot identify the
   // subtype. Existing imports without raw metadata may also need legacy hints.
   const primary=result[0];
   const canRefine=exact && (!primary || (primary.category===exact.category && !primary.subpattern));
   const supportsFamily=exact && [...tags].some(tag=>topicPlacements[tag]?.category===exact.category);
-  const derived=exact && exact.category==='dynamic-programming' && supportsFamily;
-  if(canRefine && ((!hasProviderTopics && !primary) || derived)) add(exact,'curated');
+  const derived=exact && ((exact.category==='dynamic-programming' && supportsFamily) || (exact.category==='intervals' && [...tags].some(tag=>['arrays-hashing','sorting','greedy','intervals'].includes(tag))));
+  if((canRefine && !hasProviderTopics && !primary) || derived) add(exact,'curated');
   for(const tag of fallbackPriority) if(tags.has(tag)) add(topicPlacements[tag],'topic');
   // These provider topics share the broad arrays placement and are deliberately
   // added after named algorithmic patterns.
