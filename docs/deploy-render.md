@@ -109,9 +109,10 @@ its requirements. Keep email confirmation enabled. See
    your source checkout's extension defaults to the local API.
 2. Extract the ZIP to a folder and load that folder using Chrome's **Load
    unpacked**. Keep the folder for future reloads.
-3. Refresh your LeetCode tabs after loading/reloading the extension.
-4. Sign into extension Settings with the same confirmed Recall email/password
-   as the website. Website login and extension login are separate.
+3. Refresh Recall and LeetCode tabs after loading/reloading the extension.
+4. Sign into the Recall website in the same Chrome profile. The extension
+   connects automatically. If needed, **Connect through Recall** in its Settings
+   opens the website; there is no separate extension password form.
 5. Import accepted problems from the LeetCode account signed into that Chrome
    profile. Open the online dashboard and verify the imported count/placement.
 6. Record a new accepted problem with required topic selection, reload the
@@ -121,6 +122,12 @@ The hosted ZIP grants access only to LeetCode and this Recall origin. Its API an
 website URLs both point to Render; no local API process is needed. Tokens remain
 in Chrome session storage, while per-account drafts/checkpoints remain local.
 The source extension still supports local development unchanged.
+
+Website token renewals update the extension while Recall is open, and website
+sign-out disconnects it. If Recall stays closed until the access token expires,
+reopen it to reconnect with the website's saved login. After Chrome restarts or
+the extension reloads, also reopen/refresh the website. The bridge never shares
+the website refresh token, avoiding competing Supabase token refreshes.
 
 Optional later settings: `EXTENSION_VIDEO_URL` for your direct HTTPS walkthrough
 video, and `EXTENSION_STORE_URL` for your Chrome Web Store listing. Change these

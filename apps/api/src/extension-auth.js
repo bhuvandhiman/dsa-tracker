@@ -6,6 +6,16 @@ export function createExtensionAuth(settings,fetchImpl=fetch){
   const verify=createAuthenticator(settings,fetchImpl);
   return async (kind,body)=>{
     if(settings.mode!=='supabase'||!settings.configured)throw new DomainError(400,'Recall is using its local workspace.');
+    if(kind==='connect'){
+      if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(key=>key!=='accessToken')||typeof body.accessToken!=='string'||!body.accessToken||body.accessToken.length>8192)throw new DomainError(400,'Invalid website connection.');
+      // Supabase verifies the bearer before we read its expiry. Never transfer
+      // the website refresh token: the website remains its only refresh owner.
+      const user=await verify({get:()=>`Bearer ${body.accessToken}`});
+      let claims;try{claims=JSON.parse(Buffer.from(body.accessToken.split('.')[1],'base64url').toString());}catch{throw new DomainError(401,'Open Recall and sign in to reconnect.');}
+      if(claims?.sub!==user.id||!Number.isFinite(claims.exp)||claims.exp*1000<=Date.now())throw new DomainError(401,'Open Recall and sign in to reconnect.');
+      return {user,accessToken:body.accessToken,expiresAt:claims.exp*1000,project:settings.url,source:'website'};
+    }
+    if(!['login','refresh'].includes(kind))throw new DomainError(400,'Invalid sign-in request.');
     const keys=kind==='login'?['email','password']:['refreshToken'];
     if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(key=>!keys.includes(key)))throw new DomainError(400,'Invalid sign-in request.');
     if(kind==='login'&&(typeof body.email!=='string'||body.email.length>320||!body.email.includes('@')||typeof body.password!=='string'||!body.password||body.password.length>4096))throw new DomainError(400,'Enter your Recall email and password.');

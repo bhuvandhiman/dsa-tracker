@@ -1,7 +1,4 @@
 #recall-account { margin:24px 0; }
-#recall-signin { display:flex; flex-direction:column; gap:8px; }
-#recall-signin label { font-size:12px; font-weight:700; margin-top:8px; }
-#recall-signin input { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--canvas); color:var(--ink); font:inherit; }
-#recall-signin input:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
+#recall-connect { width:100%; }
 #recall-account-status { font-weight:700; }
 #recall-account .note { font-size:11px; line-height:1.7; color:var(--muted); }

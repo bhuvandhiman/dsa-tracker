@@ -37,11 +37,14 @@ your project URL, public key and provider settings.
 
 ## Phase 3 — local extension connection implemented
 
-Sign into the extension with the same confirmed email/password as the website.
+Sign into the website in the same Chrome profile; it connects the extension
+automatically. **Connect through Recall** opens the website if needed.
 Authenticated imports and saves reach the verified owner's private workspace.
 Local drafts, queues, import checkpoints and retries are isolated per account;
 historical solves remain separate from dated practice. Credentials use session
-storage, so Chrome restarts and extension reloads require sign-in again. The
+storage, so Chrome restarts and extension reloads require reopening/refreshing
+the website. Only access tokens are transferred; website login owns refresh.
+If Recall remains closed until access expires, reopen it to reconnect. The
 installation acknowledgement remains manual. Real user flows and hosted imports
 still need verification/deployment; fixture tests do not claim those are complete.
 

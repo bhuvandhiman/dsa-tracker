@@ -19,7 +19,7 @@ async function collect(relative){
     }
   }else{
     let data=await readFile(location);
-    if(site&&relative==='manifest.json'){const manifest=JSON.parse(data);manifest.host_permissions=manifest.host_permissions.filter(value=>value.startsWith('https://leetcode.com/'));manifest.host_permissions.push(site.origin+'/*');data=Buffer.from(JSON.stringify(manifest,null,2)+'\n');}
+    if(site&&relative==='manifest.json'){const manifest=JSON.parse(data);manifest.host_permissions=manifest.host_permissions.filter(value=>value.startsWith('https://leetcode.com/'));manifest.host_permissions.push(site.origin+'/*');for(const script of manifest.content_scripts)if(script.js.includes('src/website-bridge.js'))script.matches=[site.origin+'/*'];data=Buffer.from(JSON.stringify(manifest,null,2)+'\n');}
     if(site&&relative==='src/runtime-config.js')data=Buffer.from(`export const recallRuntime=${JSON.stringify({apiOrigin:site.origin,websiteOrigin:site.origin})};\n`);
     if(site&&['popup.html','setup.html'].includes(relative))data=Buffer.from(data.toString().replaceAll('http://127.0.0.1:5173/',site.origin+'/').replaceAll('Checking local API and database…','Checking Recall connection…').replaceAll('Start the local Recall API before saving.','Sign in to Recall before saving.').replaceAll('and the local Recall API running','and Recall signed in'));
     entries.push({name:Buffer.from(relative),data});

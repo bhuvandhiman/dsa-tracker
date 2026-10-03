@@ -11,6 +11,11 @@ globalThis.chrome={storage:{local:fixtureStorage,onChanged:{addListener:listener
     if(message.type==='PING')return {status:'worker-ready',version:'UI fixture'};
     const account=JSON.parse(sessionStorage.getItem('fixture-account')||'null');
     if(message.type==='RECALL_ACCOUNT_STATUS')return {mode:'supabase',connected:Boolean(account),scope:account?.id||null,email:account?.email||''};
+    if(message.type==='RECALL_OPEN_WEBSITE'){
+      const next={id:'fa631c58-72ad-4a67-89d8-f6a4ae5d1641',email:'fixture@example.test'};
+      sessionStorage.setItem('fixture-account',JSON.stringify(next));
+      setTimeout(()=>{for(const listener of fixtureChanges)listener({'recall-account-session':{newValue:{user:next}}},'session');},0);return {opened:true};
+    }
     if(message.type==='RECALL_SIGN_IN'){
       if(message.password!=='fixture-password')return {error:'Check your email and password, and confirm your email before signing in.'};
       sessionStorage.setItem('fixture-account',JSON.stringify({id:message.email.startsWith('other')?'ea631c58-72ad-4a67-89d8-f6a4ae5d1642':'fa631c58-72ad-4a67-89d8-f6a4ae5d1641',email:message.email}));return {connected:true};

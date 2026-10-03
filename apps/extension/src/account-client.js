@@ -7,7 +7,7 @@ export function workspaceKey(scope,key){
   return `recall-user:${scope}:${key}`;
 }
 export function createAccountClient(chromeApi,fetchImpl=fetch,now=Date.now){
-  let config,configAt=0,refreshing=null,revision=0,writes=Promise.resolve();
+  let config,configAt=0,refreshing=null,revision=0,pendingWebsite=null,writes=Promise.resolve();
   function store(work){const next=writes.then(work);writes=next.catch(()=>{});return next;}
   async function raw(path,options={}){
     const signal=options.signal?AbortSignal.any([options.signal,AbortSignal.timeout(15000)]):AbortSignal.timeout(15000);
@@ -25,9 +25,9 @@ export function createAccountClient(chromeApi,fetchImpl=fetch,now=Date.now){
     return config;
   }
   async function session(){return (await chromeApi.storage.session.get(sessionKey))[sessionKey];}
-  function valid(value,project){return typeof project==='string'&&value?.project===project&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value.user?.id||'')&&typeof value.user.email==='string'&&[value.accessToken,value.refreshToken].every(token=>typeof token==='string'&&token.length>0&&token.length<=8192)&&Number.isFinite(value.expiresAt)&&value.expiresAt>0;}
-  async function status(){const options=await settings(),saved=options.mode==='supabase'?await session():null;return {mode:options.mode,connected:options.mode==='local'||valid(saved,options.url),scope:options.mode==='local'?'local':valid(saved,options.url)?saved.user.id:null,email:valid(saved,options.url)?saved.user.email:''};}
-  async function scope(){const state=await status();if(!state.connected)throw new Error('Sign into your Recall account in extension Settings, then retry.');return state.scope;}
+  function valid(value,project){return typeof project==='string'&&value?.project===project&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value.user?.id||'')&&typeof value.user.email==='string'&&(value.source==='website'?[value.accessToken]:[value.accessToken,value.refreshToken]).every(token=>typeof token==='string'&&token.length>0&&token.length<=8192)&&Number.isFinite(value.expiresAt)&&value.expiresAt>0;}
+  async function status(){const options=await settings(),saved=options.mode==='supabase'?await session():null,known=valid(saved,options.url),connected=known&&(saved.source!=='website'||saved.expiresAt>now()+5000);return {mode:options.mode,connected:options.mode==='local'||connected,scope:options.mode==='local'?'local':known?saved.user.id:null,email:known?saved.user.email:''};}
+  async function scope(){const state=await status();if(!state.connected)throw new Error('Sign into Recall on the website, then use Connect through Recall in extension Settings.');return state.scope;}
   async function assertScope(expected){const current=await scope();if(expected!==undefined&&expected!==current)throw new Error('Recall account changed. Refresh this page before continuing.');return current;}
   async function signIn(email,password){
     const current=++revision,options=await settings();if(options.mode!=='supabase')throw new Error('Recall is using its local workspace.');
@@ -36,12 +36,35 @@ export function createAccountClient(chromeApi,fetchImpl=fetch,now=Date.now){
     if(current!==revision)throw new Error('Sign-in was cancelled. Try again.');
     await store(async()=>{if(current!==revision)throw new Error('Sign-in was cancelled. Try again.');await chromeApi.storage.session.set({[sessionKey]:saved});});return status();
   }
-  async function signOut(){revision++;await store(()=>chromeApi.storage.session.remove(sessionKey));}
+  async function signOut(){revision++;pendingWebsite=null;await store(()=>chromeApi.storage.session.remove(sessionKey));}
+  async function connectWebsite(accessToken,owner){
+    if(typeof accessToken!=='string'||!accessToken||accessToken.length>8192||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(owner||''))throw new Error('Invalid website connection.');
+    const current=++revision;pendingWebsite=owner;
+    try{
+      const options=await settings();if(options.mode!=='supabase')return status();
+      const previous=await session();
+      if(valid(previous,options.url)&&previous.source==='website'&&previous.accessToken===accessToken&&previous.user.id===owner)return status();
+      const next=await json('/auth/extension/connect',{accessToken});
+      if(!valid(next,options.url)||next.source!=='website'||next.refreshToken!==undefined||next.user.id!==owner||next.expiresAt<=now()+5000)throw new Error('Open Recall and sign in to reconnect.');
+      await store(async()=>{
+        if(current!==revision)throw new Error('Website connection changed. Reopen Recall to reconnect.');
+        const saved=await session();
+        if(saved?.source==='website'&&saved.user.id===owner&&saved.expiresAt>next.expiresAt)return;
+        await chromeApi.storage.session.set({[sessionKey]:next});
+      });return status();
+    }finally{if(current===revision)pendingWebsite=null;}
+  }
+  async function disconnectWebsite(owner){
+    // A late sign-out from another account must not disconnect this account.
+    const saved=await session();if(pendingWebsite!==owner&&(saved?.source!=='website'||saved.user.id!==owner))return {signedOut:false};
+    const current=++revision;pendingWebsite=null;
+    await store(async()=>{if(current!==revision)return;const latest=await session();if(latest?.source==='website'&&latest.user.id===owner)await chromeApi.storage.session.remove(sessionKey);});return {signedOut:true};
+  }
   async function token(expected){
     const options=await settings();await assertScope(expected);if(options.mode==='local')return null;
     let saved=await session();
     if(!valid(saved,options.url))throw new Error('Sign into your Recall account in extension Settings, then retry.');
-    if(saved.expiresAt<=now()+60000){
+    if(saved.expiresAt<=now()+60000&&saved.source!=='website'){
       if(!refreshing||refreshing.revision!==revision||refreshing.owner!==saved.user.id){
         const current=revision,owner=saved.user.id,refreshToken=saved.refreshToken;
         const entry={revision:current,owner};
@@ -62,5 +85,5 @@ export function createAccountClient(chromeApi,fetchImpl=fetch,now=Date.now){
     try{return await new Promise((resolve,reject)=>{const abort=()=>reject(signal.reason);signal.addEventListener('abort',abort,{once:true});operation.then(resolve,reject).finally(()=>signal.removeEventListener('abort',abort));});}
     catch(error){if(signal.aborted&&!options.signal?.aborted)throw new Error(unavailable,{cause:error});throw error;}
   }
-  return {status,scope,assertScope,signIn,signOut,request,key:workspaceKey};
+  return {status,scope,assertScope,signIn,signOut,connectWebsite,disconnectWebsite,request,key:workspaceKey};
 }

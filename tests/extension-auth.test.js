@@ -76,7 +76,7 @@ test('account switches reject stale pages and preserve separate namespaces inclu
 });
 test('trusted extension messages expose no tokens and refuse content-script auth or arbitrary API paths',async()=>{
   let listener,calls=0;const account={status:async()=>({connected:true,scope:owner}),assertScope:async()=>owner,request:async()=>{calls++;return Response.json({ok:true});},key:workspaceKey};
-  const context=vm.createContext({chrome:{runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onMessage:{addListener(fn){listener=fn;}}}},createAccountClient:()=>account});
+  const context=vm.createContext({URL,recallRuntime:{websiteOrigin:'http://127.0.0.1:5173'},chrome:{runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onMessage:{addListener(fn){listener=fn;}}}},createAccountClient:()=>account});
   const source=readFileSync(new URL('../apps/extension/src/account-worker.js',import.meta.url),'utf8').replace(/^import .*;\r?$/gm,'').replace(/^export /gm,'');vm.runInContext(source,context);
   const send=(message,sender)=>new Promise(resolve=>listener(message,sender,resolve)),page={id:'test',url:'chrome-extension://test/setup.html'};
   for(const type of ['RECALL_ACCOUNT_STATUS','RECALL_SIGN_IN','RECALL_API','RECALL_STATE_GET'])assert.match((await send({type},{id:'test',url:'https://leetcode.com/problems/two-sum/'})).error,/Settings/);

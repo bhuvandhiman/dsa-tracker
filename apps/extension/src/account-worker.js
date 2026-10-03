@@ -1,12 +1,23 @@
 import { createAccountClient } from './account-client.js';
+import { recallRuntime } from './runtime-config.js';
 export const recallAccount=createAccountClient(chrome);
 const stateNames=['legacySetup','retentionSetup'];
 export function trustedPage(sender){return sender.id===chrome.runtime.id&&['setup.html','popup.html'].some(page=>sender.url===chrome.runtime.getURL(page));}
+export function trustedWebsite(sender){
+  if(sender.id!==chrome.runtime.id||sender.frameId!==0||!Number.isInteger(sender.tab?.id))return false;
+  try{return new URL(sender.url).origin===recallRuntime.websiteOrigin;}catch{return false;}
+}
 chrome.runtime.onMessage.addListener((message,sender,respond)=>{
-  if(!['RECALL_ACCOUNT_STATUS','RECALL_SIGN_IN','RECALL_SIGN_OUT','RECALL_API','RECALL_STATE_GET','RECALL_STATE_SET','RECALL_STATE_REMOVE'].includes(message?.type))return;
+  if(message?.type==='RECALL_WEBSITE_SESSION'){
+    if(!trustedWebsite(sender)){respond({error:'Connect from the configured Recall website.'});return;}
+    const operation=message.accessToken===null?recallAccount.disconnectWebsite(message.owner):recallAccount.connectWebsite(message.accessToken,message.owner);
+    operation.then(respond,error=>respond({error:error.message||'Website connection failed.'}));return true;
+  }
+  if(!['RECALL_ACCOUNT_STATUS','RECALL_OPEN_WEBSITE','RECALL_SIGN_IN','RECALL_SIGN_OUT','RECALL_API','RECALL_STATE_GET','RECALL_STATE_SET','RECALL_STATE_REMOVE'].includes(message?.type))return;
   if(!trustedPage(sender)){respond({error:'Open Recall extension Settings to manage your account.'});return;}
   const run=async()=>{
     if(message.type==='RECALL_ACCOUNT_STATUS')return recallAccount.status();
+    if(message.type==='RECALL_OPEN_WEBSITE'){await chrome.tabs.create({url:recallRuntime.websiteOrigin+'/#/login'});return {opened:true};}
     if(message.type==='RECALL_SIGN_IN')return recallAccount.signIn(message.email,message.password);
     if(message.type==='RECALL_SIGN_OUT'){await recallAccount.signOut();return {signedOut:true};}
     const scope=await recallAccount.assertScope(message.workspaceScope);

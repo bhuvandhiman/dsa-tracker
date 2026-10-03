@@ -87,18 +87,23 @@ the page changes its button and instructions to the store flow. Restart the API
 after changing either setting.
 
 The installation acknowledgement is a user confirmation. The bundled extension
-connects to the local API and supports email/password authentication:
+connects to the configured API and reuses your website login:
 
 1. Restart `npm run dev` after updating the API.
-2. Reload Recall on `chrome://extensions`, then refresh your LeetCode tabs.
-3. Open Recall extension Settings and sign in with the same confirmed email and
-   password used on the website. Website login does not sign in the extension.
+2. Reload Recall on `chrome://extensions`, then refresh Recall and LeetCode tabs.
+3. Sign in on the Recall website in this Chrome profile. The extension connects
+   automatically. Its **Connect through Recall** button opens the website if needed.
 4. Keep a signed-in LeetCode tab open, then import previously solved problems.
 
-Passwords are forwarded once to the configured Supabase project and never saved.
-Tokens live in Chrome's session storage, unavailable to content scripts. Sign in
-again after Chrome restarts or the extension reloads; sessions refresh while Chrome
-is running. Imports, drafts, queues and unfinished saves use account-specific
+The bridge passes only a short-lived access token; it does not copy a password
+or the website's refresh token. The API verifies the token with Supabase before
+connecting the account. Only the exact configured website origin and its top
+frame can connect; LeetCode cannot manage the account. Tokens live in Chrome's
+session storage, unavailable to content scripts. Website token renewals update
+the connection, and website sign-out disconnects it. If the website stays closed
+until the token expires, reopen it to reconnect through its saved login. Also
+reopen/refresh Recall after Chrome restarts or the extension reloads. No second
+password form is shown. Imports, drafts, queues and unfinished saves use account-specific
 local storage. Switching accounts blocks old pages until refreshed. Existing
 unscoped local drafts remain preserved for local mode and are not automatically
 assigned to a Supabase account. Hosted packaging is prepared for Render; use the
@@ -107,8 +112,8 @@ ZIP from the deployed site's installation page. Follow
 
 ## Validation and local fixtures
 
-`npm run check`: lint, 224 unit tests and production build.
-`npm run test:db`: 15 isolated PostgreSQL integration tests, including cross-account
+`npm run check`: lint, 259 unit tests and production build.
+`npm run test:db`: 19 isolated PostgreSQL integration tests, including cross-account
 solve/goal/capture/backup isolation and rollback/pool reuse. Owned test schemas
 are cleaned up; existing practice data is not used as test data.
 
@@ -128,18 +133,21 @@ Browser verification covers confirmation/resend, invalid/valid login, local PKCE
 callback, saved focus/target, setup reload, failed-save retry, setup completion,
 logout/private-route protection, password-recovery request and show/hide control.
 Light/dark layouts fit 390px and 320px without horizontal overflow. The ZIP
-download was verified, and its 30 entries match extension source byte for byte.
+download was verified, and its 31 entries match extension source byte for byte.
 Real email delivery and password changes require project configuration.
 Google sign-in was subsequently removed from the UI at the user's request; the
 current flow is email/password only.
 
 `npm run test:extension-ui` serves real extension pages on port 8766 with simulated
-Chrome account/import messages. Use `fixture@example.test` / `fixture-password`;
-an email starting with `other` selects a separate simulated workspace. Do not run
+Chrome account/import messages. **Connect through Recall** simulates the website
+connection to `fixture@example.test`; it does not sign into a real account. Do not run
 it at the same time as `test:accounts`. This fixture does not contact Supabase,
 LeetCode or PostgreSQL. Automated extension tests cover session refresh, logout
 during refresh, stale-account rejection, trusted message senders, draft isolation
-and API mode changes. Real account sign-in and LeetCode imports need user checks.
+and API mode changes. Bridge tests cover origin/frame restrictions, nonce checks,
+verified identities, expired sessions, sign-out races and token renewal without
+interrupting imports. Real Chrome installation/account connection and LeetCode
+imports still need user checks.
 
 Local mode remains loopback-only. Hosted mode serves the frontend and API from
 one trusted HTTPS origin and requires Supabase authentication. Workspace now

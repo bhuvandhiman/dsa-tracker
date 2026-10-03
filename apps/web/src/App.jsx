@@ -9,6 +9,7 @@ import AuthPages from './AuthPages.jsx';
 import Onboarding, { Installation } from './Onboarding.jsx';
 import useAuth from './use-auth.js';
 import { WorkspaceContext } from './workspace-context.js';
+import { connectWebsiteExtension } from './extension-bridge.js';
 
 function Icon({ name, ...props }) {
   const paths = {
@@ -26,6 +27,7 @@ function Icon({ name, ...props }) {
 
 export default function App() {
   const auth=useAuth();
+  useEffect(()=>{if(auth.client)return connectWebsiteExtension(auth.client);},[auth.client]);
   const [accountError,setAccountError]=useState('');
   const [route, setRoute] = useState(() => readLocation(window.location));
   useEffect(() => {

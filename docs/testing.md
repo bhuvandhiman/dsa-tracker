@@ -1,5 +1,17 @@
 # Verification
 
+## Website-to-extension login — 3 October 2026
+
+Extension 0.11.0 connects through the website login without a second password
+form. Thirteen new regressions cover verified bearer identity, uncached responses,
+expiry/reconnection, exact origin and frame restrictions, nonce/source checks,
+account isolation, early sign-out, delayed verification and session reads, and
+renewals that do not interrupt imports. All 259 unit tests, lint and the production build pass.
+The browser fixture confirms connection enables import controls. Hosted packaging
+was checked against the exact Render domain, and all 31 local ZIP files match
+source bytes. Real Chrome/Supabase connection remains a post-deployment check.
+See [connection behavior and limits](website-extension-login.md).
+
 ## Current audit — 3 October 2026
 
 `npm run check` passes 246 tests, ESLint and the production build. `npm run test:db` passes 19 isolated PostgreSQL integration tests, including retries after metadata changes, concurrent import snapshots, empty-account backup restoration, invalid backup rollback and a 1,000-problem/2,000-recording workspace. The dependency audit reports zero known vulnerabilities. See [the comprehensive audit](comprehensive-audit-2026-10-03.md) for fixed findings, browser evidence and verification limits. The account fixture also provides `/fixture/workspace` controls for simulating a private database outage without changing a real account.

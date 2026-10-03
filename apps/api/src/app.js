@@ -36,7 +36,7 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
     response.set('Cache-Control','no-store');
     response.json({mode:auth.mode,configured:auth.configured,...(auth.configured?{url:auth.url,key:auth.key}:{}),installation,deployment});
   });
-  for(const kind of ['login','refresh'])app.post(`/api/auth/extension/${kind}`,async(request,response)=>{
+  for(const kind of ['login','refresh','connect'])app.post(`/api/auth/extension/${kind}`,async(request,response)=>{
     response.set('Cache-Control','no-store');
     response.json(await extensionAuth(kind,request.body));
   });
