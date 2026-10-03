@@ -1,7 +1,8 @@
 export function readRoute(hash) {
   const [path, query = ''] = hash.replace(/^#/, '').split('?');
   const parts = path.split('/').filter(Boolean);
-  if(parts.length===1&&['signup','login','forgot-password','reset-password','setup','install-extension'].includes(parts[0]))return {page:parts[0]};
+  const account=new URLSearchParams(query).get('account');
+  if(parts.length===1&&['signup','login','forgot-password','reset-password','setup','install-extension','privacy'].includes(parts[0]))return {page:parts[0],...(parts[0]==='login'&&['deleted','deletion-pending'].includes(account)?{account}:{})};
   if (!parts.length || (parts.length === 1 && ['home','about'].includes(parts[0]))) {
     return {page:parts[0] || 'home',section:new URLSearchParams(query).get('section') || ''};
   }
@@ -16,6 +17,7 @@ export function readRoute(hash) {
   }
   return {page:'dashboard',slug:null,query:''};
 }
+export function readLocation(location){return readRoute(location.hash&&location.hash!=='#main'?location.hash:location.pathname+location.search);}
 
 export function patternLink(slug, query = '') {
   return `#/patterns${slug ? `/${encodeURIComponent(slug)}` : ''}${query ? `?q=${encodeURIComponent(query)}` : ''}`;

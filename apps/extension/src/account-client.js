@@ -1,4 +1,6 @@
-const api='http://127.0.0.1:3001/api',sessionKey='recall-account-session';
+import { recallRuntime } from './runtime-config.js';
+const api=recallRuntime.apiOrigin+'/api',sessionKey='recall-account-session';
+const unavailable=recallRuntime.apiOrigin.startsWith('https:')?'Recall may be waking up or unavailable. Open the website and retry shortly. Your saved drafts are kept.':'Start the Recall API, then retry. Your saved drafts are kept.';
 export function workspaceKey(scope,key){
   if(scope==='local')return key;
   if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(scope||''))throw new Error('Sign into Recall in extension Settings.');
@@ -7,15 +9,15 @@ export function workspaceKey(scope,key){
 export function createAccountClient(chromeApi,fetchImpl=fetch,now=Date.now){
   let config,configAt=0,refreshing=null,revision=0;
   async function raw(path,options={}){
-    try{return await fetchImpl(api+path,{...options,credentials:'omit',redirect:'error',signal:AbortSignal.timeout(15000)});}catch{throw new Error('Start the Recall API, then retry. Your saved drafts are kept.');}
+    try{return await fetchImpl(api+path,{...options,credentials:'omit',redirect:'error',signal:AbortSignal.timeout(15000)});}catch{throw new Error(unavailable);}
   }
   async function json(path,body){
-    const response=await raw(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),data=await response.json();
+    const response=await raw(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let data;try{data=await response.json();}catch{throw new Error(unavailable);}
     if(!response.ok){const error=new Error(data.error||'Recall sign-in failed.');error.status=response.status;throw error;}
     return data;
   }
   async function settings(){
-    if(!config||now()-configAt>5000){const response=await raw('/auth/config');if(!response.ok)throw new Error('Could not check Recall account mode.');config=await response.json();configAt=now();}
+    if(!config||now()-configAt>5000){const response=await raw('/auth/config');if(!response.ok)throw new Error(unavailable);try{config=await response.json();}catch{throw new Error(unavailable);}configAt=now();}
     return config;
   }
   async function session(){return (await chromeApi.storage.session.get(sessionKey))[sessionKey];}

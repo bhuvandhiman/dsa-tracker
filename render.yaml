@@ -1,0 +1,29 @@
+# Preparation only: creating this service still requires your Render account.
+services:
+  - type: web
+    name: recall
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run package:extension && npm run build
+    startCommand: node apps/api/src/server.js
+    healthCheckPath: /api/health
+    autoDeployTrigger: "off"
+    envVars:
+      - key: NODE_VERSION
+        value: 22.20.0
+      - key: NODE_ENV
+        value: production
+      - key: DEPLOYMENT_MODE
+        value: hosted
+      - key: AUTH_MODE
+        value: supabase
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_CA_CERT
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false

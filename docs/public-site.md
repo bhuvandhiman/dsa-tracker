@@ -47,7 +47,16 @@ still need verification/deployment; fixture tests do not claim those are complet
 
 ## Phase 4 — launch
 
-Configure hosting, domain, HTTPS, backups, monitoring and recovery. Add privacy
-information and account export/deletion controls. Replace hash-based public
-routes with server-supported URLs for discoverability when deploying the
-public site. Validate complete signup-to-practice flows before public release.
+Preparation implemented: one Render Node service serves the built frontend and
+API over the assigned HTTPS origin, backed by existing Supabase Auth/PostgreSQL.
+The hosted extension download is built for that origin. Privacy information,
+account export and password-confirmed account deletion are available, with durable
+cleanup retries and stale-request protection. Public pages have server-supported
+clean URLs; private workspace hash links remain compatible.
+
+Follow [the Render setup guide](deploy-render.md). No accounts were created and
+nothing was published. Actual hosting, Supabase SMTP/redirects/server secret,
+operational backups/monitoring, a support/privacy contact and real end-to-end
+email/import verification remain operator work before public release. A purchased
+domain is optional for the preview. This is the final documented phase; do not
+invent an additional phase when the user says “next”.

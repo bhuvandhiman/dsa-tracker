@@ -13,5 +13,5 @@ export async function connectAuth(config){
   return connecting;
 }
 export function authRedirect(kind='callback'){
-  return `${window.location.origin}${window.location.pathname}?auth=${kind}#/${kind==='recovery'?'reset-password':'login'}`;
+  return `${window.location.origin}/?auth=${kind}#/${kind==='recovery'?'reset-password':'login'}`;
 }

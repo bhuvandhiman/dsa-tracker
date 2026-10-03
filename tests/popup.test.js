@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { recallRuntime } from '../apps/extension/src/runtime-config.js';
 
 const source = readFileSync(new URL('../apps/extension/src/popup.js', import.meta.url), 'utf8').replace(/^import .*;\r?$/gm,'');
 function popup({ ping, tabs, reply, create, apiReply } = {}) {
@@ -11,7 +12,7 @@ function popup({ ping, tabs, reply, create, apiReply } = {}) {
   const messages = [];
   const opened = [];
   const context = vm.createContext({
-    URL, connection:async()=>({connected:true,scope:'local'}),api:apiReply|| (async()=>({status:'ready'})),window: { close() {} },
+    URL, recallRuntime, connection:async()=>({connected:true,scope:'local'}),api:apiReply|| (async()=>({status:'ready'})),window: { close() {} },
     document: { querySelector: (selector) => elements[selector] },
     chrome: {
       runtime: { sendMessage: ping || (async () => ({ status: 'worker-ready', version: '0.1.0' })) },

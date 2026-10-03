@@ -93,3 +93,14 @@
 .public-local-link { display:inline-block; font-size:11px; color:var(--muted); margin-top:12px; }
 @media(max-width:900px){ .account-split { grid-template-columns:1fr; gap:40px; padding-top:35px; } .account-story { max-width:500px; } .account-story h1 { font-size:42px; } .account-story > p:not(.eyebrow) { font-size:14px; margin:15px 0; } .account-illustration { display:none; } .account-form-panel { max-width:500px; justify-self:start; } .installation-body { grid-template-columns:1fr; gap:30px; } .installation-video { max-width:650px; width:100%; } }
 @media(max-width:600px){ .account-split { display:flex; flex-direction:column; align-items:stretch; gap:25px; padding-bottom:35px; } .account-story h1 { font-size:34px; letter-spacing:-1.4px; } .account-story > p:not(.eyebrow) { font-size:13px; } .account-form-panel h2 { font-size:29px; } .account-back { margin:0 0 12px; } .account-intro { margin-bottom:20px; } .account-shell .topbar { display:flex; flex-wrap:nowrap; min-height:72px; } .account-shell .topbar-actions { gap:12px; } .setup-progress ol { gap:12px; } .setup-progress li { flex:1; flex-direction:column; align-items:flex-start; gap:8px; font-size:10px; line-height:1.5; } .setup-mode-option { padding:18px 16px; gap:12px; } .setup-mode-option i { display:none; } .installation-heading { flex-direction:column; align-items:flex-start; } .installation-heading > a { margin-top:8px; } .installation-body { margin-top:28px; } .installation-footer { flex-direction:column; align-items:flex-start; gap:8px; } .installation-video { aspect-ratio:1.2; } .installation-video-placeholder > span { width:52px; height:52px; font-size:20px; margin-bottom:18px; } .setup-complete > .public-text-link { display:flex; margin-left:0; margin-top:12px; } }
+.workspace-account-controls { margin-top:24px; }
+.account-identity { font-weight:700; overflow-wrap:anywhere; }
+.account-delete-row { display:flex; align-items:center; justify-content:space-between; gap:24px; border-top:1px solid var(--line); margin-top:24px; padding-top:24px; }
+.account-delete-row h3 { margin:0; }
+.account-delete-row p { color:var(--muted); font-size:12px; }
+.danger-button { border:1px solid var(--difficulty-hard-ink); color:var(--difficulty-hard-ink); background:var(--surface); border-radius:14px; padding:12px 18px; font:inherit; font-weight:700; cursor:pointer; min-height:44px; }
+.danger-button:disabled { opacity:.5; cursor:default; }
+.danger-button:hover:not(:disabled){background:var(--coral-soft)}
+.danger-button:focus-visible { outline:3px solid var(--mustard); outline-offset:3px; }
+.account-deletion-form input { width:100%; padding:12px; border:1px solid var(--line); border-radius:12px; background:var(--canvas); color:var(--ink); font:inherit; }
+@media(max-width:500px){.account-delete-row{align-items:start;flex-direction:column}.account-deletion-form .row-actions{align-items:stretch;flex-direction:column}}

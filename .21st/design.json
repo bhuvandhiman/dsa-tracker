@@ -28,7 +28,9 @@
       "apps/web/src/PatternMetrics.jsx",
       "apps/web/src/AuthPages.jsx",
       "apps/web/src/Onboarding.jsx",
-      "apps/web/src/accounts.css"
+      "apps/web/src/accounts.css",
+      "apps/web/src/Privacy.jsx",
+      "apps/web/src/AccountControls.jsx"
     ],
     "assets": [],
     "instructions": [
@@ -222,6 +224,11 @@
       "date": "2026-10-03",
       "direction": "Email/password only through Supabase; Google deferred",
       "reason": "User postponed Google setup. Remove the Google button, icon, OAuth action and provider divider from signup/login, while keeping email confirmation, recovery, private workspaces and setup."
+    },
+    {
+      "date": "2026-10-03",
+      "direction": "Render preview preparation, editorial privacy and account controls",
+      "reason": "User chose Render plus existing Supabase. Reuse full-page public sections, Workspace panels and native dialogs with safe focus and explicit deletion confirmation. Host-specific extension packaging keeps local development available. Provider configuration and real deployment remain separate; no queue or classification changes."
     }
   ],
   "evidence": [

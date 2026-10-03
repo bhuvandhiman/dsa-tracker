@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import './styles.css';
 import LiveDashboard from './LiveDashboard.jsx';
 import Workflows from './Workflows.jsx';
-import { readRoute } from './navigation.js';
+import { readLocation } from './navigation.js';
+import Privacy from './Privacy.jsx';
 import PublicPages from './PublicPages.jsx';
 import AuthPages from './AuthPages.jsx';
 import Onboarding, { Installation } from './Onboarding.jsx';
@@ -25,19 +26,20 @@ function Icon({ name, ...props }) {
 export default function App() {
   const auth=useAuth();
   const [accountError,setAccountError]=useState('');
-  const [route, setRoute] = useState(() => readRoute(window.location.hash));
+  const [route, setRoute] = useState(() => readLocation(window.location));
   useEffect(() => {
     function navigate() {
-      setRoute(readRoute(window.location.hash));
+      setRoute(readLocation(window.location));
     }
     window.addEventListener('hashchange', navigate);
-    return () => window.removeEventListener('hashchange', navigate);
+    window.addEventListener('popstate',navigate);
+    return () => {window.removeEventListener('hashchange', navigate);window.removeEventListener('popstate',navigate);};
   }, []);
   const authPage=['signup','login','forgot-password','reset-password'].includes(route.page);
   const setupPage=route.page==='setup';
   const installationPage=route.page==='install-extension';
   const privatePage=['dashboard','patterns','settings'].includes(route.page);
-  const publicPage = ['home','about'].includes(route.page);
+  const publicPage = ['home','about','privacy'].includes(route.page);
   const accountShell=authPage||setupPage;
   const accountsEnabled=auth.config?.mode==='supabase';
   const canReadWorkspace=!auth.loading&&auth.config&&(accountsEnabled?auth.user&&auth.setup?.completed:true);
@@ -48,7 +50,7 @@ export default function App() {
     else if(auth.user&&['signup','login'].includes(route.page))window.location.hash=auth.setup?.completed?'/dashboard':'/setup';
   },[auth.loading,auth.error,auth.user,auth.setup,accountsEnabled,privatePage,route.page]);
   useEffect(() => {
-    const titles={home:'Recall — Know which DSA pattern to practice next',about:'About Recall',dashboard:'Dashboard · Recall',patterns:'Patterns · Recall',settings:'Workspace · Recall',signup:'Create account · Recall',login:'Log in · Recall','forgot-password':'Reset password · Recall','reset-password':'New password · Recall',setup:'Your setup · Recall','install-extension':'Install the extension · Recall'};
+    const titles={home:'Recall — Know which DSA pattern to practice next',about:'About Recall',privacy:'Privacy · Recall',dashboard:'Dashboard · Recall',patterns:'Patterns · Recall',settings:'Workspace · Recall',signup:'Create account · Recall',login:'Log in · Recall','forgot-password':'Reset password · Recall','reset-password':'New password · Recall',setup:'Your setup · Recall','install-extension':'Install the extension · Recall'};
     document.title=titles[route.page] || 'Recall';
     const frame=requestAnimationFrame(()=>{
       const section=route.page==='home'&&['how-it-works','questions'].includes(route.section)?document.getElementById(route.section):null;
@@ -76,7 +78,7 @@ export default function App() {
         {publicPage||installationPage||accountShell?<>
         <a className={`nav-link ${route.page==='home'&&!route.section?'active':''}`} aria-current={route.page==='home'&&!route.section?'page':undefined} href="#/home">Home</a>
         <a className={`nav-link ${route.section==='how-it-works'?'active':''}`} aria-current={route.section==='how-it-works'?'location':undefined} href="#/home?section=how-it-works">How it works</a>
-        <a className={`nav-link ${route.page==='about'?'active':''}`} aria-current={route.page==='about'?'page':undefined} href="#/about">About</a>
+        <a className={`nav-link ${route.page==='about'?'active':''}`} aria-current={route.page==='about'?'page':undefined} href="/about">About</a>
         </>:<>
         <a className={`nav-link ${route.page === 'dashboard' ? 'active' : ''}`} aria-current={route.page === 'dashboard' ? 'page' : undefined} href="#/dashboard"><Icon name="home" />Dashboard</a>
         <a className={`nav-link ${route.page === 'patterns' ? 'active' : ''}`} aria-current={route.page === 'patterns' ? 'page' : undefined} href="#/patterns"><Icon name="grid" />Patterns</a>
@@ -94,14 +96,16 @@ export default function App() {
 
     <main id="main" tabIndex={-1}>
       {accountError&&<p className="account-error" role="alert">{accountError}</p>}
-      {publicPage&&<PublicPages page={route.page} signedIn={Boolean(auth.user)} localMode={auth.config?.mode==='local'} />}
+      {publicPage&&route.page!=='privacy'&&<PublicPages page={route.page} signedIn={Boolean(auth.user)} localMode={auth.config?.mode==='local'} hosted={auth.config?.deployment?.mode==='hosted'} />}
+      {route.page==='privacy'&&<Privacy />}
+      {route.page==='login'&&route.account&&<p role="status" className="account-notice">{route.account==='deleted'?'Your Recall account and workspace were deleted.':route.account==='deletion-pending'?'Your deletion request is queued. Workspace access is blocked while cleanup retries.':''}</p>}
       {authPage&&<AuthPages key={route.page} page={route.page} auth={auth} />}
       {setupPage&&(auth.user?<Onboarding key={auth.user.id} auth={auth} />:<div className="account-loading"><h1>Start with your account.</h1><p>{auth.loading?'Checking your session…':'Sign in to save your setup and open your private workspace.'}</p><a className="primary-button" href="#/signup">Create account</a></div>)}
       {installationPage&&<Installation auth={auth} />}
       {privatePage&&!canReadWorkspace&&<div className="account-loading" role="status"><h2>{auth.error?'Could not open your workspace.':'Opening your workspace…'}</h2>{auth.error&&<><p>{auth.error}</p><button className="secondary-button" onClick={auth.retry}>Retry connection</button><a className="inline-link" href="#/login">Go to login</a></>}</div>}
       {canReadWorkspace&&['dashboard','patterns'].includes(route.page) && <LiveDashboard key={`${auth.user?.id||'local'}:${route.page}:${route.slug || ''}:${route.query}`} route={route} />}
-      {canReadWorkspace&&route.page === 'settings' && <Workflows key={auth.user?.id||'local'} />}
-      <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><nav className="footer-links" aria-label="Footer"><a href="#/home">Home</a><a href="#/about">About</a><a href="#/install-extension">Extension</a><a href="#/home?section=questions">FAQ</a></nav><span className="footer-flower" aria-hidden="true">✳</span></footer>
+      {canReadWorkspace&&route.page === 'settings' && <Workflows key={auth.user?.id||'local'} auth={auth} />}
+      <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><nav className="footer-links" aria-label="Footer"><a href="/">Home</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/install-extension">Extension</a><a href="#/home?section=questions">FAQ</a></nav><span className="footer-flower" aria-hidden="true">✳</span></footer>
     </main>
   </div>;
 }

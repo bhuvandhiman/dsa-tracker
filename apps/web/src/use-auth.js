@@ -33,5 +33,5 @@ export default function useAuth(){
     }
     void load();return()=>{active=false;epoch.current++;controller.abort();unsubscribe();};
   },[reload]);
-  return {...state,retry:()=>setReload(value=>value+1),refresh:async()=>{const current=++generation.current,account=await request('/session');if(current===generation.current)setState(value=>({...value,...account,error:''}));return account;},async signOut(){generation.current++;const {error}=await state.client.auth.signOut();if(error)throw error;window.location.hash='/home';}};
+  return {...state,retry:()=>setReload(value=>value+1),refresh:async()=>{const current=++generation.current,account=await request('/session');if(current===generation.current)setState(value=>({...value,...account,error:''}));return account;},async signOut({scope='global',destination='/home'}={}){generation.current++;const {error}=await state.client.auth.signOut({scope});if(!error||scope==='local')setState(value=>({...value,user:null,setup:null,error:''}));if(error)throw error;window.location.hash=destination;}};
 }

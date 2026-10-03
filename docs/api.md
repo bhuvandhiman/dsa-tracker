@@ -2,6 +2,24 @@
 
 All routes use /api, JSON, bounded pagination, and parameterized SQL. Errors return {error}. Missing schema/database returns 503. Incorrect input returns 400, missing records 404, and revision/idempotency conflicts 409.
 
+## Accounts and hosted mode
+
+`AUTH_MODE=supabase` verifies each private request against the configured Auth
+project. Account IDs supplied by a browser never select a workspace. Hosted mode
+requires an HTTPS origin and verified accounts; local mode remains loopback-only.
+
+- `GET /account`: verified identity and whether deletion is configured.
+- `GET /account/export`: version 1 `recall-account-export`, containing account
+  details, saved setup and a nested restorable workspace backup from one database
+  snapshot. The outer export is not a direct restore payload.
+- `DELETE /account`: only `{password,confirmation:"DELETE"}`. Re-authenticate the
+  current email and verify the resulting owner matches the request's account.
+  Returns 200 `{deleted:true,pending:false}` or 202 `{deleted:false,pending:true}`.
+  A queued deletion blocks workspace access and resumes after failures. Server
+  secret keys are never included in public configuration or exports.
+
+See [Render deployment](deploy-render.md) and [account setup](account-setup.md).
+
 ## Current workflow
 
 - GET /health: liveness only.
@@ -31,6 +49,10 @@ The workspace account is bound on first verified recording or import. New extens
 
 Scoped lists accept difficulty (easy/medium/hard/unknown), dates (all/dated/undated/older30) and sort (newest/title/oldest-practice/recent-practice), alongside q/status/category. History includes the approach inventory for editing.
 
-Host is restricted to loopback and requests reject untrusted Origin headers; normal trusted ports are 5173, 4173 and 3001, plus Chrome extension origins. The server refuses non-loopback HOST configuration. This remains a local personal service; these guards are not user authentication for a public deployment.
+Local mode restricts Host to loopback and allows trusted ports 5173, 4173 and
+3001, plus Chrome extension origins. Hosted mode accepts the configured HTTPS
+site origin/host and extension origins, with a loopback exception for liveness
+checks. Hosted private data always requires server-verified Supabase identity;
+origin/host checks are an additional boundary, not authentication.
 
 The obsolete /summary, /library and /retention/preferences routes are removed. Existing low-level problem, attempt, pattern and historical-evidence CRUD routes remain available for compatibility and integration fixtures; there is no dashboard form for creating practice.

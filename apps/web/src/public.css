@@ -59,6 +59,13 @@
 .public-signal-grid article > p:not(.eyebrow) { font-size:13px; line-height:1.8; margin:25px 0 15px; max-width:440px; }
 .public-retention { background:var(--teal); color:var(--on-accent); }
 .public-retention .eyebrow { color:var(--on-accent); }
+.privacy-intro { display:block; padding-bottom:24px; }
+.privacy-section { display:grid; grid-template-columns:64px minmax(0,1fr); gap:22px; padding:32px 0; border-top:1px solid var(--line); }
+.privacy-number { display:grid; place-items:center; align-self:start; width:48px; height:48px; border-radius:50%; background:var(--tile-undated); font-weight:800; }
+.privacy-section h2 { margin-top:0; font-size:25px; letter-spacing:-.6px; }
+.privacy-section p { max-width:800px; font-size:14px; line-height:1.9; color:var(--muted); }
+.privacy-section .secondary-button { margin-top:12px; }
+@media(max-width:500px){.privacy-section{grid-template-columns:36px minmax(0,1fr);gap:14px}.privacy-number{width:34px;height:34px;font-size:12px}}
 .public-retention .split-priority-track { background:#fffdec30; height:48px; }
 .public-retention .strength-bar-heading > span { font-size:30px; }
 .public-coverage { background:var(--surface); border:1px solid var(--line); }

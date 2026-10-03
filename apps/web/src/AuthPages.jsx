@@ -34,7 +34,7 @@ export default function AuthPages({page,auth}){
       </form>}
       {verification&&<><p className="account-email-sent">{email}</p><button className="secondary-button" disabled={!enabled||busy} onClick={()=>run(async()=>{const {error}=await auth.client.auth.resend({type:'signup',email:email.trim(),options:{emailRedirectTo:authRedirect()}});if(error)throw error;setMessage('If confirmation is needed, a new link is on its way.');})}>Resend confirmation</button><button className="text-button account-change-email" onClick={()=>{setVerification(false);setMessage('');}}>Use a different email</button></>}
       <p className="account-status" role="status">{message}</p><p className="account-error" role="alert">{error}</p>
-      <p className="account-switch">{forgot||reset?<a href="#/login">Back to log in</a>:signup?<>Already have an account? <a href="#/login">Log in</a></>:<>New to Recall? <a href="#/signup">Create an account</a></>}</p><p className="account-footnote">Your Recall account is separate from LeetCode.</p>
+      <p className="account-switch">{forgot||reset?<a href="#/login">Back to log in</a>:signup?<>Already have an account? <a href="#/login">Log in</a></>:<>New to Recall? <a href="#/signup">Create an account</a></>}</p><p className="account-footnote">Your Recall account is separate from LeetCode. <a className="inline-link" href="/privacy">Privacy & data</a></p>
     </section>
   </div>;
 }

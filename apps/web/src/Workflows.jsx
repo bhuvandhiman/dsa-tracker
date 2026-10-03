@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { request } from './api.js';
 import { backupSummary } from './workflow-model.js';
+import AccountControls from './AccountControls.jsx';
 
 function useResource(path) {
   const [state,setState] = useState({path:null,data:null,error:'',loading:true});
@@ -75,6 +76,6 @@ function Settings() {
   return <><p className="eyebrow">Make room for your practice</p><h1>Workspace.</h1><p className="page-description">Your learning space, safely in your hands.</p><div className="workspace-grid"><ResourceState resource={ready} />{ready.data && <section className="workspace-panel"><h2>Your workspace</h2><dl><dt>Storage</dt><dd>{ready.data.storage}</dd><dt>LeetCode account</dt><dd>{ready.data.account || 'No account connected'}</dd><dt>Practice time zone</dt><dd>{ready.data.timeZone}</dd></dl><p className="data-note">Manage your coverage goal on the dashboard.</p></section>}<section className="workspace-panel"><h2>Backup & restore</h2><p>Keep a copy of your problems, practice, notes, and goal.</p><button className="secondary-button" disabled={busy} onClick={download}>{busy ? 'Working…' : 'Download backup'}</button><label className="file-label">Choose a Recall JSON backup<input ref={fileInput} disabled={busy} type="file" accept=".json,application/json" onChange={selectFile} /></label>{summary && <div className="restore-preview"><h3>Review your backup</h3><p>{summary.problems} problems · {summary.attempts} recordings · {summary.records} total records</p><p>Restore adds missing records. Existing records must match exactly; differing records cause the restore to fail without changes. Use an empty workspace when restoring a different snapshot.</p><div className="row-actions"><button disabled={busy} className="primary-button" onClick={restore}>{busy ? 'Restoring…' : 'Restore this backup'}</button><button disabled={busy} className="secondary-button" onClick={clearBackup}>Cancel</button></div></div>}<p role="status" className="form-message">{message}</p></section><section className="workspace-panel workspace-recovery"><h2>Removed recordings</h2><p className="data-note">Recover a recording to include it in your practice again.</p><ResourceState resource={removed} />{removed.data && <><div className="record-list">{removed.data.attempts.map(attempt=><RemovedRecording key={`${attempt.id}-${attempt.revision}`} attempt={attempt} onChanged={text=>{setRecoveryMessage(text);removed.reload();}} />)}</div>{!removed.data.attempts.length && <p>Nothing to recover. Removed recordings will appear here.</p>}{(removed.data.attempts.length > 0 || offset > 0) && <Pagination offset={offset} count={removed.data.attempts.length} more={removed.data.attempts.length === 25} onChange={setOffset} />}</>}<p role="status" className="form-message">{recoveryMessage}</p></section></div></>;
 }
 
-export default function Workflows() {
-  return <section className="workflow-page"><Settings /></section>;
+export default function Workflows({auth}) {
+  return <section className="workflow-page"><Settings />{auth?.user&&<AccountControls auth={auth} />}</section>;
 }

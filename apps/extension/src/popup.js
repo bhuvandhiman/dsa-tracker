@@ -1,4 +1,5 @@
 import { api, connection } from './account-page.js';
+import { recallRuntime } from './runtime-config.js';
 const worker = document.querySelector('#worker');
 const problem = document.querySelector('#problem');
 const refresh = document.querySelector('#refresh');
@@ -43,7 +44,7 @@ async function checkExtension() {
     }).catch(error=>{accountStatus.textContent=error.message;});
   }
   const readiness=apiStatus?(async()=>{
-    apiStatus.textContent='Checking local API and database…';
+    apiStatus.textContent=recallRuntime.apiOrigin.startsWith('https:')?'Checking Recall connection…':'Checking local API and database…';
     await connection().then(()=>api('/ready')).then(async data=>{
       if(data.status!=='ready')throw new Error('Database is not ready.');
       recallReady=true;

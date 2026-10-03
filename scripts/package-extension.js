@@ -7,6 +7,9 @@ const root=fileURLToPath(new URL('../apps/extension/',import.meta.url));
 const output=fileURLToPath(new URL('../apps/web/public/downloads/recall-extension.zip',import.meta.url));
 const allowed=['manifest.json','icons','src','popup.html','popup.css','setup.html','setup.css','account.css'];
 const entries=[];
+const siteValue=process.env.EXTENSION_SITE_URL||(process.env.DEPLOYMENT_MODE==='hosted'?(process.env.APP_ORIGIN||process.env.RENDER_EXTERNAL_URL):'');
+if(process.env.DEPLOYMENT_MODE==='hosted'&&!siteValue)throw new Error('Hosted extension packaging requires APP_ORIGIN or RENDER_EXTERNAL_URL.');
+let site=null;if(siteValue){site=new URL(siteValue);if(site.protocol!=='https:'||site.username||site.password||site.pathname!=='/'||site.search||site.hash)throw new Error('EXTENSION_SITE_URL must be an HTTPS origin.');}
 async function collect(relative){
   const location=path.join(root,relative);
   if(['icons','src'].includes(relative)||relative.endsWith('/')){
@@ -14,7 +17,13 @@ async function collect(relative){
       if(item.isSymbolicLink())throw new Error('Extension packages cannot include symbolic links.');
       await collect(`${relative.replace(/\/$/,'')}/${item.name}${item.isDirectory()?'/':''}`);
     }
-  }else entries.push({name:Buffer.from(relative),data:await readFile(location)});
+  }else{
+    let data=await readFile(location);
+    if(site&&relative==='manifest.json'){const manifest=JSON.parse(data);manifest.host_permissions=manifest.host_permissions.filter(value=>value.startsWith('https://leetcode.com/'));manifest.host_permissions.push(site.origin+'/*');data=Buffer.from(JSON.stringify(manifest,null,2)+'\n');}
+    if(site&&relative==='src/runtime-config.js')data=Buffer.from(`export const recallRuntime=${JSON.stringify({apiOrigin:site.origin,websiteOrigin:site.origin})};\n`);
+    if(site&&['popup.html','setup.html'].includes(relative))data=Buffer.from(data.toString().replaceAll('http://127.0.0.1:5173/',site.origin+'/').replaceAll('Checking local API and database…','Checking Recall connection…').replaceAll('Start the local Recall API before saving.','Sign in to Recall before saving.').replaceAll('and the local Recall API running','and Recall signed in'));
+    entries.push({name:Buffer.from(relative),data});
+  }
 }
 for(const name of allowed)await collect(name);
 

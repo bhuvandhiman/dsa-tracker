@@ -101,12 +101,14 @@ again after Chrome restarts or the extension reloads; sessions refresh while Chr
 is running. Imports, drafts, queues and unfinished saves use account-specific
 local storage. Switching accounts blocks old pages until refreshed. Existing
 unscoped local drafts remain preserved for local mode and are not automatically
-assigned to a Supabase account. Hosted imports still require deployment work.
+assigned to a Supabase account. Hosted packaging is prepared for Render; use the
+ZIP from the deployed site's installation page. Follow
+[Render + Supabase setup](deploy-render.md) to publish and verify real imports.
 
 ## Validation and local fixtures
 
-`npm run check`: lint, 217 unit tests and production build.
-`npm run test:db`: 13 isolated PostgreSQL integration tests, including cross-account
+`npm run check`: lint, 224 unit tests and production build.
+`npm run test:db`: 15 isolated PostgreSQL integration tests, including cross-account
 solve/goal/capture/backup isolation and rollback/pool reuse. Owned test schemas
 are cleaned up; existing practice data is not used as test data.
 
@@ -126,7 +128,7 @@ Browser verification covers confirmation/resend, invalid/valid login, local PKCE
 callback, saved focus/target, setup reload, failed-save retry, setup completion,
 logout/private-route protection, password-recovery request and show/hide control.
 Light/dark layouts fit 390px and 320px without horizontal overflow. The ZIP
-download was verified, and its 29 entries match extension source byte for byte.
+download was verified, and its 30 entries match extension source byte for byte.
 Real email delivery and password changes require project configuration.
 Google sign-in was subsequently removed from the UI at the user's request; the
 current flow is email/password only.
@@ -139,6 +141,16 @@ LeetCode or PostgreSQL. Automated extension tests cover session refresh, logout
 during refresh, stale-account rejection, trusted message senders, draft isolation
 and API mode changes. Real account sign-in and LeetCode imports need user checks.
 
-The API remains loopback-only. Public HTTPS hosting, trusted production origins,
-operational backups/monitoring, privacy information and account deletion remain
-launch work.
+Local mode remains loopback-only. Hosted mode serves the frontend and API from
+one trusted HTTPS origin and requires Supabase authentication. Workspace now
+offers account export and password-confirmed deletion; deletion failures remain
+queued and stale requests cannot recreate a removed workspace. The Privacy page
+explains storage and remaining preview limits. Browser fixture checks cover data
+export status, confirmation gating, rejected passwords, safe initial dialog focus,
+Escape/focus return, clean privacy reload and narrow layouts in both themes.
+Hosted ZIP checks verify exact cloud permissions/URLs; source ZIP bytes remain
+identical to the local extension. No real user account was deleted in testing.
+
+Real Render/Supabase configuration, SMTP, operational backups/monitoring, a
+support/privacy contact and complete live email/import checks remain launch work;
+see the deployment guide. Hosting is prepared, not already published.
