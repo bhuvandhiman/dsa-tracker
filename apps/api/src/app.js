@@ -5,8 +5,9 @@ import { createAuthenticator } from './auth.js';
 import { goalInput } from './domain.js';
 import { createExtensionAuth } from './extension-auth.js';
 import { deletionInput } from './account-lifecycle.js';
+import { databaseFailure, reportDatabaseFailure } from './database-diagnostics.js';
 
-export function createApp({ repository = null, auth = {mode:'local',configured:false}, repositoryForUser = null, authenticate = createAuthenticator(auth), extensionAuth = createExtensionAuth(auth), accountLifecycle=null, installation = {},deployment={mode:'local',origin:null},webRoot=null } = {}) {
+export function createApp({ repository = null, auth = {mode:'local',configured:false}, repositoryForUser = null, authenticate = createAuthenticator(auth), extensionAuth = createExtensionAuth(auth), accountLifecycle=null, installation = {},deployment={mode:'local',origin:null},webRoot=null, reportDatabaseError=reportDatabaseFailure } = {}) {
   if(deployment.mode==='hosted'&&(auth.mode!=='supabase'||!auth.configured))throw new Error('Hosted Recall requires configured Supabase authentication.');
   const app = express();
   app.disable('x-powered-by');
@@ -87,9 +88,11 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
   // Express requires all four parameters to recognize error middleware.
   app.use((error, _request, response, _next) => {
     if (error instanceof DomainError) return response.status(error.status).json({ error: error.message });
-    if (['42P01', '42703'].includes(error.code)) return response.status(503).json({ error: 'Database schema is not ready. Run npm run db:migrate.' });
-    if (['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'ETIMEDOUT', '28P01', '28000', '3D000', '57P01', '53300'].includes(error.code) || /timeout|Connection terminated/i.test(error.message)) {
-      return response.status(503).json({ error: 'Database is unavailable. Check PostgreSQL and DATABASE_URL.' });
+    const failure=databaseFailure(error);
+    if (failure) {
+      reportDatabaseError(error,'request');
+      const message=deployment.mode==='hosted'?'Your workspace is temporarily unavailable. Please retry.':failure.reason==='schema'?'Database schema is not ready. Run npm run db:migrate.':'Database is unavailable. Check PostgreSQL and DATABASE_URL.';
+      return response.status(503).json({ error: message });
     }
     const messages = {
       400: 'Invalid JSON body.',

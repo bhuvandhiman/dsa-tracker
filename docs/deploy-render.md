@@ -152,7 +152,28 @@ ledger remains to prevent recreation by stale requests; practice and notes are
 removed. Provider backups and exports/extension drafts on other devices are
 separate and are explained on the Privacy page.
 
-## 7. Free-tier limits, backups and recovery
+## 7. Diagnose a workspace connection failure
+
+The server runs a read-only `SELECT 1` at startup. In Render's service **Logs**,
+look for `Recall database connection OK.` or `Recall database startup failed`.
+Workspace requests and deletion recovery also log safe database codes. These
+messages do not include passwords, connection strings, SQL, or account IDs.
+The public `/api/health` endpoint remains a liveness check, not a database test.
+
+- `28P01`: verify the **database** password and percent-encoding in DATABASE_URL.
+- `POOLER_IDENTITY`: recopy the session pooler host and username from Connect;
+  the username includes the project reference and the host cluster must match.
+- `ENOTFOUND`: the database hostname cannot be resolved.
+- `ETIMEDOUT` / `ENETUNREACH`: check database status and network restrictions;
+  use the IPv4 session pooler on 5432.
+- Certificate errors: configure the complete, current database CA PEM in
+  DATABASE_CA_CERT; keep TLS verification enabled.
+- `42501`: the database role cannot create the required workspace schemas/tables.
+
+After changing Render environment variables, deploy the change and check the
+new startup log. Share only the diagnostic line if you need help, not secrets.
+
+## 8. Free-tier limits, backups and recovery
 
 Render Free sleeps after 15 minutes without inbound traffic and may take about
 a minute to wake. If the website/extension reports that Recall is waking up,

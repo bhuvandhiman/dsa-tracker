@@ -7,6 +7,7 @@ import { accountAdminKey, createAccountAdmin, createAccountLifecycle } from './a
 import { deploymentSettings } from './deployment.js';
 import { fileURLToPath } from 'node:url';
 import { accessSync } from 'node:fs';
+import { checkDatabaseConnection, reportDatabaseFailure } from './database-diagnostics.js';
 
 const port = Number(process.env.PORT || 3001);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be between 1 and 65535.');
@@ -22,10 +23,11 @@ const lifecycle=pool&&auth.mode==='supabase'?createAccountLifecycle(pool,{remove
 const installation={storeUrl:process.env.EXTENSION_STORE_URL||'',videoUrl:process.env.EXTENSION_VIDEO_URL||'',downloadUrl:'/downloads/recall-extension.zip'};
 const server = createApp({ repository: pool ? createRepository(pool) : null,auth,repositoryForUser:pool?createUserWorkspaces(pool,{lifecycle}):null,accountLifecycle:lifecycle,installation,deployment,webRoot }).listen(port, host);
 let recovering=false;
-async function recoverDeletions(){if(!lifecycle?.enabled||recovering)return;recovering=true;try{await lifecycle.resume();}catch{console.error('Account deletion recovery is unavailable. Check the database connection.');}finally{recovering=false;}}
+async function recoverDeletions(){if(!lifecycle?.enabled||recovering)return;recovering=true;try{await lifecycle.resume();}catch(error){reportDatabaseFailure(error,'recovery');}finally{recovering=false;}}
 void recoverDeletions();const recoveryTimer=setInterval(()=>{void recoverDeletions();},300000);recoveryTimer.unref();
 server.once('listening', () => {
   console.log(`API listening on http://${host}:${port}`);
+  if(pool)void checkDatabaseConnection(pool);
 });
 server.on('error', (error) => { console.error(error.message); process.exitCode = 1; if (pool) pool.end(); });
 function shutdown() {

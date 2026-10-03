@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { reportDatabaseFailure } from './database-diagnostics.js';
 export function databaseOptions(connectionString,env=process.env){
   let url;try{url=new URL(connectionString);}catch{throw new Error('DATABASE_URL must be a PostgreSQL connection URL.');}
   if(!['postgres:','postgresql:'].includes(url.protocol))throw new Error('DATABASE_URL must be a PostgreSQL connection URL.');
@@ -13,8 +14,8 @@ export function databaseOptions(connectionString,env=process.env){
 
 // No connection is opened by importing this module.
 export function createPool(connectionString = process.env.DATABASE_URL) {
-  if (!connectionString) throw new Error('Set DATABASE_URL in apps/api/.env before checking PostgreSQL.');
+  if (!connectionString) throw Object.assign(new Error('Set DATABASE_URL in apps/api/.env before checking PostgreSQL.'),{code:'DATABASE_URL_MISSING'});
   const pool = new pg.Pool({ ...databaseOptions(connectionString), max: 5, connectionTimeoutMillis: 5000, statement_timeout: 10000 });
-  pool.on('error', (error) => console.error(`Idle PostgreSQL connection failed: ${error.code || 'connection error'}`));
+  pool.on('error', (error) => reportDatabaseFailure(error,'idle'));
   return pool;
 }

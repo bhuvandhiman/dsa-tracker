@@ -1,12 +1,12 @@
 import { createPool } from './db.js';
+import { checkDatabaseConnection, reportDatabaseFailure } from './database-diagnostics.js';
 
 let pool;
 try {
   pool = createPool();
-  const { rows } = await pool.query('SELECT 1 AS connected');
-  console.log(`PostgreSQL connection OK: ${rows[0].connected}`);
+  if(!await checkDatabaseConnection(pool,{context:'check'}))process.exitCode=1;
 } catch (error) {
-  console.error(`PostgreSQL check failed: ${error.message}`);
+  reportDatabaseFailure(error,'check');
   process.exitCode = 1;
 } finally {
   if (pool) await pool.end();

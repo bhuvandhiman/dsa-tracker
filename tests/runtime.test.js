@@ -81,6 +81,15 @@ test('API starts without .env or a database and releases its port when stopped',
   await close(probe);
 });
 
+test('startup reports an unavailable database safely while liveness remains available',async t=>{
+  const databasePort=await freePort(),port=await freePort();
+  const process=launch(t,['apps/api/src/server.js'],{env:{HOST:'127.0.0.1',PORT:String(port),AUTH_MODE:'local',DEPLOYMENT_MODE:'local',DATABASE_URL:`postgresql://fixture:fake-secret@127.0.0.1:${databasePort}/fixture`}});
+  await process.waitFor(/Recall database startup failed \[ECONNREFUSED\]/);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/api/health`)).status,200);
+  process.child.kill();const result=await process.done;
+  assert.doesNotMatch(result.output,/fake-secret|postgresql:\/\//);
+});
+
 test('database check fails clearly without DATABASE_URL', async (t) => {
   const process = launch(t, ['apps/api/src/check-db.js'], { env: { DATABASE_URL: '' } });
   const result = await process.done;
@@ -93,7 +102,8 @@ test('database check exits rather than hanging when PostgreSQL is unavailable', 
   const process = launch(t, ['apps/api/src/check-db.js'], { env: { DATABASE_URL: `postgresql://test:test@127.0.0.1:${port}/test` } });
   const result = await process.done;
   assert.equal(result.code, 1);
-  assert.match(result.output, /PostgreSQL check failed/);
+  assert.match(result.output, /Recall database check failed \[ECONNREFUSED\]/);
+  assert.doesNotMatch(result.output, /postgresql:\/\/test:test/);
   assert.doesNotMatch(result.output, /connection OK/);
 });
 
