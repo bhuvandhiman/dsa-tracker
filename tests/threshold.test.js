@@ -9,6 +9,13 @@ const goal=(credited=0,target=20)=>({profile:'interview',target:300,categories:[
 const rows=evidence=>[{slug:'arrays-hashing',order:0,queuePriority:100-evidence.queueStrength,summary:evidence,children:[]}];
 const run=(credited=0,snapshot,e=retentionFor([],now),target=20)=>applyGoalOrdering(rows(e),goal(credited,target),snapshot)[0];
 const save=(item,credited=0,target=20)=>goalQueueSnapshot([item],goal(credited,target));
+test('corrupt queue memory cannot create extreme priority or block valid evidence',()=>{
+  const baseline=run(5),snapshot=save(baseline,5);
+  for(const change of [{anchor:999999},{credited:999},{credited:1.5},{blocks:1.5},{gap:999},{lastCredited:999},{lastCredited:0}]){
+    const corrupted=structuredClone(snapshot);Object.assign(corrupted.items['category:arrays-hashing'],change);
+    const item=run(5,corrupted);assert.equal(item.rankingPriority,baseline.rankingPriority);assert.ok(Number.isFinite(item.capabilitySignals.foundation));assert.equal(item.queueGate.reason,'initial');
+  }
+});
 
 test('refresh at each partial credit preserves the coverage gate until four, then keeps overflow',()=>{
   let item=run(),snapshot=save(item);

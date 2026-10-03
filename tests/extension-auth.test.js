@@ -92,3 +92,30 @@ test('API auth routes do not cache credentials and stale account scopes cannot w
   const local=createApp().listen(0,'127.0.0.1');await new Promise(resolve=>local.once('listening',resolve));t.after(()=>new Promise(resolve=>local.close(resolve)));
   assert.equal((await fetch(`http://127.0.0.1:${local.address().port}/api/ready`,{headers:{'X-Recall-Workspace':owner}})).status,409);
 });
+
+test('extension preserves caller cancellation and rejects corrupt stored sessions',async()=>{
+  const controller=new AbortController();let began;const started=new Promise(resolve=>{began=resolve;});
+  const {client}=clientFixture(async(_url,options)=>{began();return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(options.signal.reason),{once:true}));},{initial:saved()});
+  const pending=client.request('/ready',{signal:controller.signal},owner);await started;controller.abort();await assert.rejects(pending,{name:'AbortError'});
+  for(const initial of [{...saved(),accessToken:''},{...saved(),refreshToken:''},{...saved(),expiresAt:-1},{...saved(),user:{id:owner,email:{bad:true}}}])assert.equal((await clientFixture(()=>assert.fail('No request'),{initial}).client.status()).connected,false);
+});
+test('new-account requests do not share the old account refresh promise',async()=>{
+  let release,began;const blocked=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{began=resolve;});
+  const {client}=clientFixture(async(url,options)=>{
+    if(url.endsWith('/login'))return Response.json(saved(other,2000));
+    if(url.endsWith('/refresh')){const data=JSON.parse(options.body);if(data.refreshToken==='refresh-'+owner){began();await blocked;return Response.json(saved());}return Response.json({...saved(other),accessToken:'new-owner-token'});}
+    assert.equal(options.headers.Authorization,'Bearer new-owner-token');return Response.json({ok:true});
+  },{initial:saved(owner,2000)});
+  const old=client.request('/ready',{},owner);const rejected=assert.rejects(old,/account changed/i);await started;
+  await client.signIn(user.email,'fixture-password');await client.request('/ready',{},other);release();await rejected;
+});
+test('logout waits for an in-flight session write and removes its late result',async()=>{
+  let release,began;const blocked=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{began=resolve;}),session={};
+  const client=createAccountClient({storage:{session:{async get(key){return {[key]:session[key]};},async set(values){began();await blocked;Object.assign(session,values);},async remove(key){delete session[key];}}}},async url=>Response.json(url.endsWith('/auth/config')?config:saved()),()=>1000);
+  const login=client.signIn(user.email,'fixture-password');await started;const logout=client.signOut();release();await Promise.all([login,logout]);assert.deepEqual(session,{});
+});
+test('cancelling during token refresh ends the request without a later API write',async()=>{
+  let release,began;const blocked=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{began=resolve;});const controller=new AbortController();
+  const {client}=clientFixture(async url=>{assert.ok(url.endsWith('/refresh'),'Cancelled request must not reach the data API');began();await blocked;return Response.json(saved());},{initial:saved(owner,2000)});
+  const pending=client.request('/capture',{method:'POST',signal:controller.signal},owner);await started;controller.abort();await assert.rejects(pending,{name:'AbortError'});release();await new Promise(resolve=>setImmediate(resolve));
+});

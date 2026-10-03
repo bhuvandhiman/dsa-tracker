@@ -7,7 +7,7 @@ const content={signup:{eyebrow:'Your next chapter',title:'Build it.\nKeep it.',d
 
 export default function AuthPages({page,auth}){
   const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[show,setShow]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(''),[verification,setVerification]=useState(false);
-  const copy=content[page],signup=page==='signup',forgot=page==='forgot-password',reset=page==='reset-password',enabled=Boolean(auth.client)&&(!reset||Boolean(auth.user));
+  const copy=content[page],signup=page==='signup',forgot=page==='forgot-password',reset=page==='reset-password',enabled=Boolean(auth.client)&&(!reset||Boolean(auth.sessionUser));
   async function run(action){setBusy(true);setError('');setMessage('');try{await action();}catch(e){setError(e.message||'Something went wrong. Please try again.');}finally{setBusy(false);}}
   async function submit(event){
     event.preventDefault();if(!enabled||busy)return;
@@ -25,7 +25,7 @@ export default function AuthPages({page,auth}){
     <section className="account-form-panel" aria-labelledby="account-form-title"><a className="account-back" href="#/home">← Back to Recall</a><h2 id="account-form-title">{verification?'Check your inbox.':copy.form}</h2><p className="account-intro">{verification?'Your account starts with a confirmed email.':copy.intro}</p>
       {!auth.loading&&!auth.config?.configured&&<p className="account-notice">Online sign-in is being connected. You can still <a className="inline-link" href="#/dashboard">open your local workspace</a>.</p>}
       {auth.error&&<div className="account-notice" role="alert">{auth.error} <button className="text-button" onClick={auth.retry}>Retry connection</button></div>}
-      {reset&&auth.config?.configured&&!auth.user&&<p className="account-notice">Open the password-reset link from your email in the browser where you requested it.</p>}
+      {reset&&auth.config?.configured&&!auth.sessionUser&&<p className="account-notice">Open the password-reset link from your email in the browser where you requested it.</p>}
       {!verification&&<form className="account-form" onSubmit={submit}>
         {!reset&&<label htmlFor="account-email">Email address<input id="account-email" type="email" autoComplete="email" placeholder="you@example.com" required value={email} disabled={busy} onChange={e=>setEmail(e.target.value)} /></label>}
         {!forgot&&<div className="account-password-field"><label htmlFor="account-password">{reset?'New password':'Password'}</label><div className="password-input"><input id="account-password" aria-describedby={signup||reset?'account-password-help':undefined} type={show?'text':'password'} autoComplete={signup||reset?'new-password':'current-password'} minLength={signup||reset?8:undefined} required value={password} disabled={busy} onChange={e=>setPassword(e.target.value)} /><button type="button" aria-label={show?'Hide password':'Show password'} aria-pressed={show} onClick={()=>setShow(value=>!value)}>{show?'Hide':'Show'}</button></div>{(signup||reset)&&<small id="account-password-help">At least 8 characters.</small>}</div>}

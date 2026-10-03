@@ -6,6 +6,13 @@ import {runLegacyImport} from '../apps/extension/src/legacy-runner.js';
 import {legacyInput} from '../apps/api/src/domain.js';
 const installationId='00000000-0000-4000-8000-000000000001';
 const row=(slug,status='ac')=>({status,stat:{question__title_slug:slug}});
+test('corrupt checkpoints replay from a verified scan; mismatched metadata never writes problems',async()=>{
+  for(const state of [{snapshot:[{slug:'two-sum'}],offset:-1},{snapshot:[{slug:'two-sum'}],offset:2},{snapshot:[{slug:'two-sum'},{slug:'two-sum'}],offset:0},{snapshot:{bad:true},offset:0}]){
+    const sent=[];const result=await runLegacyImport({state:{installationId,decision:'pending',...state},scan:async()=>({username:'alice',problems:[{slug:'two-sum'}]}),saveState:async()=>{},topics:async()=>[{url:'https://leetcode.com/problems/two-sum/'}],writeBatch:async body=>sent.push(body)});
+    assert.equal(result.decision,'complete');assert.equal(sent[0].problems.length,1);assert.equal(sent[0].runId,installationId);assert.equal(sent[1].complete,true);
+  }
+  await assert.rejects(runLegacyImport({state:{installationId,decision:'pending',offset:0},scan:async()=>({username:'alice',problems:[{slug:'two-sum'}]}),saveState:async()=>{},topics:async()=>[{url:'https://leetcode.com/problems/wrong-problem/'}],writeBatch:()=>assert.fail('Mismatched metadata must not write')}),/Incomplete problem metadata/);
+});
 function adapter(responses) {
   const calls=[];
   const context=vm.createContext({URL,AbortSignal,document:{cookie:''},fetch:async(url,options)=>{calls.push({url,options});const data=responses.shift();return{ok:true,json:async()=>data};}});

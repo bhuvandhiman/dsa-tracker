@@ -5,6 +5,7 @@ import { candidateUnits, classifyProblem, patternInventory, unitForPlacement, re
 import { GOAL_POLICY_VERSION, applyGoalOrdering, goalCoverage, goalQueueSnapshot, unconfiguredGoal } from './goal-policy.js';
 import { isDsaTrackingProblem, splitDsaTrackingProblems } from './problem-scope.js';
 import { exportBackup, restoreBackup } from './backup.js';
+import { transaction as runTransaction } from './transaction.js';
 
 // New classification captures hash normalized user choices, not a derived
 // unit that a future classifier refinement could change. Legacy hashes stay exact.
@@ -21,18 +22,7 @@ const attemptSelect = `SELECT a.id, a.revision, a.practice_unit AS "practiceUnit
   FROM attempts a JOIN problems p ON p.id=a.problem_id`;
 
 export function createRepository(pool) {
-  async function transaction(work) {
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      const result = await work(client);
-      await client.query('COMMIT');
-      return result;
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally { client.release(); }
-  }
+  const transaction = (work, options) => runTransaction(pool, work, options);
   async function requirePatterns(client, slugs) {
     const { rows } = await client.query('SELECT slug FROM patterns WHERE slug = ANY($1::text[])', [slugs]);
     if (rows.length !== slugs.length) throw new DomainError(400, 'One or more patterns do not exist. Use GET /api/patterns.');
@@ -195,15 +185,17 @@ export function createRepository(pool) {
       });
     },
     async problemHistory(id,{limit,offset}) {
-      const problem=(await pool.query(`${problemSelect} WHERE p.id=$1`,[id])).rows[0];
-      if(!problem) throw new DomainError(404,'Problem not found.');
-      const attempts=(await pool.query(attemptSelect+' WHERE a.problem_id=$1 AND a.deleted_at IS NULL ORDER BY a.attempted_at DESC,a.created_at DESC,a.id DESC',[id])).rows;
-      const importedUnit=classifyProblem(problem).unit;
-      const recordedDays=new Set(attempts.map(a=>practiceDay(a.attemptedAt)));
-      const seen=new Set();
-      const imported=(await pool.query('SELECT submission_id AS id,submitted_at AS "attemptedAt" FROM imported_submissions WHERE problem_id=$1 ORDER BY submitted_at DESC',[id])).rows.filter(a=>{const day=practiceDay(a.attemptedAt);if(recordedDays.has(day)||seen.has(day))return false;seen.add(day);return true;}).map(a=>({...a,id:'import-'+a.id,assistance:'unknown',imported:true,practiceUnit:importedUnit,approachSource:'inferred',patternSlugs:[],notes:''}));
-      const history=[...attempts,...imported].sort((a,b)=>new Date(b.attemptedAt)-new Date(a.attemptedAt)||String(b.id).localeCompare(String(a.id)));
-      return {problem:{...problem,placement:classifyProblem(problem),candidates:candidateUnits(problem)},attempts:history.slice(offset,offset+limit),more:history.length>offset+limit,legacy:problem.historicallySolved,units:retentionUnits};
+      return transaction(async client=>{
+        const problem=(await client.query(`${problemSelect} WHERE p.id=$1`,[id])).rows[0];
+        if(!problem) throw new DomainError(404,'Problem not found.');
+        const attempts=(await client.query(attemptSelect+' WHERE a.problem_id=$1 AND a.deleted_at IS NULL ORDER BY a.attempted_at DESC,a.created_at DESC,a.id DESC',[id])).rows;
+        const importedUnit=classifyProblem(problem).unit;
+        const recordedDays=new Set(attempts.map(a=>practiceDay(a.attemptedAt)));
+        const seen=new Set();
+        const imported=(await client.query('SELECT submission_id AS id,submitted_at AS "attemptedAt" FROM imported_submissions WHERE problem_id=$1 ORDER BY submitted_at DESC',[id])).rows.filter(a=>{const day=practiceDay(a.attemptedAt);if(recordedDays.has(day)||seen.has(day))return false;seen.add(day);return true;}).map(a=>({...a,id:'import-'+a.id,assistance:'unknown',imported:true,practiceUnit:importedUnit,approachSource:'inferred',patternSlugs:[],notes:''}));
+        const history=[...attempts,...imported].sort((a,b)=>new Date(b.attemptedAt)-new Date(a.attemptedAt)||String(b.id).localeCompare(String(a.id)));
+        return {problem:{...problem,placement:classifyProblem(problem),candidates:candidateUnits(problem)},attempts:history.slice(offset,offset+limit),more:history.length>offset+limit,legacy:problem.historicallySolved,units:retentionUnits};
+      },{readOnly:true});
     },
     async capture(input) {
       const hash = captureHash(input);
@@ -213,9 +205,15 @@ export function createRepository(pool) {
         ? createHash('sha256').update(JSON.stringify({problem:input.problem,attempt:{requestId:a.requestId,assistance:a.assistance,attemptedAt:a.attemptedAt,patternSlugs:a.patternSlugs,notes:a.notes,patternSource:a.patternSource}})).digest('hex') : null;
       return transaction(async client => {
         const p = input.problem, a = input.attempt;
-        const existing=(await client.query('SELECT request_hash,deleted_at FROM attempts WHERE id=$1',[a.requestId])).rows[0];
         if(input.username) await lockAccount(client,input.username);
-        else if(!existing && (await client.query('SELECT username FROM workspace_account')).rowCount) throw new DomainError(409,'Verify the signed-in LeetCode account before recording. Reload the updated extension and refresh LeetCode.');
+        const existing=(await client.query('SELECT request_hash,deleted_at FROM attempts WHERE id=$1 FOR UPDATE',[a.requestId])).rows[0];
+        if(!input.username && !existing && (await client.query('SELECT username FROM workspace_account')).rowCount) throw new DomainError(409,'Verify the signed-in LeetCode account before recording. Reload the updated extension and refresh LeetCode.');
+        if(existing){
+          if(existing.deleted_at || ![hash,legacyHash].includes(existing.request_hash))throw new DomainError(409,'This recording ID was already used. Refresh the panel before making a new recording.');
+          // An identical retry acknowledges the stored recording; it must not
+          // revert tags or difficulty imported/edited after the original save.
+          return {created:false,attempt:(await client.query(`${attemptSelect} WHERE a.id=$1`,[a.requestId])).rows[0]};
+        }
         await requirePatterns(client, [...new Set([...p.patternSlugs, ...a.patternSlugs])]);
         await client.query(`INSERT INTO problems(platform,external_id,title,url,difficulty) VALUES($1,$2,$3,$4,$5)
           ON CONFLICT(platform,external_id) DO NOTHING`,[p.platform,p.externalId,p.title,p.url,p.difficulty]);
@@ -236,57 +234,61 @@ export function createRepository(pool) {
       });
     },
     async summary() {
-      const stats = (await pool.query(`SELECT
-        (SELECT count(*)::int FROM problems) AS problems,
-        (SELECT count(*)::int FROM (SELECT problem_id FROM attempts WHERE deleted_at IS NULL UNION SELECT problem_id FROM historical_solves UNION SELECT problem_id FROM imported_submissions) done) AS "uniqueProblems",
-        count(*)::int AS attempts, count(DISTINCT problem_id)::int AS practiced,
-        count(*) FILTER (WHERE assistance='independent')::int AS independent,
-        (SELECT count(*)::int FROM historical_solves) AS historical
-        FROM attempts WHERE deleted_at IS NULL`)).rows[0];
-      const patterns = (await pool.query(`SELECT p.slug, p.name,
-        (SELECT count(*)::int FROM problem_patterns pp WHERE pp.pattern_slug=p.slug) AS catalog,
-        (SELECT count(DISTINCT a.problem_id)::int FROM attempt_patterns ap JOIN attempts a ON a.id=ap.attempt_id
-          WHERE ap.pattern_slug=p.slug AND a.deleted_at IS NULL AND a.pattern_source='explicit') AS practiced
-        FROM patterns p ORDER BY p.name`)).rows;
-      const inventory = patternInventory(await classifiedProblems());
-      return { ...stats, patterns, inventory };
+      return transaction(async client=>{
+        const stats = (await client.query(`SELECT
+          (SELECT count(*)::int FROM problems) AS problems,
+          (SELECT count(*)::int FROM (SELECT problem_id FROM attempts WHERE deleted_at IS NULL UNION SELECT problem_id FROM historical_solves UNION SELECT problem_id FROM imported_submissions) done) AS "uniqueProblems",
+          count(*)::int AS attempts, count(DISTINCT problem_id)::int AS practiced,
+          count(*) FILTER (WHERE assistance='independent')::int AS independent,
+          (SELECT count(*)::int FROM historical_solves) AS historical
+          FROM attempts WHERE deleted_at IS NULL`)).rows[0];
+        const patterns = (await client.query(`SELECT p.slug, p.name,
+          (SELECT count(*)::int FROM problem_patterns pp WHERE pp.pattern_slug=p.slug) AS catalog,
+          (SELECT count(DISTINCT a.problem_id)::int FROM attempt_patterns ap JOIN attempts a ON a.id=ap.attempt_id
+            WHERE ap.pattern_slug=p.slug AND a.deleted_at IS NULL AND a.pattern_source='explicit') AS practiced
+          FROM patterns p ORDER BY p.name`)).rows;
+        const inventory = patternInventory(await classifiedProblems(client));
+        return { ...stats, patterns, inventory };
+      },{readOnly:true});
     },
     async library({ limit, offset, q = '', pattern = '', status='all', category = '', difficulty='', dates='all', sort='newest' }) {
-      const classified = await classifiedProblems();
-      const details = new Map(classified.map(p=>[p.id,p]));
-      const dsaProblems = classified.filter(isDsaTrackingProblem);
-      const dsaIds = new Set(dsaProblems.map(problem=>problem.id));
-      const categoryIds = dsaProblems.filter(p=>p.placement.category===category || p.placement.subpattern===category || unitForPlacement(p.placement)===category || (category==='knapsack'&&p.placement.subpattern?.startsWith('knapsack-'))).map(p=>p.id);
-      if(category) {
-        const unitSlugs=retentionUnits.filter(u=>u.slug===category||u.category===category).map(u=>u.slug);
-        const practiced=(await pool.query('SELECT DISTINCT problem_id FROM attempts WHERE deleted_at IS NULL AND practice_unit=ANY($1::text[])',[unitSlugs])).rows;
-        categoryIds.push(...practiced.map(r=>r.problem_id).filter(id=>dsaIds.has(id)));
-      }
-      const difficultyOrder = "CASE difficulty WHEN 'easy' THEN 0 WHEN 'medium' THEN 1 WHEN 'hard' THEN 2 END";
-      const order = {'difficulty-asc':`${difficultyOrder} ASC NULLS LAST,lower(title),id`,'difficulty-desc':`${difficultyOrder} DESC NULLS LAST,lower(title),id`,newest:'id DESC',title:'lower(title),id', 'oldest-practice':'"lastPracticedAt" ASC NULLS LAST,id', 'recent-practice':'"lastPracticedAt" DESC NULLS LAST,id'}[sort] || 'id DESC';
-      const result = await pool.query(`WITH catalog AS (
-        SELECT p.*,
-          (EXISTS(SELECT 1 FROM attempts a WHERE a.problem_id=p.id AND a.deleted_at IS NULL) OR EXISTS(SELECT 1 FROM imported_submissions i WHERE i.problem_id=p.id)) AS practiced,
-          EXISTS(SELECT 1 FROM historical_solves h WHERE h.problem_id=p.id) AS historical,
-          GREATEST(
-            (SELECT max(a.attempted_at) FROM attempts a WHERE a.problem_id=p.id AND a.deleted_at IS NULL),
-            (SELECT max(i.submitted_at) FROM imported_submissions i WHERE i.problem_id=p.id)
-          ) AS "lastPracticedAt",
-          COALESCE((SELECT json_agg(pp.pattern_slug ORDER BY pp.pattern_slug) FROM problem_patterns pp WHERE pp.problem_id=p.id),'[]') AS "patternSlugs"
-        FROM problems p WHERE ($6::text='' OR p.id=ANY($7::int[])) AND ($1::text='' OR strpos(lower(p.title || ' ' || p.external_id),lower($1))>0)
-          AND ($2::text='' OR EXISTS(SELECT 1 FROM problem_patterns pp WHERE pp.problem_id=p.id AND pp.pattern_slug=$2)
-            OR EXISTS(SELECT 1 FROM attempts a JOIN attempt_patterns ap ON ap.attempt_id=a.id WHERE a.problem_id=p.id AND a.deleted_at IS NULL AND ap.pattern_slug=$2))
-      ), matching AS (SELECT * FROM catalog WHERE ($3='all' OR ($3='done' AND (practiced OR historical)) OR ($3='practiced' AND practiced) OR ($3='unpracticed' AND NOT practiced) OR ($3='historical' AND historical))
-        AND ($8='' OR difficulty=$8 OR ($8='unknown' AND difficulty IS NULL))
-        AND ($9='all' OR ($9='dated' AND "lastPracticedAt" IS NOT NULL) OR ($9='undated' AND "lastPracticedAt" IS NULL) OR ($9='older30' AND "lastPracticedAt" < now()-interval '30 days')))
-      SELECT (SELECT count(*)::int FROM matching) AS total,
-        COALESCE((SELECT json_agg(page) FROM (SELECT * FROM matching ORDER BY ${order} LIMIT $4 OFFSET $5) page),'[]') AS problems`, [q, pattern, status, limit, offset, category, categoryIds,difficulty,dates]);
-      const resultPage = result.rows[0];
-      resultPage.problems = resultPage.problems.map(p=>{
-        const detail=details.get(p.id);
-        return {...p,placement:detail.placement,candidates:candidateUnits(detail)};
-      });
-      return resultPage;
+      return transaction(async client=>{
+        const classified = await classifiedProblems(client);
+        const details = new Map(classified.map(p=>[p.id,p]));
+        const dsaProblems = classified.filter(isDsaTrackingProblem);
+        const dsaIds = new Set(dsaProblems.map(problem=>problem.id));
+        const categoryIds = dsaProblems.filter(p=>p.placement.category===category || p.placement.subpattern===category || unitForPlacement(p.placement)===category || (category==='knapsack'&&p.placement.subpattern?.startsWith('knapsack-'))).map(p=>p.id);
+        if(category) {
+          const unitSlugs=retentionUnits.filter(u=>u.slug===category||u.category===category).map(u=>u.slug);
+          const practiced=(await client.query('SELECT DISTINCT problem_id FROM attempts WHERE deleted_at IS NULL AND practice_unit=ANY($1::text[])',[unitSlugs])).rows;
+          categoryIds.push(...practiced.map(r=>r.problem_id).filter(id=>dsaIds.has(id)));
+        }
+        const difficultyOrder = "CASE difficulty WHEN 'easy' THEN 0 WHEN 'medium' THEN 1 WHEN 'hard' THEN 2 END";
+        const order = {'difficulty-asc':`${difficultyOrder} ASC NULLS LAST,lower(title),id`,'difficulty-desc':`${difficultyOrder} DESC NULLS LAST,lower(title),id`,newest:'id DESC',title:'lower(title),id', 'oldest-practice':'"lastPracticedAt" ASC NULLS LAST,id', 'recent-practice':'"lastPracticedAt" DESC NULLS LAST,id'}[sort] || 'id DESC';
+        const result = await client.query(`WITH catalog AS (
+          SELECT p.*,
+            (EXISTS(SELECT 1 FROM attempts a WHERE a.problem_id=p.id AND a.deleted_at IS NULL) OR EXISTS(SELECT 1 FROM imported_submissions i WHERE i.problem_id=p.id)) AS practiced,
+            EXISTS(SELECT 1 FROM historical_solves h WHERE h.problem_id=p.id) AS historical,
+            GREATEST(
+              (SELECT max(a.attempted_at) FROM attempts a WHERE a.problem_id=p.id AND a.deleted_at IS NULL),
+              (SELECT max(i.submitted_at) FROM imported_submissions i WHERE i.problem_id=p.id)
+            ) AS "lastPracticedAt",
+            COALESCE((SELECT json_agg(pp.pattern_slug ORDER BY pp.pattern_slug) FROM problem_patterns pp WHERE pp.problem_id=p.id),'[]') AS "patternSlugs"
+          FROM problems p WHERE ($6::text='' OR p.id=ANY($7::int[])) AND ($1::text='' OR strpos(lower(p.title || ' ' || p.external_id),lower($1))>0)
+            AND ($2::text='' OR EXISTS(SELECT 1 FROM problem_patterns pp WHERE pp.problem_id=p.id AND pp.pattern_slug=$2)
+              OR EXISTS(SELECT 1 FROM attempts a JOIN attempt_patterns ap ON ap.attempt_id=a.id WHERE a.problem_id=p.id AND a.deleted_at IS NULL AND ap.pattern_slug=$2))
+        ), matching AS (SELECT * FROM catalog WHERE ($3='all' OR ($3='done' AND (practiced OR historical)) OR ($3='practiced' AND practiced) OR ($3='unpracticed' AND NOT practiced) OR ($3='historical' AND historical))
+          AND ($8='' OR difficulty=$8 OR ($8='unknown' AND difficulty IS NULL))
+          AND ($9='all' OR ($9='dated' AND "lastPracticedAt" IS NOT NULL) OR ($9='undated' AND "lastPracticedAt" IS NULL) OR ($9='older30' AND "lastPracticedAt" < now()-interval '30 days')))
+        SELECT (SELECT count(*)::int FROM matching) AS total,
+          COALESCE((SELECT json_agg(page) FROM (SELECT * FROM matching ORDER BY ${order} LIMIT $4 OFFSET $5) page),'[]') AS problems`, [q, pattern, status, limit, offset, category, categoryIds,difficulty,dates]);
+        const resultPage = result.rows[0];
+        resultPage.problems = resultPage.problems.map(p=>{
+          const detail=details.get(p.id);
+          return {...p,placement:detail.placement,candidates:candidateUnits(detail)};
+        });
+        return resultPage;
+      },{readOnly:true});
     },
     async updateProblem(id, input) {
       return transaction(async client => {

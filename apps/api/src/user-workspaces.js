@@ -2,6 +2,7 @@ import { migrate } from './migrations.js';
 import { createRepository } from './repository.js';
 import { DomainError } from './domain.js';
 import { exportBackup } from './backup.js';
+import { transaction } from './transaction.js';
 
 export function workspaceSchema(userId,prefix='recall_user_'){
   if(!/^[a-z][a-z0-9_]{0,20}$/.test(prefix)||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(userId||''))throw new Error('Invalid workspace identity.');
@@ -16,7 +17,7 @@ export function scopedPool(pool,schema,lifecycle=null){
     const raw=lifecycle?await lifecycle.acquire(schema):await pool.connect();
     try{if(lifecycle)await lifecycle.assertActive(raw,schema);await raw.query(`SET search_path TO "${schema}"`);}catch(error){if(lifecycle)await lifecycle.release(raw,schema);else raw.release(true);throw error;}
     let released=false;
-    return {query:(...args)=>raw.query(...args),release(){if(released)return;released=true;void raw.query('RESET search_path').then(()=>lifecycle?lifecycle.release(raw,schema):raw.release(),()=>raw.release(true));}};
+    return {query:(...args)=>raw.query(...args),release(discard=false){if(released)return;released=true;if(discard){raw.release(true);return;}void raw.query('RESET search_path').then(()=>lifecycle?lifecycle.release(raw,schema):raw.release(),()=>raw.release(true));}};
   }
   return {connect,async query(...args){const client=await connect();try{return await client.query(...args);}finally{client.release();}}};
 }
@@ -42,26 +43,23 @@ export function createUserWorkspaces(pool,{prefix='recall_user_',lifecycle=null}
     const scoped=scopedPool(pool,schema,lifecycle),repository=createRepository(scoped);
     return {...repository,
       async exportAccount(){
-        const client=await scoped.connect();try{
-          await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+        return transaction(scoped,async client=>{
           const state=(await client.query('SELECT extension_acknowledged AS "extensionAcknowledged",completed FROM recall_onboarding WHERE singleton=true')).rows[0];
           const goal=await createRepository({query:(...args)=>client.query(...args)}).goal();
-          const workspace=await exportBackup(client);await client.query('COMMIT');return {setup:{...state,goal},workspace};
-        }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+          const workspace=await exportBackup(client);return {setup:{...state,goal},workspace};
+        },{readOnly:true});
       },
       async readiness(){return {...await repository.readiness(),storage:'Private Recall workspace'};},
       async setup(){const state=(await scoped.query('SELECT extension_acknowledged AS "extensionAcknowledged",completed FROM recall_onboarding WHERE singleton=true')).rows[0];return {...state,goal:await repository.goal()};},
       async saveSetup(input){
-        const client=await scoped.connect();
-        try{
-          await client.query('BEGIN');
+        return transaction(scoped,async client=>{
           const transactional=createRepository({query:(...args)=>client.query(...args)});
           if(input.profile!==undefined)await transactional.setGoal({profile:input.profile,target:input.target});
           const goal=await transactional.goal();
           if(input.completed&&!goal.configured)throw new DomainError(400,'Choose a goal before completing setup.');
           const state=(await client.query('UPDATE recall_onboarding SET extension_acknowledged=COALESCE($1,extension_acknowledged),completed=COALESCE($2,completed) WHERE singleton=true RETURNING extension_acknowledged AS "extensionAcknowledged",completed',[input.extensionAcknowledged??null,input.completed??null])).rows[0];
-          await client.query('COMMIT');return {...state,goal};
-        }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+          return {...state,goal};
+        });
       },
     };
   };

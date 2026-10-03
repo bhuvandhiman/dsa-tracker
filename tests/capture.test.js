@@ -80,7 +80,15 @@ test('editable choices and distinct Accepted events persist across worker restar
   await ui.send({type:'QUEUE_CAPTURE',problem,evidence:{...evidence,eventId:'124',submissionId:'124'}});
   const restarted=worker(()=>assert.fail('No network'),storage),state=await restarted.send({type:'GET_PENDING_CAPTURE',problem});
   assert.equal(state.draft.assistance,'hint');assert.equal(state.queue.length,2);
+  assert.match((await restarted.send({type:'SHIFT_CAPTURE',problem})).error,/editable recording is already open/);
+  delete storage['recall-draft:'+problem.url];
   assert.equal((await restarted.send({type:'SHIFT_CAPTURE',problem})).queue[0].submissionId,'124');
+  const transferred=await restarted.send({type:'GET_PENDING_CAPTURE',problem});assert.equal(transferred.draft.submissionId,'123');assert.equal(transferred.draft.attemptedAt,payload.attemptedAt);
+});
+test('queues reject malformed evidence and storage without dropping saved events',async()=>{
+  const ui=worker(()=>assert.fail('No network'));
+  assert.match((await ui.send({type:'QUEUE_CAPTURE',problem,evidence:{captureSource:'accepted',attemptedAt:payload.attemptedAt}})).error,/Invalid submission evidence/);
+  ui.storage['recall-queue:'+problem.url]={bad:true};assert.match((await ui.send({type:'SHIFT_CAPTURE',problem})).error,/queue is invalid/);assert.deepEqual(ui.storage['recall-queue:'+problem.url],{bad:true});
 });
 test('reconciliation clears only a confirmed identical saved request',async()=>{
   for(const status of ['saved','conflict','removed','missing']){

@@ -296,7 +296,10 @@ function withPriorityProgress(item,importance,profileName,previous,scale) {
   const strength=evidence.displayStrength??(Number.isFinite(item.priority)?100-item.priority:0);
   const progress=Math.max(0,Math.min(100,0.65*coverage+0.35*strength));
   const credited=item.goal?.credited??target-gap,blocks=evidence.completedPracticeBlocks||0;
-  const validMemory=previous&&['anchor','credited','blocks','gap'].every(key=>Number.isFinite(previous[key])&&previous[key]>=0);
+  const validMemory=previous&&['anchor','credited','blocks','gap'].every(key=>Number.isFinite(previous[key])&&previous[key]>=0)
+    && previous.anchor<=target && Number.isInteger(previous.credited) && Number.isInteger(previous.blocks)
+    && previous.credited<=target && previous.gap===target-previous.credited
+    && (previous.lastCredited===undefined || Number.isInteger(previous.lastCredited)&&previous.lastCredited>=previous.credited&&previous.lastCredited<=target);
   previous=validMemory?previous:null;
   const evidenceKey=evidence.queueEvidenceKey||null;
   const corrected=Boolean(previous&&(credited<(previous.lastCredited??previous.credited)||blocks<previous.blocks||(blocks===previous.blocks&&evidenceKey&&previous.evidenceKey&&evidenceKey!==previous.evidenceKey)));

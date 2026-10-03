@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { request } from './api.js';
+import { useWorkspaceRequest } from './workspace-context.js';
 import PatternMenu from './PatternMenu.jsx';
 import { NextAction } from './PatternMetrics.jsx';
 import { nextProblemSort, safeProblemUrl, subpatternQuery, validPageOffset, undatedPracticeLabel } from './workflow-model.js';
@@ -10,6 +10,7 @@ function ProblemLink({problem}) {
 }
 
 function ProblemList({slug,onChanged}) {
+  const request=useWorkspaceRequest();
   const [sort,setSort] = useState({field:null,direction:null});
   const [offset,setOffset] = useState(0);
   const [revision,setRevision] = useState(0);
@@ -26,7 +27,7 @@ function ProblemList({slug,onChanged}) {
       if (!controller.signal.aborted) setState({query,data:null,error:error.message});
     });
     return ()=>controller.abort();
-  },[query,revision,offset]);
+  },[query,revision,offset,request]);
   const current = state.query === query ? state : {data:null,error:''};
   function reorder(field) {setSort(value=>nextProblemSort(value,field));setOffset(0);}
   function heading(field,label) {

@@ -23,7 +23,7 @@ Migration 006 snapshots existing attempt approaches conservatively and preserves
 ## Chrome extension
 
 1. Open chrome://extensions, enable Developer mode, and Load unpacked from apps/extension in this project.
-2. When updating, restart the API, reload the extension and refresh LeetCode. The current version is 0.10.0.
+2. When updating, restart the API, reload the extension and refresh LeetCode. The current version is 0.10.1.
 3. During setup, import previously accepted problems or skip. Keep a signed-in LeetCode tab and the local API available.
 4. After a new Accepted result, record practice in the small prompt. A successful save closes it; failed saves retain the same recording for retry.
 5. Open extension Settings to resume, reimport, or retry available recent dates. These actions remain available through the extension.

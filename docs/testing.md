@@ -1,7 +1,13 @@
 # Verification
 
+## Current audit — 3 October 2026
+
+`npm run check` passes 246 tests, ESLint and the production build. `npm run test:db` passes 19 isolated PostgreSQL integration tests, including retries after metadata changes, concurrent import snapshots, empty-account backup restoration, invalid backup rollback and a 1,000-problem/2,000-recording workspace. The dependency audit reports zero known vulnerabilities. See [the comprehensive audit](comprehensive-audit-2026-10-03.md) for fixed findings, browser evidence and verification limits. The account fixture also provides `/fixture/workspace` controls for simulating a private database outage without changing a real account.
+
+The entries below are a chronological verification history. Their earlier counts, layouts and planned phases describe the project at that time.
+
 - npm.cmd run check: ESLint, database-independent Node tests, Vite production build.
-- npm.cmd run test:db: eight PostgreSQL integration tests in generated temporary schemas. Tests verify migrations, old-data backfill, immutable snapshots, import/reimport preservation, idempotent capture, approach corrections, contextual problem lookup, account isolation, filter queries, difficulty recovery, backup round trips, conflict rollback, timestamp preservation and removed-record recovery. Configure TEST_DATABASE_URL to use a separate database.
+- npm.cmd run test:db: PostgreSQL integration tests in generated temporary schemas. Tests verify migrations, old-data backfill, immutable snapshots, import/reimport preservation, idempotent capture, approach corrections, contextual problem lookup, account isolation, filter queries, difficulty recovery, backup round trips, conflict rollback, timestamp preservation and removed-record recovery. Configure TEST_DATABASE_URL to use a separate database.
 - npm.cmd run test:capture: controlled browser fixture on port 8765. No real LeetCode submission or database write occurs.
 
 Strength regressions cover lasting breadth/reinforcement, pattern-specific breadth targets, legacy display strength, fading recency, diminishing returns, local-day grouping, assistance precedence, subpattern isolation, coverage gaps, and deep old experience versus shallow recent practice.

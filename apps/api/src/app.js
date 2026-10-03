@@ -100,7 +100,8 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
       415: 'Unsupported request encoding or charset.',
     };
     const status = Object.hasOwn(messages, error.status) ? error.status : 500;
-    if (status === 500) console.error(error);
+    // SQL details, credentials and submitted notes can be embedded in errors.
+    if (status === 500) console.error('Recall request failed: unexpected internal error.');
     response.status(status).json({ error: messages[status] || 'Internal server error.' });
   });
   return app;

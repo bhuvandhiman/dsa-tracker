@@ -8,6 +8,12 @@ import { DomainError } from '../apps/api/src/domain.js';
 
 const user={id:'fa631c58-72ad-4a67-89d8-f6a4ae5d1641',email:'fixture@example.test',email_confirmed_at:'2026-10-03T00:00:00Z'};
 const settings={mode:'supabase',configured:true,url:'https://example.supabase.co',key:'sb_publishable_example'};
+test('provider failures distinguish rate limits and reject malformed account records',async()=>{
+  for(const payload of [null,[],{}, {...user,id:7}])await assert.rejects(createAuthenticator(settings,async()=>Response.json(payload))({get:()=> 'Bearer fixture'}),{status:503});
+  await assert.rejects(createAuthenticator(settings,async()=>Response.json({},{status:429}))({get:()=> 'Bearer fixture'}),{status:429});
+  assert.equal((await createAuthenticator(settings,async()=>Response.json({...user,email:{bad:true}}))({get:()=> 'Bearer fixture'})).email,'');
+  assert.throws(()=>authSettings({AUTH_MODE:'supabase',SUPABASE_URL:settings.url,SUPABASE_PUBLISHABLE_KEY:'sb_publishable_ key'}));
+});
 test('account configuration fails closed and never exposes secret keys',()=>{
   assert.deepEqual(authSettings({}),{mode:'local',configured:false});
   assert.deepEqual(authSettings({AUTH_MODE:'supabase',SUPABASE_URL:settings.url,SUPABASE_PUBLISHABLE_KEY:settings.key}),settings);

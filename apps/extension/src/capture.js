@@ -12,7 +12,7 @@ globalThis.DsaCapture = {
       if (!current) return;
       if (panel && currentUrl === current.problem.url) {
         if(evidence.captureSource==='accepted') {
-          const result=await runtime.sendMessage({type:'QUEUE_CAPTURE',problem:current.problem,workspaceScope:currentScope,evidence:{...evidence,eventId:evidence.submissionId||crypto.randomUUID(),attemptedAt:evidence.attemptedAt||new Date().toISOString()}});
+          let result;try{result=await runtime.sendMessage({type:'QUEUE_CAPTURE',problem:current.problem,workspaceScope:currentScope,evidence:{...evidence,eventId:evidence.submissionId||crypto.randomUUID(),attemptedAt:evidence.attemptedAt||new Date().toISOString()}});}catch{result={error:'Could not keep the next submission. Reload Recall and refresh LeetCode.'};}
           const status=panel.shadowRoot?.querySelector('[role=status]'); if(status)status.textContent=result?.error||'Another Accepted submission is kept in the queue. Save this recording to open it next.';
         }
         return;
@@ -25,10 +25,10 @@ globalThis.DsaCapture = {
       let catalog=[];
       const restored = pending || draft;
       if(restored&&evidence.captureSource==='accepted'&&(evidence.submissionId!==restored.submissionId||evidence.attemptedAt!==restored.attemptedAt)){
-        const result=await runtime.sendMessage({type:'QUEUE_CAPTURE',problem:current.problem,workspaceScope,evidence:{...evidence,eventId:evidence.submissionId||crypto.randomUUID()}});connectionError=result?.error||connectionError;queue=result?.queue||queue;
+        try{const result=await runtime.sendMessage({type:'QUEUE_CAPTURE',problem:current.problem,workspaceScope,evidence:{...evidence,eventId:evidence.submissionId||crypto.randomUUID()}});connectionError=result?.error||connectionError;queue=result?.queue||queue;}catch{connectionError='Could not keep the next submission. Reload Recall and refresh LeetCode.';}
       }
       if(draft)evidence={...evidence,captureSource:draft.captureSource,submissionId:draft.submissionId};
-      if(!restored&&queue.length){evidence=queue[0];const result=await runtime.sendMessage({type:'SHIFT_CAPTURE',problem:current.problem,workspaceScope});connectionError=result?.error||connectionError;}
+      if(!restored&&queue.length){evidence=queue[0];try{const result=await runtime.sendMessage({type:'SHIFT_CAPTURE',problem:current.problem,workspaceScope});connectionError=result?.error||connectionError;}catch{connectionError='Could not open the queued submission. Reload Recall and refresh LeetCode.';}}
       let topics = pending?.topics || current.topics;
       const problem = current.problem;
       let payload = pending;

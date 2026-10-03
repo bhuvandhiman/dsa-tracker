@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { request } from './api.js';
+import { useWorkspaceRequest } from './workspace-context.js';
 import { backupSummary } from './workflow-model.js';
 import AccountControls from './AccountControls.jsx';
 
 function useResource(path) {
+  const request=useWorkspaceRequest();
   const [state,setState] = useState({path:null,data:null,error:'',loading:true});
   const [revision,setRevision] = useState(0);
   useEffect(()=>{
@@ -14,7 +15,7 @@ function useResource(path) {
       if (!controller.signal.aborted) setState({path,data:null,error:error.message,loading:false});
     });
     return ()=>controller.abort();
-  },[path,revision]);
+  },[path,revision,request]);
   return {...(state.path === path ? state : {data:null,error:'',loading:true}),reload:()=>setRevision(value=>value+1)};
 }
 
@@ -33,6 +34,7 @@ function Pagination({offset,count,more,onChange}) {
 }
 
 function RemovedRecording({attempt,onChanged}) {
+  const request=useWorkspaceRequest();
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
   async function restore() {
@@ -45,6 +47,7 @@ function RemovedRecording({attempt,onChanged}) {
 }
 
 function Settings() {
+  const request=useWorkspaceRequest();
   const ready = useResource('/ready');
   const [offset,setOffset] = useState(0);
   const removed = useResource(`/attempts/removed?limit=25&offset=${offset}`);

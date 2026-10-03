@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { attemptInput, problemInput, importInput, pageInput, patternInput, goalInput } from '../apps/api/src/domain.js';
+import { attemptInput, problemInput, importInput, pageInput, patternInput, goalInput,libraryInput,captureInput } from '../apps/api/src/domain.js';
 
 const attempt = () => ({ requestId: randomUUID(), problemId: 1, assistance: 'independent', patternSlugs: ['binary-search'], attemptedAt: '2025-01-02T03:04:05.000Z' });
+test('database-incompatible dates and text fail validation before persistence',()=>{
+  assert.throws(()=>attemptInput({...attempt(),attemptedAt:'0000-01-01T00:00:00.000Z'}),{status:400});
+  for(const text of ['contains\0null','unpaired\ud800']){
+    assert.throws(()=>attemptInput({...attempt(),notes:text}),{status:400});
+    assert.throws(()=>libraryInput({q:text}),{status:400});
+    assert.throws(()=>captureInput({requestId:randomUUID(),url:'https://leetcode.com/problems/two-sum/',title:'Two Sum',topics:[text],assistance:'independent',attemptedAt:attempt().attemptedAt}),{status:400});
+  }
+  assert.equal(attemptInput({...attempt(),notes:'Unicode is fine: 🧠'}).notes,'Unicode is fine: 🧠');
+});
 test('problem identity removes query strings and problem subpages', () => {
   const value = problemInput({ url: 'https://leetcode.com/problems/two-sum/description/?x=1#example', title: ' Two Sum ', patternSlugs: ['two-pointers', 'arrays-hashing', 'two-pointers'] });
   assert.deepEqual(value, { platform: 'leetcode', externalId: 'two-sum', url: 'https://leetcode.com/problems/two-sum/', title: 'Two Sum', difficulty: null, patternSlugs: ['arrays-hashing', 'two-pointers'] });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { request } from './api.js';
+import { useWorkspaceRequest } from './workspace-context.js';
 import { installationLink } from './installation-model.js';
 import './accounts.css';
 
@@ -18,6 +18,7 @@ export function Installation({auth,onContinue=null,busy=false}){
 }
 
 export default function Onboarding({auth}){
+  const request=useWorkspaceRequest();
   const [profile,setProfile]=useState(auth.setup?.goal?.profile||'interview'),[target,setTarget]=useState(auth.setup?.goal?.target||300),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const step=auth.setup?.extensionAcknowledged?3:auth.setup?.goal?.configured?2:1;
   async function save(values){setBusy(true);setError('');try{await request('/setup',{method:'PUT',body:JSON.stringify(values)});await auth.refresh();}catch(e){setError(e.message);}finally{setBusy(false);}}

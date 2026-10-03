@@ -8,6 +8,7 @@ import PublicPages from './PublicPages.jsx';
 import AuthPages from './AuthPages.jsx';
 import Onboarding, { Installation } from './Onboarding.jsx';
 import useAuth from './use-auth.js';
+import { WorkspaceContext } from './workspace-context.js';
 
 function Icon({ name, ...props }) {
   const paths = {
@@ -95,6 +96,7 @@ export default function App() {
     </header>
 
     <main id="main" tabIndex={-1}>
+      <WorkspaceContext.Provider value={accountsEnabled?auth.user?.id||null:'local'}>
       {accountError&&<p className="account-error" role="alert">{accountError}</p>}
       {publicPage&&route.page!=='privacy'&&<PublicPages page={route.page} signedIn={Boolean(auth.user)} localMode={auth.config?.mode==='local'} hosted={auth.config?.deployment?.mode==='hosted'} />}
       {route.page==='privacy'&&<Privacy />}
@@ -105,6 +107,7 @@ export default function App() {
       {privatePage&&!canReadWorkspace&&<div className="account-loading" role="status"><h2>{auth.error?'Could not open your workspace.':'Opening your workspace…'}</h2>{auth.error&&<><p>{auth.error}</p><button className="secondary-button" onClick={auth.retry}>Retry connection</button><a className="inline-link" href="#/login">Go to login</a></>}</div>}
       {canReadWorkspace&&['dashboard','patterns'].includes(route.page) && <LiveDashboard key={`${auth.user?.id||'local'}:${route.page}:${route.slug || ''}:${route.query}`} route={route} />}
       {canReadWorkspace&&route.page === 'settings' && <Workflows key={auth.user?.id||'local'} auth={auth} />}
+      </WorkspaceContext.Provider>
       <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><nav className="footer-links" aria-label="Footer"><a href="/">Home</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/install-extension">Extension</a><a href="#/home?section=questions">FAQ</a></nav><span className="footer-flower" aria-hidden="true">✳</span></footer>
     </main>
   </div>;

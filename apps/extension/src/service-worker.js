@@ -68,11 +68,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       if (['QUEUE_CAPTURE','SHIFT_CAPTURE'].includes(message.type)) {
         const key=queueKey(problem.url,scope), queue=(await chrome.storage.local.get(key))[key]||[];
+        if(!Array.isArray(queue))throw new Error('Stored submission queue is invalid. Open Recall Settings to inspect saved recordings.');
         if (message.type === 'QUEUE_CAPTURE') {
           const evidence=message.evidence;
-          if (!evidence || evidence.captureSource!=='accepted' || !Number.isFinite(Date.parse(evidence.attemptedAt))) throw new Error('Invalid submission evidence.');
-          if (!queue.some(item=>item.eventId===evidence.eventId)) queue.push(evidence);
-        } else queue.shift();
+          if (!evidence || evidence.captureSource!=='accepted' || typeof evidence.eventId!=='string'||!evidence.eventId||evidence.eventId.length>100||JSON.stringify(evidence).length>16000||!Number.isFinite(Date.parse(evidence.attemptedAt))) throw new Error('Invalid submission evidence.');
+          if (!queue.some(item=>item.eventId===evidence.eventId)) {if(queue.length>=100)throw new Error('Finish your queued recordings before adding more. Your existing queue is kept.');queue.push(evidence);}
+        } else if(queue.length){
+          const draft=draftKey(problem.url,scope);
+          if((await chrome.storage.local.get(draft))[draft])throw new Error('An editable recording is already open. Save or reopen it before taking the next queued submission.');
+          // Persist the next event before removing it from the queue. A tab
+          // closed during panel creation must not lose the accepted evidence.
+          const evidence=queue.shift();await chrome.storage.local.set({[draft]:{...evidence,url:problem.url},[key]:queue});
+        }
         if (queue.length) await chrome.storage.local.set({[key]:queue}); else await chrome.storage.local.remove(key);
         return {queue};
       }

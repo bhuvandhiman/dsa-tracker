@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { validPageOffset, undatedPracticeLabel, backupSummary, subpatternQuery, nextProblemSort, safeProblemUrl } from '../apps/web/src/workflow-model.js';
 import { readRoute } from '../apps/web/src/navigation.js';
 import { historyInput, libraryInput, placementChangeInput } from '../apps/api/src/domain.js';
+test('problem links refuse credentials, custom ports and missing slugs',()=>{
+  for(const url of ['https://user:pass@leetcode.com/problems/two-sum/','https://leetcode.com:8443/problems/two-sum/','https://leetcode.com/problems/','https://evil.test/problems/two-sum/'])assert.equal(safeProblemUrl(url),null);
+  assert.equal(safeProblemUrl('https://leetcode.com/problems/two-sum/'),'https://leetcode.com/problems/two-sum/');
+});
 
 test('removed history and problem URLs fall back to the dashboard',()=>{
   assert.equal(readRoute('#/history').page,'dashboard');

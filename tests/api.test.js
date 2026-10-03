@@ -13,6 +13,12 @@ before(async () => {
   base = `http://127.0.0.1:${server.address().port}`;
 });
 after(() => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
+test('unexpected failures redact record content from both logs and responses',async t=>{
+  const logs=[];t.mock.method(console,'error',(...args)=>logs.push(args));
+  const broken=createApp({repository:{readiness:async()=>{throw new Error('sensitive-note-and-password');}}}).listen(0,'127.0.0.1');await once(broken,'listening');t.after(()=>new Promise(resolve=>broken.close(resolve)));
+  const response=await fetch(`http://127.0.0.1:${broken.address().port}/api/ready`);assert.equal(response.status,500);
+  assert.equal((await response.json()).error,'Internal server error.');assert.equal(logs.length,1);assert.ok(!JSON.stringify(logs).includes('sensitive-note-and-password'));
+});
 
 test('health responds over HTTP without a database', async () => {
   const response = await fetch(`${base}/api/health`);

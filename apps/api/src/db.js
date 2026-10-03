@@ -3,6 +3,8 @@ import { reportDatabaseFailure } from './database-diagnostics.js';
 export function databaseOptions(connectionString,env=process.env){
   let url;try{url=new URL(connectionString);}catch{throw new Error('DATABASE_URL must be a PostgreSQL connection URL.');}
   if(!['postgres:','postgresql:'].includes(url.protocol))throw new Error('DATABASE_URL must be a PostgreSQL connection URL.');
+  const credentials=String(connectionString).match(/^postgres(?:ql)?:\/\/([^/]*?)@/)?.[1]||'';
+  if(!url.hostname || credentials.includes('[')||credentials.includes(']'))throw new Error('DATABASE_URL must contain the database host and credentials without placeholder brackets. Percent-encode brackets if they are part of your actual password.');
   if(url.hostname.endsWith('.pooler.supabase.com')&&url.port==='6543')throw new Error('Use the Supabase session pooler on port 5432. Transaction pooling cannot preserve Recall workspace isolation.');
   const encrypted=env.DEPLOYMENT_MODE==='hosted'||!['localhost','127.0.0.1','[::1]'].includes(url.hostname);
   if(encrypted){

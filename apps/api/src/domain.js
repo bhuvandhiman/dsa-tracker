@@ -10,6 +10,7 @@ function invalid(message) { throw new DomainError(400, message); }
 function object(value, fields) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) invalid('A JSON object is required.');
   if (Object.keys(value).some((key) => !fields.includes(key))) invalid('Request contains unsupported fields.');
+  if(Object.values(value).some(field=>(Array.isArray(field)?field:[field]).some(text=>typeof text==='string'&&(text.includes('\0')||!text.isWellFormed()))))invalid('Text must not contain null characters or invalid Unicode.');
 }
 export function positiveId(value) {
   if (typeof value === 'string' && /^[1-9]\d*$/.test(value)) value = Number(value);
@@ -40,6 +41,7 @@ export function attemptInput(body) {
   const value = body.attemptedAt;
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value) invalid('attemptedAt must be a UTC timestamp like 2026-09-22T09:00:00.000Z.');
   if (Date.parse(value) > Date.now() + 60000) invalid('attemptedAt cannot be in the future.');
+  if(value.startsWith('0000-'))invalid('attemptedAt must use a valid calendar year.');
   return { requestId: body.requestId.toLowerCase(), problemId: positiveId(body.problemId), assistance: body.assistance, patternSlugs: selected, notes, attemptedAt: value };
 }
 export function importInput(body) {
@@ -58,6 +60,7 @@ export function pageInput(query) {
 }
 
 export function historyInput(query) {
+  object(query,['q','assistance','limit','offset']);
   const {q = '', assistance = '', ...pagination} = query;
   if (typeof q !== 'string' || q.length > 200) invalid('History search must be at most 200 characters.');
   if (!['','independent','hint','solution'].includes(assistance)) invalid('Choose valid assistance for history.');
@@ -81,6 +84,7 @@ export function correctionInput(body) {
   return { revision: positiveId(revision), assistance, patternSlugs, notes, attemptedAt, ...(practiceUnit !== undefined ? {practiceUnit: placementInput({unit:practiceUnit})} : {}) };
 }
 export function libraryInput(query) {
+  object(query,['q','pattern','category','status','difficulty','dates','sort','limit','offset']);
   const { q = '', pattern = '', category = '', status = 'all', difficulty = '', dates = 'all', sort = 'newest', ...pagination } = query;
   if (typeof category !== 'string' || category.length > 100) invalid('Invalid category filter.');
   if (typeof q !== 'string' || q.length > 200) invalid('Search must be at most 200 characters.');

@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { request } from './api.js';
+import { useWorkspaceRequest } from './workspace-context.js';
 
 function DeleteAccount({onCancel,onDeleted}){
+  const request=useWorkspaceRequest();
   const dialog=useRef(null),cancel=useRef(null),title=useId();
   const [password,setPassword]=useState(''),[confirmation,setConfirmation]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
   useEffect(()=>{const element=dialog.current;element.showModal();cancel.current?.focus();return()=>element.close();},[]);
@@ -12,9 +13,10 @@ function DeleteAccount({onCancel,onDeleted}){
   return <dialog ref={dialog} className="pattern-dialog" aria-labelledby={title} onCancel={event=>{event.preventDefault();if(!busy)onCancel();}}><form className="pattern-editor account-deletion-form" onSubmit={remove}><p className="eyebrow">A permanent change</p><h2 id={title}>Delete your Recall account?</h2><p>This removes your Recall login, problems, practice, notes and goal. Download your data first. This cannot be undone.</p><p className="data-note">Downloaded files and drafts in other Chrome profiles remain on those devices. This does not delete your LeetCode account.</p><label>Current Recall password<input type="password" autoComplete="current-password" required disabled={busy} value={password} onChange={event=>setPassword(event.target.value)} /></label><label>Type DELETE to confirm<input autoComplete="off" spellCheck="false" required disabled={busy} value={confirmation} onChange={event=>setConfirmation(event.target.value)} /></label>{error&&<p role="alert" className="account-error">{error}</p>}<div className="row-actions"><button ref={cancel} className="secondary-button" type="button" disabled={busy} onClick={onCancel}>Keep my account</button><button className="danger-button" disabled={busy||confirmation!=='DELETE'||!password}>{busy?'Submitting deletion…':'Permanently delete account'}</button></div></form></dialog>;
 }
 export default function AccountControls({auth}){
+  const request=useWorkspaceRequest();
   const [state,setState]=useState({data:null,error:''}),[revision,setRevision]=useState(0),[busy,setBusy]=useState(false),[editing,setEditing]=useState(false),[message,setMessage]=useState(''),[result,setResult]=useState(null);
   const trigger=useRef(null),root=useRef(null);
-  useEffect(()=>{const controller=new AbortController();request('/account',{signal:controller.signal}).then(data=>{if(!controller.signal.aborted)setState({data,error:''});}).catch(error=>{if(!controller.signal.aborted)setState({data:null,error:error.message});});return()=>controller.abort();},[revision]);
+  useEffect(()=>{const controller=new AbortController();request('/account',{signal:controller.signal}).then(data=>{if(!controller.signal.aborted)setState({data,error:''});}).catch(error=>{if(!controller.signal.aborted)setState({data:null,error:error.message});});return()=>controller.abort();},[revision,request]);
   async function download(){setBusy(true);setMessage('');try{const data=await request('/account/export');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`recall-account-${new Date().toISOString().slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setMessage('Account export downloaded. Keep it private; it includes your practice and notes.');}catch(error){setMessage(error.message);}finally{setBusy(false);}}
   function close(){root.current?.querySelector('dialog')?.close();setEditing(false);trigger.current?.focus();}
   async function deleted(value){setEditing(false);setResult(value);const destination=value.pending?'/login?account=deletion-pending':'/login?account=deleted';try{await auth.signOut({scope:'local',destination});}catch{setMessage('Deletion was submitted. Close this tab if sign-out is unavailable.');window.location.hash=destination;}}

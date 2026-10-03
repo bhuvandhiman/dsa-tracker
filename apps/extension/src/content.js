@@ -11,5 +11,5 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   const adapter = DsaAdapters.find(item => item.getProblem(location.href));
   if (message?.type === 'GET_CURRENT_PROBLEM') sendResponse({ status: 'content-script-ready', problem: adapter?.getDetails(document,location.href) || null });
-  if (message?.type === 'SHOW_RECORDER') { recorder.open().then(() => sendResponse({ opened: Boolean(adapter) })); return true; }
+  if (message?.type === 'SHOW_RECORDER') { recorder.open().then(() => sendResponse({ opened: Boolean(adapter) }),error=>sendResponse({opened:false,error:error.message||'Refresh your LeetCode tab and retry.'})); return true; }
 });

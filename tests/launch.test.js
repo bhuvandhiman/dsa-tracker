@@ -21,6 +21,8 @@ test('hosted settings fail closed, require verified accounts and never accept in
   assert.throws(()=>deploymentSettings({...env,AUTH_MODE:'local'}));assert.throws(()=>deploymentSettings({...env,DATABASE_URL:''}));assert.throws(()=>createApp({deployment:{mode:'hosted',origin:env.RENDER_EXTERNAL_URL}}));
 });
 test('remote database connections verify TLS and refuse Supabase transaction pooling',()=>{
+  assert.throws(()=>databaseOptions('postgresql://postgres:[password]@localhost:5432/recall',{}),/placeholder brackets/);
+  assert.ok(databaseOptions('postgresql://postgres:actual%5Bpassword%5D@localhost:5432/recall',{}).connectionString);
   assert.equal(databaseOptions('postgresql://postgres:fixture@localhost:5432/recall',{}).ssl,undefined);
   const remote=databaseOptions('postgresql://postgres:fixture@aws-0-fixture.pooler.supabase.com:5432/postgres?sslmode=no-verify',{DATABASE_CA_CERT:'fixture\\ncertificate'});
   assert.equal(remote.ssl.rejectUnauthorized,true);assert.equal(remote.ssl.ca,'fixture\ncertificate');assert.ok(!remote.connectionString.includes('sslmode'));

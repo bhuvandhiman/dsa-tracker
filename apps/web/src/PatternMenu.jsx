@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { request } from './api.js';
+import { useWorkspaceRequest } from './workspace-context.js';
 
 function PatternEditor({problem,onSaved,onCancel}) {
+  const request=useWorkspaceRequest();
   const dialog = useRef(null);
   const firstInput = useRef(null);
   const titleId = useId();
@@ -26,7 +27,7 @@ function PatternEditor({problem,onSaved,onCancel}) {
       if (!controller.signal.aborted) {setCatalog(data.units.map(unit=>({slug:unit.slug,name:`${unit.categoryName} / ${unit.name}`})));setError('');}
     }).catch(failure=>{if (!controller.signal.aborted) setError(failure.message);});
     return ()=>controller.abort();
-  },[choice,revision]);
+  },[choice,revision,request]);
   async function save(event) {
     event.preventDefault();setBusy(true);setError('');
     try {await request(`/problems/${problem.id}/placement`,{method:'PUT',body:JSON.stringify({unit:choice === '__manual__' ? manualUnit : choice,manual:choice === '__manual__'})});onSaved();}

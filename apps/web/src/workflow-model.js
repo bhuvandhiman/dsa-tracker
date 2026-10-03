@@ -10,7 +10,7 @@ export function nextProblemSort(current, field) {
 export function safeProblemUrl(value) {
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && ['leetcode.com','www.leetcode.com'].includes(url.hostname) && url.pathname.startsWith('/problems/') ? url.href : null;
+    return url.protocol === 'https:' && !url.username && !url.password && !url.port && ['leetcode.com','www.leetcode.com'].includes(url.hostname) && /^\/problems\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/|$)/.test(url.pathname) ? url.href : null;
   } catch { return null; }
 }
 

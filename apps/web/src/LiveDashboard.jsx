@@ -2,11 +2,12 @@ import PatternOverview, { DifficultyBar } from './PatternOverview.jsx';
 import PatternMetrics, { FocusBadge, FocusLegend, NextAction, RetentionMetric } from './PatternMetrics.jsx';
 import SubpatternProblems from './SubpatternProblems.jsx';
 import { useEffect, useState } from 'react';
-import { request } from './api.js';
+import { useWorkspaceRequest } from './workspace-context.js';
 import { patternLink } from './navigation.js';
 import { classifiedSolves, filterPatterns, prioritizedPatterns, recommendationReason, difficultyProgress } from './dashboard-model.js';
 
 function GoalForm({ goal, onSaved }) {
+  const request=useWorkspaceRequest();
   const [profile, setProfile] = useState(goal.profile || 'interview');
   const [target, setTarget] = useState(goal.target || 300);
   const [saving, setSaving] = useState(false);
@@ -54,6 +55,7 @@ function PatternDetail({ category, goalConfigured, query, onChanged }) {
   </div>;
 }
 export default function LiveDashboard({ route }) {
+  const request=useWorkspaceRequest();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
@@ -76,7 +78,7 @@ export default function LiveDashboard({ route }) {
     function visible() { if (!document.hidden) setRevision(value => value + 1); }
     document.addEventListener('visibilitychange', visible);
     return () => { controller.abort(); clearTimeout(poll); document.removeEventListener('visibilitychange', visible); };
-  }, [revision]);
+  }, [revision,request]);
   const categories = data ? filterPatterns(prioritizedPatterns(data.categories), query) : [];
   const isDashboard = route.page === 'dashboard';
   const selected = data?.categories.find(category => category.slug === route.slug);

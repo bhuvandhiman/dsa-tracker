@@ -1,5 +1,6 @@
 import { DomainError } from './domain.js';
 import { workspaceSchema } from './user-workspaces.js';
+import { transaction } from './transaction.js';
 
 const lockNamespace=71420622;
 export function accountAdminKey(env=process.env){
@@ -29,16 +30,13 @@ export function createAccountAdmin(auth,key,fetchImpl=fetch){
 export function createAccountLifecycle(pool,{prefix='recall_user_',removeIdentity=null}={}){
   workspaceSchema('00000000-0000-4000-8000-000000000001',prefix);
   const control=prefix+'control',table=`"${control}".deletions`;
-  let initialized;
+  let initialized;const unusable=new WeakSet();
   async function ensure(){
-    if(!initialized)initialized=(async()=>{
-      const raw=await pool.connect();
-      try{await raw.query('BEGIN');await raw.query('SELECT pg_advisory_xact_lock($1,hashtext($2))',[lockNamespace,control]);
+    if(!initialized)initialized=transaction(pool,async raw=>{
+      await raw.query('SELECT pg_advisory_xact_lock($1,hashtext($2))',[lockNamespace,control]);
         await raw.query(`CREATE SCHEMA IF NOT EXISTS "${control}"`);
         await raw.query(`CREATE TABLE IF NOT EXISTS ${table}(user_id UUID PRIMARY KEY, state TEXT NOT NULL CHECK(state IN ('pending','complete')),requested_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
-        await raw.query('COMMIT');
-      }catch(error){await raw.query('ROLLBACK');throw error;}finally{raw.release();}
-    })().catch(error=>{initialized=null;throw error;});
+    }).catch(error=>{initialized=null;throw error;});
     await initialized;
   }
   async function acquire(schema,shared=true){
@@ -49,6 +47,7 @@ export function createAccountLifecycle(pool,{prefix='recall_user_',removeIdentit
     }catch(error){raw.release(true);throw error;}
   }
   async function release(raw,schema,shared=true){
+    if(unusable.has(raw)){unusable.delete(raw);raw.release(true);return;}
     try{await raw.query(`SELECT pg_advisory_unlock${shared?'_shared':''}($1,hashtext($2))`,[lockNamespace,schema]);raw.release();}catch{raw.release(true);}
   }
   async function assertActive(raw,schema){
@@ -60,7 +59,7 @@ export function createAccountLifecycle(pool,{prefix='recall_user_',removeIdentit
     const schema=workspaceSchema(id,prefix);
     await raw.query('BEGIN');
     try{await raw.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);await raw.query(`UPDATE ${table} SET state='complete' WHERE user_id=$1`,[id]);await raw.query('COMMIT');}
-    catch(error){await raw.query('ROLLBACK');throw error;}
+    catch(error){try{await raw.query('ROLLBACK');}catch{unusable.add(raw);}throw error;}
   }
   return {
     enabled:Boolean(removeIdentity),acquire,release,assertActive,
