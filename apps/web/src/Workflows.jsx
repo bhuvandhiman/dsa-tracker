@@ -80,5 +80,5 @@ function Settings() {
 }
 
 export default function Workflows({auth}) {
-  return <section className="workflow-page"><Settings />{auth?.user&&<AccountControls auth={auth} />}</section>;
+  return <section className="workflow-page"><section className="connection-banner"><div><p className="eyebrow">LeetCode connection</p><h2>Bring your practice together.</h2><p>Check your extension, import solves, or resume an interrupted import.</p></div><a className="primary-button" href="#/connect">Manage connection →</a></section><Settings />{auth?.user&&<AccountControls auth={auth} />}</section>;
 }

@@ -1,6 +1,7 @@
 import { recallAccount, trustedPage } from './account-worker.js';
 import './legacy-setup.js';
 import './adapters/leetcode.js';
+import { recallRuntime } from './runtime-config.js';
 
 const pendingKey = (url,scope) => recallAccount.key(scope,`recall-pending:${url}`);
 const draftKey = (url,scope) => recallAccount.key(scope,`recall-draft:${url}`);
@@ -35,12 +36,12 @@ async function save(message, problem, scope) {
   if (data.attempt?.id !== payload.requestId) throw new Error('Save was not confirmed. Retry with the same choices.');
   await chrome.storage.local.remove(key);
   await chrome.storage.local.remove(draftKey(problem.url,scope));
-  return { saved: true };
+  return { saved: true, practiceUnit:data.attempt.practiceUnit, websiteOrigin:recallRuntime.websiteOrigin };
 }
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'PING') { sendResponse({ status: 'worker-ready', version: chrome.runtime.getManifest().version }); return; }
   if (message?.type === 'LIST_RECORDINGS') {
-    if (!trustedPage(sender) || sender.url !== chrome.runtime.getURL('setup.html')) { sendResponse({error:'Invalid settings sender'}); return; }
+    if (!trustedPage(sender) || sender.url?.split('#')[0] !== chrome.runtime.getURL('setup.html')) { sendResponse({error:'Invalid settings sender'}); return; }
     (async()=>{const scope=await recallAccount.scope(),prefix=scope==='local'?'':`recall-user:${scope}:`,data=await chrome.storage.local.get(null);return {records:Object.entries(data).filter(([key])=>key.startsWith(prefix)&&/^recall-(pending|draft|queue|conflict):/.test(key.slice(prefix.length))).map(([key,value])=>{key=key.slice(prefix.length);return {kind:key.split(':')[0].replace('recall-',''),url:key.startsWith('recall-conflict:')?value.url:key.slice(key.indexOf(':')+1),value};})};})().then(sendResponse,error=>sendResponse({error:error.message}));
     return true;
   }

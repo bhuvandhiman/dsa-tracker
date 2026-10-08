@@ -9,7 +9,7 @@ function ProblemLink({problem}) {
   return url ? <a className="problem-title-link" href={url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${problem.title} on LeetCode (opens in a new tab)`}>{problem.title}</a> : problem.title;
 }
 
-function ProblemList({slug,onChanged}) {
+function ProblemList({slug,name,onChanged}) {
   const request=useWorkspaceRequest();
   const [sort,setSort] = useState({field:null,direction:null});
   const [offset,setOffset] = useState(0);
@@ -38,13 +38,13 @@ function ProblemList({slug,onChanged}) {
   return <div className="inline-problems">
     <table className="problem-table" aria-label="Subpattern problems"><thead><tr><th className="problem-name-column" scope="col">Problem</th>{heading('difficulty','Difficulty')}{heading('practiced','Last practiced')}<th className="problem-options-column" scope="col"><span className="visually-hidden">Options</span></th></tr></thead><tbody>{current.data?.problems.map(problem=><tr key={problem.id}><td className="problem-name-column"><ProblemLink problem={problem} /></td><td className={`problem-difficulty-column problem-difficulty difficulty-${problem.difficulty || 'unknown'}`}>{problem.difficulty || 'Unknown'}</td><td className="problem-practiced-column">{problem.lastPracticedAt ? new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeZone:'Asia/Calcutta'}).format(new Date(problem.lastPracticedAt)) : <span className="undated-label">{undatedPracticeLabel(problem)}</span>}</td><td className="problem-options-column"><PatternMenu problem={problem} onSaved={()=>{setRevision(value=>value+1);onChanged();}} /></td></tr>)}</tbody></table>
     {current.error ? <div role="alert"><p>{current.error}</p><button className="secondary-button" onClick={()=>setRevision(value=>value+1)}>Try again</button></div> : !current.data ? <p role="status">Loading problems…</p> : <>
-      {!current.data.problems.length && <p>No problems here yet. Import your accepted problems or record practice through the extension.</p>}
+      {!current.data.problems.length && <div className="problem-empty"><h3>Build your practice in {name}.</h3><p>No saved problems in this subpattern yet. Choose a problem on LeetCode, then record the topics you used after solving it.</p><div className="row-actions"><a className="primary-button" href="https://leetcode.com/problemset/" target="_blank" rel="noopener noreferrer">Find problems on LeetCode ↗</a><a className="inline-link" href="#/connect">Import previous solves</a></div></div>}
       {(current.data.total > 25 || offset > 0) && <div className="pagination"><button className="secondary-button" disabled={!offset} onClick={()=>setOffset(value=>Math.max(0,value-25))}>← Previous</button><span>{current.data.problems.length ? `${offset+1}–${offset+current.data.problems.length}` : 'No records'}</span><button className="secondary-button" disabled={offset+25 >= current.data.total} onClick={()=>setOffset(value=>value+25)}>Next →</button></div>}
     </>}
   </div>;
 }
 
 export default function SubpatternProblems({slug,name,children,onChanged,next = false}) {
-  const [open,setOpen] = useState(false);
-  return <details className={`subpattern-row ${next ? 'is-next' : ''}`} onToggle={event=>setOpen(event.currentTarget.open)}><summary className="subpattern-header" aria-label={`${name} problems${next ? '. Next recommended subpattern' : ''}`}>{children}<NextAction next={next} expanded={open} disclosure /></summary>{open && <ProblemList slug={slug} onChanged={onChanged} />}</details>;
+  const [open,setOpen] = useState(next);
+  return <details open={open} className={`subpattern-row ${next ? 'is-next' : ''}`} onToggle={event=>setOpen(event.currentTarget.open)}><summary className="subpattern-header" aria-label={`${name} problems${next ? '. Next recommended subpattern' : ''}`}>{children}<NextAction next={next} expanded={open} disclosure /></summary>{open && <ProblemList slug={slug} name={name} onChanged={onChanged} />}</details>;
 }

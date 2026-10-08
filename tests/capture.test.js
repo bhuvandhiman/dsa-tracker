@@ -3,12 +3,13 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { captureInput } from '../apps/api/src/domain.js';
+import { recallRuntime } from '../apps/extension/src/runtime-config.js';
 const read = path => readFileSync(new URL('../apps/extension/src/'+path,import.meta.url),'utf8');
 const problem={url:'https://leetcode.com/problems/two-sum/',platform:'leetcode',problemId:'two-sum'};
 const payload={requestId:'00000000-0000-4000-8000-000000000001',url:problem.url,title:'Two Sum',difficulty:'easy',topics:['Array','Hash Table'],selectedTopics:[],assistance:'hint',attemptedAt:'2025-01-01T00:00:00.000Z'};
 function worker(fetcher,storage={},account) {
   let listener;
-  const context=vm.createContext({URL,AbortSignal,fetch:fetcher,trustedPage:sender=>sender.id==='test',recallAccount:account||{scope:async()=>'local',assertScope:async()=>'local',key:(_scope,key)=>key,request:(path,options)=>fetcher('http://127.0.0.1:3001/api'+path,options)},chrome:{
+  const context=vm.createContext({URL,AbortSignal,recallRuntime,fetch:fetcher,trustedPage:sender=>sender.id==='test',recallAccount:account||{scope:async()=>'local',assertScope:async()=>'local',key:(_scope,key)=>key,request:(path,options)=>fetcher('http://127.0.0.1:3001/api'+path,options)},chrome:{
     storage:{local:{async get(key){return key===null?{...storage}:Object.fromEntries((Array.isArray(key)?key:[key]).map(k=>[k,storage[k]]));},async set(data){Object.assign(storage,data);},async remove(key){delete storage[key];}}},
     runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onMessage:{addListener(fn){listener=fn;}}},
   }});

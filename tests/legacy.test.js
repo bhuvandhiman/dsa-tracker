@@ -67,10 +67,12 @@ test('first-run setup persists decisions across worker restarts and ignores fore
   const stored={};const tabs=[];
   function load(){let onInstall,listener;const context=vm.createContext({crypto:{randomUUID:()=>installationId},chrome:{storage:{local:{async get(){return stored;},async set(value){Object.assign(stored,value);}}},tabs:{async create(value){tabs.push(value);}},runtime:{id:'recall',getURL:path=>'chrome-extension://recall/'+path,onInstalled:{addListener(fn){onInstall=fn;}},onMessage:{addListener(fn){listener=fn;}}}}});
     context.recallAccount={assertScope:async()=>'local',key:(_scope,key)=>key};
+    context.recallRuntime={websiteOrigin:'https://recall.test'};
+    context.openRecallWebsite=async(chromeApi,origin)=>chromeApi.tabs.create({url:origin+'/#/connect'});
     vm.runInContext(readFileSync(new URL('../apps/extension/src/legacy-setup.js',import.meta.url),'utf8').replace(/^import .*;\r?$/gm,''),context);
     return {onInstall,send:(message,sender={id:'recall',url:'chrome-extension://recall/popup.html'})=>new Promise(resolve=>listener(message,sender,resolve))};
   }
-  const initial=load();await initial.onInstall({reason:'install'});assert.equal(tabs.length,1);
+  const initial=load();await initial.onInstall({reason:'install'});assert.equal(tabs.length,1);assert.equal(tabs[0].url,'https://recall.test/#/connect');
   assert.equal((await initial.send({type:'LEGACY_SETUP_STATE'})).decision,'pending');
   stored.legacySetup.decision='complete';
   const restarted=load();await restarted.onInstall({reason:'update'});assert.equal(tabs.length,1);

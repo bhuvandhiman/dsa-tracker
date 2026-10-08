@@ -1,13 +1,19 @@
 import { createAccountClient } from './account-client.js';
 import { recallRuntime } from './runtime-config.js';
+import { connectionAction, openRecallWebsite } from './connection-flow.js';
 export const recallAccount=createAccountClient(chrome);
-const stateNames=['legacySetup','retentionSetup'];
-export function trustedPage(sender){return sender.id===chrome.runtime.id&&['setup.html','popup.html'].some(page=>sender.url===chrome.runtime.getURL(page));}
+const stateNames=['legacySetup','retentionSetup','importProgress'];
+export function trustedPage(sender){return sender.id===chrome.runtime.id&&['setup.html','popup.html'].some(page=>sender.url?.split('#')[0]===chrome.runtime.getURL(page));}
 export function trustedWebsite(sender){
   if(sender.id!==chrome.runtime.id||sender.frameId!==0||!Number.isInteger(sender.tab?.id))return false;
   try{return new URL(sender.url).origin===recallRuntime.websiteOrigin;}catch{return false;}
 }
 chrome.runtime.onMessage.addListener((message,sender,respond)=>{
+  if(message?.type==='RECALL_WEBSITE_ACTION'){
+    if(!trustedWebsite(sender)){respond({error:'Connect from the configured Recall website.'});return;}
+    if(!['STATUS','OPEN_IMPORT','CHECK_LEETCODE'].includes(message.action)||typeof message.owner!=='string'){respond({error:'Sign into Recall to connect.'});return;}
+    connectionAction({action:message.action,owner:message.owner,account:recallAccount,chromeApi:chrome}).then(data=>respond({data}),error=>respond({error:error.message}));return true;
+  }
   if(message?.type==='RECALL_WEBSITE_SESSION'){
     if(!trustedWebsite(sender)){respond({error:'Connect from the configured Recall website.'});return;}
     const operation=message.accessToken===null?recallAccount.disconnectWebsite(message.owner):recallAccount.connectWebsite(message.accessToken,message.owner);
@@ -17,7 +23,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   if(!trustedPage(sender)){respond({error:'Open Recall extension Settings to manage your account.'});return;}
   const run=async()=>{
     if(message.type==='RECALL_ACCOUNT_STATUS')return recallAccount.status();
-    if(message.type==='RECALL_OPEN_WEBSITE'){await chrome.tabs.create({url:recallRuntime.websiteOrigin+'/#/login'});return {opened:true};}
+    if(message.type==='RECALL_OPEN_WEBSITE')return openRecallWebsite(chrome,recallRuntime.websiteOrigin);
     if(message.type==='RECALL_SIGN_IN')return recallAccount.signIn(message.email,message.password);
     if(message.type==='RECALL_SIGN_OUT'){await recallAccount.signOut();return {signedOut:true};}
     const scope=await recallAccount.assertScope(message.workspaceScope);

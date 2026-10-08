@@ -4,11 +4,11 @@ const retry=document.createElement('button');retry.type='button';retry.className
 let connected=false,scope=null,loaded=false;
 async function render(){
   try{const state=await connection();connected=state.connected;scope=state.scope;loaded=true;connect.hidden=state.mode==='local';connect.textContent=connected?'Open Recall':'Connect through Recall';status.textContent=state.mode==='local'?'Using your existing local workspace.':connected?`Connected to Recall as ${state.email}`:'Sign in on the Recall website. Your extension connects automatically.';}
-  catch(error){status.textContent=error.message;connect.hidden=true;retry.hidden=false;}
+  catch(error){status.textContent=error.message;connect.hidden=false;retry.hidden=false;}
 }
 connect.addEventListener('click',async()=>{
   connect.disabled=true;
-  try{const result=await chrome.runtime.sendMessage({type:'RECALL_OPEN_WEBSITE'});if(result.error)throw new Error(result.error);if(!connected)status.textContent='Finish signing in on the Recall website, then return here.';}
+  try{const result=await chrome.runtime.sendMessage({type:'RECALL_OPEN_WEBSITE'});if(result.error)throw new Error(result.error);if(!connected)status.textContent='Finish connecting on the Recall website. This tab updates when your account connects.';}
   catch(error){status.textContent=error.message;}finally{connect.disabled=false;}
 });
 chrome.storage.onChanged.addListener((changes,area)=>{

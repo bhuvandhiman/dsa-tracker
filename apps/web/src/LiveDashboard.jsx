@@ -1,4 +1,5 @@
 import PatternOverview, { DifficultyBar } from './PatternOverview.jsx';
+import NextPractice from './NextPractice.jsx';
 import PatternMetrics, { FocusBadge, FocusLegend, NextAction, RetentionMetric } from './PatternMetrics.jsx';
 import SubpatternProblems from './SubpatternProblems.jsx';
 import { useEffect, useState } from 'react';
@@ -50,8 +51,7 @@ function PatternDetail({ category, goalConfigured, query, onChanged }) {
     </div>
     <PracticeExplanation />
     <div className="section-heading"><h2>Subpatterns</h2><span className="data-note">{children.length} approaches</span></div>
-    <p className="data-note">Primary solves count each problem once in its assigned pattern. Practice evidence follows recorded approaches. Goal coverage shows actual solves / target; its fill stays capped within each subpattern and difficulty.</p>
-    <p className="data-note">Pink experience and yellow recent practice add up to the strength percentage. Unknown dates do not establish retention.</p><div className="subpattern-list">{children.map((child,index) => <SubpatternProblems key={child.slug} slug={child.slug} name={child.name} onChanged={onChanged} next={index === 0 && category.slug !== 'other'}><div className="subpattern-row-heading"><span className="pattern-icon" aria-hidden="true">{String(index+1).padStart(2,'0')}</span><div><h3>{child.name} <FocusBadge item={child} /></h3><p>{classifiedSolves(child) ?? '—'} primary {classifiedSolves(child) === 1 ? 'solve' : 'solves'}</p><p className="recommendation-reason">{recommendationReason(child)}</p></div></div><PatternMetrics item={child} goal={child.goal} name={`${category.name}, ${child.name}`} goalConfigured={goalConfigured} /></SubpatternProblems>)}</div>
+    <div className="subpattern-list">{children.map((child,index) => <SubpatternProblems key={child.slug} slug={child.slug} name={child.name} onChanged={onChanged} next={index === 0 && category.slug !== 'other'}><div className="subpattern-row-heading"><span className="pattern-icon" aria-hidden="true">{String(index+1).padStart(2,'0')}</span><div><h3>{child.name} <FocusBadge item={child} /></h3><p>{classifiedSolves(child) ?? '—'} primary {classifiedSolves(child) === 1 ? 'solve' : 'solves'}</p><p className="recommendation-reason">{recommendationReason(child)}</p></div></div><PatternMetrics item={child} goal={child.goal} name={`${category.name}, ${child.name}`} goalConfigured={goalConfigured} /></SubpatternProblems>)}</div>
   </div>;
 }
 export default function LiveDashboard({ route }) {
@@ -89,7 +89,10 @@ export default function LiveDashboard({ route }) {
     {data && <>
       {!isDashboard && <FocusLegend goal={data.goal} />}
       {isDashboard ? <>
+        {!data.categories.some(category=>category.summary.distinctSolved>0)&&<section className="connection-banner"><div><p className="eyebrow">Your first step</p><h2>Turn your solves into a plan.</h2><p>Connect LeetCode to organize your accepted problems and find your next pattern to practice.</p></div><div className="row-actions"><a className="primary-button" href="#/connect">Connect LeetCode →</a><a className="inline-link" href="#/patterns">Explore patterns</a></div></section>}
+        {data.categories.some(category=>category.summary.distinctSolved>0)&&<div className="row-actions"><p className="data-note">Your solves are organized below. Start with your next recommended pattern.</p><a className="inline-link" href="#/connect">Connection & import</a></div>}
         <PatternOverview data={data} />
+        {data.categories.some(category=>category.summary.distinctSolved>0)&&data.categories.some(category=>category.slug!=='other')&&<NextPractice category={prioritizedPatterns(data.categories).find(category=>category.slug!=='other')} />}
         <GoalForm key={`${data.goal.profile}-${data.goal.target}`} goal={data.goal} onSaved={refresh} />
         {data.goal.unknownDifficulty > 0 && <p className="data-note">{data.goal.unknownDifficulty} solved problems have unknown difficulty and cannot receive goal credit yet.</p>}
       </> : <>

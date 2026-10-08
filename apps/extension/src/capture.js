@@ -20,7 +20,7 @@ globalThis.DsaCapture = {
       close();
       const token = generation;
       let pending = null, draft = null, queue = [], workspaceScope = null, connectionError;
-      try { const stored=await runtime.sendMessage({ type: 'GET_PENDING_CAPTURE', problem: current.problem }); connectionError=stored?.error||'';workspaceScope=stored?.workspaceScope;currentScope=workspaceScope;pending=stored?.pending;draft=stored?.draft;queue=stored?.queue||[]; } catch { connectionError='Reload Recall and sign in through extension Settings.'; }
+      try { const stored=await runtime.sendMessage({ type: 'GET_PENDING_CAPTURE', problem: current.problem }); connectionError=stored?.error||'';workspaceScope=stored?.workspaceScope;currentScope=workspaceScope;pending=stored?.pending;draft=stored?.draft;queue=stored?.queue||[]; } catch { connectionError='Reload Recall and connect through the Recall website.'; }
       if (token !== generation || context()?.problem.url !== current.problem.url) return;
       let catalog=[];
       const restored = pending || draft;
@@ -64,7 +64,7 @@ globalThis.DsaCapture = {
         const row=node('label'); const input=node('input'); input.type='radio'; input.name='assistance'; input.value=value; input.required=true; input.checked=restored?.assistance===value;
         row.append(input,node('span',label)); assistance.append(row);
       }
-      const topicFields=node('fieldset');topicFields.append(node('legend','Topics used'));
+      const topicFields=node('fieldset');topicFields.append(node('legend','Confirm topics used'));
       const topicRows=node('div');topicFields.append(topicRows);
       const otherRow=node('label'),other=node('input');other.type='checkbox';other.checked=restored?.classification?.mode==='manual';other.setAttribute('aria-label','Other');otherRow.append(other,node('span','Other'));topicFields.append(otherRow);
       const picker=node('div');picker.className='pattern-picker';picker.id='recall-pattern-picker';picker.setAttribute('role','region');picker.setAttribute('aria-label','Choose another pattern');picker.hidden=!other.checked;other.setAttribute('aria-controls',picker.id);
@@ -72,7 +72,7 @@ globalThis.DsaCapture = {
       const patternLabel=node('label','Choose a pattern'),pattern=node('select');pattern.size=6;pattern.setAttribute('aria-label','Choose a pattern');patternLabel.append(pattern);
       let manualUnit=restored?.classification?.mode==='manual'?restored.classification.unit:'';
       const matchesNote=node('p');picker.append(searchLabel,patternLabel,matchesNote);topicFields.append(picker);
-      topicFields.append(node('p','Choose at least one topic you used, or select Other to choose a pattern. Specialized topics take precedence.'));
+      topicFields.append(node('p','Confirm the topics you actually used. Choose Other to find a different pattern.'));
       function renderPatterns(){
         const term=search.value.trim().toLowerCase();
         const matches=catalog.filter(unit=>(unit.categoryName+' '+unit.name).toLowerCase().includes(term));
@@ -131,7 +131,11 @@ globalThis.DsaCapture = {
           }
           if (generation === token && currentUrl === problem.url) {
             keepDraft=null;close();
-            const notice=doc.createElement('div');notice.setAttribute('role','status');notice.textContent='Recall: practice saved.';notice.style.cssText='position:fixed;right:16px;bottom:24px;z-index:2147483647;background:#fafbe9;color:#202720;border:1px solid #2c8075;padding:16px;border-radius:12px;font:14px Trebuchet MS,Segoe UI,sans-serif';if(root.host.getAttribute('data-theme')==='dark'){notice.style.background='#232d26';notice.style.color='#f3f2df';notice.style.borderColor='#82cabb';}doc.documentElement.append(notice);page.setTimeout(()=>notice.remove(),4000);
+            doc.getElementById('recall-save-notice')?.remove();
+            const unit=catalog.find(item=>item.slug===result.practiceUnit);
+            const notice=doc.createElement('div');notice.id='recall-save-notice';notice.setAttribute('role','status');notice.textContent=unit?`Saved to ${unit.categoryName} · ${unit.name}. `:'Recall: practice saved. ';notice.style.cssText='position:fixed;right:16px;bottom:24px;max-width:calc(100vw - 32px);z-index:2147483647;background:#fafbe9;color:#202720;border:1px solid #2c8075;padding:16px;border-radius:12px;font:14px Trebuchet MS,Segoe UI,sans-serif';if(root.host.getAttribute('data-theme')==='dark'){notice.style.background='#232d26';notice.style.color='#f3f2df';notice.style.borderColor='#82cabb';}
+            if(result.websiteOrigin&&unit){const link=doc.createElement('a');link.textContent='View pattern ↗';link.href=result.websiteOrigin+'/#/patterns/'+encodeURIComponent(unit.category);link.target='_blank';link.rel='noopener noreferrer';link.style.color='inherit';notice.append(link);}
+            const dismissNotice=doc.createElement('button');dismissNotice.type='button';dismissNotice.textContent='×';dismissNotice.setAttribute('aria-label','Dismiss saved practice confirmation');dismissNotice.style.cssText='margin-left:12px;background:none;color:inherit;border:0;min-width:32px;min-height:32px;cursor:pointer';dismissNotice.addEventListener('click',()=>notice.remove());notice.append(dismissNotice);doc.documentElement.append(notice);page.setTimeout(()=>{if(!notice.contains(doc.activeElement))notice.remove();},12000);
             const stored=await runtime.sendMessage({type:'GET_PENDING_CAPTURE',problem,workspaceScope});
             if(stored?.queue?.length)await open();
           }

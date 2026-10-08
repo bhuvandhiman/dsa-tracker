@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { authRedirect } from './auth-client.js';
+import { accountDestination } from './auth-navigation.js';
 import './accounts.css';
 
 
@@ -14,16 +15,17 @@ export default function AuthPages({page,auth}){
     await run(async()=>{
       let result;
       if(forgot){result=await auth.client.auth.resetPasswordForEmail(email.trim(),{redirectTo:authRedirect('recovery')});if(result.error)throw result.error;setMessage('If an account exists for this email, a reset link is on its way. Open it in this browser.');return;}
-      if(reset){result=await auth.client.auth.updateUser({password});if(result.error)throw result.error;setPassword('');setMessage('Password updated.');window.location.hash='/dashboard';return;}
+      if(reset){result=await auth.client.auth.updateUser({password});if(result.error)throw result.error;setPassword('');setMessage('Password updated.');const account=await auth.refresh();window.location.hash=accountDestination(account.setup);return;}
       if(signup){result=await auth.client.auth.signUp({email:email.trim(),password,options:{emailRedirectTo:authRedirect()}});if(result.error)throw result.error;setPassword('');if(!result.data.session){setVerification(true);setMessage('Check your inbox to confirm your email. Open the link in this browser, then continue setup.');return;}}
       else {result=await auth.client.auth.signInWithPassword({email:email.trim(),password});if(result.error)throw result.error;setPassword('');}
-      const account=await auth.refresh();window.location.hash=account.setup.completed?'/dashboard':'/setup';
+      await auth.refresh();
     });
   }
   return <div className="account-split">
     <section className="account-story" aria-label="Your learning with Recall"><p className="eyebrow public-eyebrow"><span />{copy.eyebrow}</p><h1>{copy.title.split('\n').map((line,index)=><span className={index===1?'account-title-accent':''} key={line}>{line}</span>)}</h1><p>{copy.description}</p><div className="account-illustration" aria-hidden="true"><div className="account-pattern"><span>01</span><strong>Your next pattern</strong><span>↗</span></div><div className="account-example-bar"><i /><i /></div><div className="account-example-tags"><span>Experience</span><span>Recent practice</span></div><p>Small sessions. Lasting foundations.</p></div></section>
     <section className="account-form-panel" aria-labelledby="account-form-title"><a className="account-back" href="#/home">← Back to Recall</a><h2 id="account-form-title">{verification?'Check your inbox.':copy.form}</h2><p className="account-intro">{verification?'Your account starts with a confirmed email.':copy.intro}</p>
-      {!auth.loading&&!auth.config?.configured&&<p className="account-notice">Online sign-in is being connected. You can still <a className="inline-link" href="#/dashboard">open your local workspace</a>.</p>}
+      {!auth.loading&&auth.config?.mode==='local'&&<p className="account-notice">This installation uses a local workspace. <a className="inline-link" href="#/dashboard">Open your workspace</a>.</p>}
+      {!auth.loading&&!auth.error&&auth.config?.mode==='supabase'&&!auth.config.configured&&<p className="account-notice">Sign-in is temporarily unavailable. Please try again shortly.</p>}
       {auth.error&&<div className="account-notice" role="alert">{auth.error} <button className="text-button" onClick={auth.retry}>Retry connection</button></div>}
       {reset&&auth.config?.configured&&!auth.sessionUser&&<p className="account-notice">Open the password-reset link from your email in the browser where you requested it.</p>}
       {!verification&&<form className="account-form" onSubmit={submit}>

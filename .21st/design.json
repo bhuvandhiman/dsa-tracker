@@ -229,6 +229,11 @@
       "date": "2026-10-03",
       "direction": "Render preview preparation, editorial privacy and account controls",
       "reason": "User chose Render plus existing Supabase. Reuse full-page public sections, Workspace panels and native dialogs with safe focus and explicit deletion confirmation. Host-specific extension packaging keeps local development available. Provider configuration and real deployment remain separate; no queue or classification changes."
+    },
+    {
+      "date": "2026-10-08",
+      "direction": "Guided website connection and earlier workspace access",
+      "reason": "User approved the UX audit: focus-only setup, optional installation, verified extension state and import progress on the website, actionable first practice, mobile form-first authentication. Reuse existing native controls and tokens; preserve classification and scoring. No new dependencies."
     }
   ],
   "evidence": [

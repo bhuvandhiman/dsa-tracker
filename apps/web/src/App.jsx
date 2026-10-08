@@ -9,7 +9,9 @@ import AuthPages from './AuthPages.jsx';
 import Onboarding, { Installation } from './Onboarding.jsx';
 import useAuth from './use-auth.js';
 import { WorkspaceContext } from './workspace-context.js';
-import { connectWebsiteExtension } from './extension-bridge.js';
+import useExtension from './use-extension.js';
+import Connection from './Connection.jsx';
+import { accountDestination, rememberDestination } from './auth-navigation.js';
 
 function Icon({ name, ...props }) {
   const paths = {
@@ -27,7 +29,7 @@ function Icon({ name, ...props }) {
 
 export default function App() {
   const auth=useAuth();
-  useEffect(()=>{if(auth.client)return connectWebsiteExtension(auth.client);},[auth.client]);
+  const extension=useExtension(auth);
   const [accountError,setAccountError]=useState('');
   const [route, setRoute] = useState(() => readLocation(window.location));
   useEffect(() => {
@@ -41,19 +43,18 @@ export default function App() {
   const authPage=['signup','login','forgot-password','reset-password'].includes(route.page);
   const setupPage=route.page==='setup';
   const installationPage=route.page==='install-extension';
-  const privatePage=['dashboard','patterns','settings'].includes(route.page);
+  const privatePage=['dashboard','patterns','settings','connect'].includes(route.page);
   const publicPage = ['home','about','privacy'].includes(route.page);
   const accountShell=authPage||setupPage;
   const accountsEnabled=auth.config?.mode==='supabase';
-  const canReadWorkspace=!auth.loading&&auth.config&&(accountsEnabled?auth.user&&auth.setup?.completed:true);
+  const canReadWorkspace=!auth.loading&&auth.config&&(accountsEnabled?Boolean(auth.user):true);
   useEffect(()=>{
     if(auth.loading||auth.error)return;
-    if(accountsEnabled&&privatePage&&!auth.user)window.location.hash='/login';
-    else if(accountsEnabled&&privatePage&&auth.user&&!auth.setup?.completed)window.location.hash='/setup';
-    else if(auth.user&&['signup','login'].includes(route.page))window.location.hash=auth.setup?.completed?'/dashboard':'/setup';
+    if(accountsEnabled&&privatePage&&!auth.user){rememberDestination(window.location.hash.slice(1)||window.location.pathname);window.location.hash='/login';}
+    else if(auth.user&&['signup','login'].includes(route.page))window.location.hash=accountDestination(auth.setup);
   },[auth.loading,auth.error,auth.user,auth.setup,accountsEnabled,privatePage,route.page]);
   useEffect(() => {
-    const titles={home:'Recall — Know which DSA pattern to practice next',about:'About Recall',privacy:'Privacy · Recall',dashboard:'Dashboard · Recall',patterns:'Patterns · Recall',settings:'Workspace · Recall',signup:'Create account · Recall',login:'Log in · Recall','forgot-password':'Reset password · Recall','reset-password':'New password · Recall',setup:'Your setup · Recall','install-extension':'Install the extension · Recall'};
+    const titles={home:'Recall — Know which DSA pattern to practice next',about:'About Recall',privacy:'Privacy · Recall',dashboard:'Dashboard · Recall',patterns:'Patterns · Recall',connect:'Connect LeetCode · Recall',settings:'Settings · Recall',signup:'Create account · Recall',login:'Log in · Recall','forgot-password':'Reset password · Recall','reset-password':'New password · Recall',setup:'Your setup · Recall','install-extension':'Install the extension · Recall'};
     document.title=titles[route.page] || 'Recall';
     const frame=requestAnimationFrame(()=>{
       const section=route.page==='home'&&['how-it-works','questions'].includes(route.section)?document.getElementById(route.section):null;
@@ -85,7 +86,7 @@ export default function App() {
         </>:<>
         <a className={`nav-link ${route.page === 'dashboard' ? 'active' : ''}`} aria-current={route.page === 'dashboard' ? 'page' : undefined} href="#/dashboard"><Icon name="home" />Dashboard</a>
         <a className={`nav-link ${route.page === 'patterns' ? 'active' : ''}`} aria-current={route.page === 'patterns' ? 'page' : undefined} href="#/patterns"><Icon name="grid" />Patterns</a>
-        <a className={`nav-link ${route.page === 'settings' ? 'active' : ''}`} aria-current={route.page === 'settings' ? 'page' : undefined} href="#/settings"><Icon name="workspace" />Workspace</a>
+        <a className={`nav-link ${route.page === 'settings' ? 'active' : ''}`} aria-current={route.page === 'settings' ? 'page' : undefined} href="#/settings"><Icon name="workspace" />Settings</a>
         </>}
       </nav>
       <div className="topbar-actions">
@@ -104,8 +105,9 @@ export default function App() {
       {route.page==='privacy'&&<Privacy />}
       {route.page==='login'&&route.account&&<p role="status" className="account-notice">{route.account==='deleted'?'Your Recall account and workspace were deleted.':route.account==='deletion-pending'?'Your deletion request is queued. Workspace access is blocked while cleanup retries.':''}</p>}
       {authPage&&<AuthPages key={route.page} page={route.page} auth={auth} />}
-      {setupPage&&(auth.user?<Onboarding key={auth.user.id} auth={auth} />:<div className="account-loading"><h1>Start with your account.</h1><p>{auth.loading?'Checking your session…':'Sign in to save your setup and open your private workspace.'}</p><a className="primary-button" href="#/signup">Create account</a></div>)}
+      {setupPage&&(auth.user?<Onboarding key={auth.user.id} auth={auth} />:<div className="account-loading"><h1>Start with your account.</h1><p>{auth.loading?'Checking your session…':'Sign in to save your setup and open your private workspace.'}</p><a className="primary-button" href="#/login">Log in</a><a className="inline-link" href="#/signup">Create account</a></div>)}
       {installationPage&&<Installation auth={auth} />}
+      {canReadWorkspace&&route.page==='connect'&&<Connection key={auth.user?.id||'local'} auth={auth} extension={extension} />}
       {privatePage&&!canReadWorkspace&&<div className="account-loading" role="status"><h2>{auth.error?'Could not open your workspace.':'Opening your workspace…'}</h2>{auth.error&&<><p>{auth.error}</p><button className="secondary-button" onClick={auth.retry}>Retry connection</button><a className="inline-link" href="#/login">Go to login</a></>}</div>}
       {canReadWorkspace&&['dashboard','patterns'].includes(route.page) && <LiveDashboard key={`${auth.user?.id||'local'}:${route.page}:${route.slug || ''}:${route.query}`} route={route} />}
       {canReadWorkspace&&route.page === 'settings' && <Workflows key={auth.user?.id||'local'} auth={auth} />}

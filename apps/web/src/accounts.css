@@ -94,6 +94,26 @@
 @media(max-width:900px){ .account-split { grid-template-columns:1fr; gap:40px; padding-top:35px; } .account-story { max-width:500px; } .account-story h1 { font-size:42px; } .account-story > p:not(.eyebrow) { font-size:14px; margin:15px 0; } .account-illustration { display:none; } .account-form-panel { max-width:500px; justify-self:start; } .installation-body { grid-template-columns:1fr; gap:30px; } .installation-video { max-width:650px; width:100%; } }
 @media(max-width:600px){ .account-split { display:flex; flex-direction:column; align-items:stretch; gap:25px; padding-bottom:35px; } .account-story h1 { font-size:34px; letter-spacing:-1.4px; } .account-story > p:not(.eyebrow) { font-size:13px; } .account-form-panel h2 { font-size:29px; } .account-back { margin:0 0 12px; } .account-intro { margin-bottom:20px; } .account-shell .topbar { display:flex; flex-wrap:nowrap; min-height:72px; } .account-shell .topbar-actions { gap:12px; } .setup-progress ol { gap:12px; } .setup-progress li { flex:1; flex-direction:column; align-items:flex-start; gap:8px; font-size:10px; line-height:1.5; } .setup-mode-option { padding:18px 16px; gap:12px; } .setup-mode-option i { display:none; } .installation-heading { flex-direction:column; align-items:flex-start; } .installation-heading > a { margin-top:8px; } .installation-body { margin-top:28px; } .installation-footer { flex-direction:column; align-items:flex-start; gap:8px; } .installation-video { aspect-ratio:1.2; } .installation-video-placeholder > span { width:52px; height:52px; font-size:20px; margin-bottom:18px; } .setup-complete > .public-text-link { display:flex; margin-left:0; margin-top:12px; } }
 .workspace-account-controls { margin-top:24px; }
+.connection-page { max-width:1100px; margin:32px auto 60px; }
+.connection-page > .eyebrow { margin-top:32px; }
+.connection-steps { list-style:none; padding:0; margin:32px 0; }
+.connection-steps > li { display:flex; gap:20px; padding:28px 0; border-top:1px solid var(--line); }
+.connection-steps h2 { font-size:24px; }
+.connection-steps p { color:var(--muted); line-height:1.7; max-width:740px; }
+.connection-check { display:grid; place-items:center; flex-shrink:0; width:40px; height:40px; border-radius:50%; background:var(--track); font-weight:700; }
+.connection-check.is-complete { background:var(--teal); color:var(--on-accent); }
+.connection-steps progress { display:block; width:100%; accent-color:var(--teal); margin:16px 0; }
+.connection-banner { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:24px; padding:28px; margin:24px 0; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); }
+.connection-banner h2 { font-size:26px; }
+.connection-banner p { max-width:660px; line-height:1.7; color:var(--muted); }
+.connection-banner .row-actions { flex-wrap:wrap; }
+.connection-banner .row-actions,.connection-steps > li > div { min-width:0; max-width:100%; }
+.connection-steps p { overflow-wrap:anywhere; }
+.connection-banner .primary-button { white-space:normal; }
+.installation-without-video { grid-template-columns:1fr; }
+.problem-empty { padding:20px 0; }
+.problem-empty p { color:var(--muted); line-height:1.7; }
+@media(max-width:900px){.account-form-panel{order:-1}.account-story{grid-row:2}.connection-banner{align-items:flex-start}.connection-steps>li{gap:12px}.connection-steps .row-actions{flex-wrap:wrap}.connection-page h1{font-size:36px}}
 .account-identity { font-weight:700; overflow-wrap:anywhere; }
 .account-delete-row { display:flex; align-items:center; justify-content:space-between; gap:24px; border-top:1px solid var(--line); margin-top:24px; padding-top:24px; }
 .account-delete-row h3 { margin:0; }

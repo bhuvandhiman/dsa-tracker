@@ -68,7 +68,6 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
           if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['profile','target','extensionAcknowledged','completed'].includes(k)))throw new DomainError(400,'Invalid setup choices.');
           for(const key of ['extensionAcknowledged','completed'])if(body[key]!==undefined&&typeof body[key]!=='boolean')throw new DomainError(400,'Invalid setup choices.');
           if(body.profile!==undefined||body.target!==undefined)goalInput({profile:body.profile,target:body.target});
-          if(body.completed&&(body.extensionAcknowledged!==true))throw new DomainError(400,'Acknowledge extension installation before finishing setup.');
           return response.json(await privateRepository.saveSetup(body));
         }
         return next();
@@ -82,7 +81,7 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
 
   if(webRoot){
     app.use((request,response,next)=>request.path.startsWith('/api')?next():express.static(webRoot,{index:false,dotfiles:'deny',setHeaders(response,path){response.set('Cache-Control',/[/\\]assets[/\\]/.test(path)?'public,max-age=31536000,immutable':'no-store');}})(request,response,next));
-    for(const path of ['/','/home','/about','/privacy','/signup','/login','/forgot-password','/reset-password','/install-extension'])app.get(path,(_request,response)=>{response.set('Cache-Control','no-store');response.sendFile('index.html',{root:webRoot});});
+    for(const path of ['/','/home','/about','/privacy','/signup','/login','/forgot-password','/reset-password','/install-extension','/connect'])app.get(path,(_request,response)=>{response.set('Cache-Control','no-store');response.sendFile('index.html',{root:webRoot});});
   }
   app.use((_request, response) => response.status(404).json({ error: 'Route not found.' }));
   // Express requires all four parameters to recognize error middleware.
