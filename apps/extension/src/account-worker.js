@@ -2,7 +2,9 @@ import { createAccountClient } from './account-client.js';
 import { recallRuntime } from './runtime-config.js';
 import { connectionAction, openRecallWebsite } from './connection-flow.js';
 import { readRecallResponse } from './import-request.js';
+import { createImportController } from './import-controller.js';
 export const recallAccount=createAccountClient(chrome);
+const importer=createImportController({account:recallAccount,chromeApi:chrome});
 const stateNames=['legacySetup','retentionSetup','importProgress'];
 export function trustedPage(sender){return sender.id===chrome.runtime.id&&['setup.html','popup.html'].some(page=>sender.url?.split('#')[0]===chrome.runtime.getURL(page));}
 export function trustedWebsite(sender){
@@ -12,8 +14,12 @@ export function trustedWebsite(sender){
 chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   if(message?.type==='RECALL_WEBSITE_ACTION'){
     if(!trustedWebsite(sender)){respond({error:'Connect from the configured Recall website.'});return;}
-    if(!['STATUS','OPEN_IMPORT','CHECK_LEETCODE'].includes(message.action)||typeof message.owner!=='string'){respond({error:'Sign into Recall to connect.'});return;}
-    connectionAction({action:message.action,owner:message.owner,account:recallAccount,chromeApi:chrome}).then(data=>respond({data}),error=>respond({error:error.message}));return true;
+    if(!['STATUS','OPEN_IMPORT','START_IMPORT','PAUSE_IMPORT','CHECK_LEETCODE'].includes(message.action)||typeof message.owner!=='string'){respond({error:'Sign into Recall to connect.'});return;}
+    connectionAction({action:message.action,owner:message.owner,account:recallAccount,chromeApi:chrome,importer}).then(data=>respond({data}),error=>respond({error:error.message}));return true;
+  }
+  if(message?.type==='RECALL_IMPORT_ACTION'){
+    if(!trustedPage(sender)||!['STATUS','START_IMPORT','PAUSE_IMPORT'].includes(message.action)){respond({error:'Open Recall to manage imports.'});return;}
+    connectionAction({action:message.action,owner:message.workspaceScope,account:recallAccount,chromeApi:chrome,importer}).then(data=>respond({data}),error=>respond({error:error.message}));return true;
   }
   if(message?.type==='RECALL_WEBSITE_SESSION'){
     if(!trustedWebsite(sender)){respond({error:'Connect from the configured Recall website.'});return;}

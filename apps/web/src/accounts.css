@@ -124,3 +124,11 @@
 .danger-button:focus-visible { outline:3px solid var(--mustard); outline-offset:3px; }
 .account-deletion-form input { width:100%; padding:12px; border:1px solid var(--line); border-radius:12px; background:var(--canvas); color:var(--ink); font:inherit; }
 @media(max-width:500px){.account-delete-row{align-items:start;flex-direction:column}.account-deletion-form .row-actions{align-items:stretch;flex-direction:column}}
+.connection-installation { margin-top:24px; padding:24px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); }
+.connection-installation .installation-page { margin:0; }
+.connection-installation .installation-heading { gap:20px; }
+.connection-installation .installation-heading h2 { font-size:26px; }
+.connection-installation .installation-body { margin-top:24px; }
+.connection-installation .installation-note { margin-bottom:0; }
+.connection-import-status p { margin:12px 0; }
+@media(max-width:600px){.connection-installation{padding:18px}.connection-installation .installation-heading h2{font-size:24px}}

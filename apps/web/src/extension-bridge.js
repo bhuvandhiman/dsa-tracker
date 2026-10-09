@@ -30,7 +30,7 @@ export function connectWebsiteExtension(client,target=window,onState=()=>{}){
     if(event.data.type==='CONNECTED'&&nonce&&event.data.nonce===nonce&&event.data.owner===lastOwner&&event.data.sessionRevision===sessionRevision){report({detected:true,connected:!event.data.error&&event.data.connected===true,error:event.data.error||''});return;}
     if(event.data.type!=='HELLO'||!uuid.test(event.data.nonce||''))return;
     nonce=event.data.nonce;
-    report({detected:true,connected:false,outdated:event.data.protocol!==2});
+    report({detected:true,connected:false,outdated:event.data.protocol!==3});
     if(signedOutOwner)target.postMessage({channel,type:'SESSION',nonce,owner:signedOutOwner,accessToken:null},target.location.origin);
     const current=++revision;
     if(!client)return;
@@ -42,7 +42,7 @@ export function connectWebsiteExtension(client,target=window,onState=()=>{}){
   const stop=()=>{active=false;revision++;subscription?.unsubscribe();target.removeEventListener('message',receive);for(const entry of pending.values()){clearTimeout(entry.timer);entry.reject(new Error('Connection closed.'));}pending.clear();};
   stop.request=(action)=>new Promise((resolve,reject)=>{
     if(!active||!nonce)return reject(new Error('Extension not detected. Install or reload Recall, then refresh this website tab.'));
-    if(!['STATUS','OPEN_IMPORT','CHECK_LEETCODE'].includes(action))return reject(new Error('Unknown connection action.'));
+    if(!['STATUS','OPEN_IMPORT','START_IMPORT','PAUSE_IMPORT','CHECK_LEETCODE'].includes(action))return reject(new Error('Unknown connection action.'));
     const requestId=crypto.randomUUID(),timer=setTimeout(()=>{pending.delete(requestId);reject(new Error('The extension did not respond. Reload it in Chrome Extensions, then refresh this website tab.'));},20000);
     pending.set(requestId,{resolve,reject,timer});
     target.postMessage({channel,type:'REQUEST',nonce,requestId,action,owner:lastOwner||(!client?'local':null)},target.location.origin);

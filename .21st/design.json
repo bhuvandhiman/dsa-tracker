@@ -234,6 +234,11 @@
       "date": "2026-10-08",
       "direction": "Guided website connection and earlier workspace access",
       "reason": "User approved the UX audit: focus-only setup, optional installation, verified extension state and import progress on the website, actionable first practice, mobile form-first authentication. Reuse existing native controls and tokens; preserve classification and scoring. No new dependencies."
+    },
+    {
+      "date": "2026-10-09",
+      "direction": "Inline installation disclosure and website import controls",
+      "reason": "User requested installation steps immediately below their button and imports without changing pages. Keep start, pause, resume, progress and errors on Connect LeetCode; website and extension controls share the checkpointed import controller. Reuse existing tokens, native progress and buttons. The 21st CLI is unavailable; no new UI dependencies."
     }
   ],
   "evidence": [

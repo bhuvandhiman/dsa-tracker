@@ -2,36 +2,38 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-import {runImportSession} from '../apps/extension/src/import-session.js';
-import {requestError,retryImportRequest} from '../apps/extension/src/import-request.js';
+import {importView} from '../apps/extension/src/import-view.js';
 
-function fixture({lock=true,failedConnection=false,holdBatch=false}={}){
-  const data={legacySetup:{installationId:'00000000-0000-4000-8000-000000000001',decision:'pending',offset:0}},listeners={},elements={};
+function fixture({failedConnection=false}={}){
+  const listeners={},elements={},calls=[];let poll,fail=failedConnection;
+  const snapshot={connected:true,import:{decision:'pending',saved:0,total:null,running:false}};
   for(const id of ['status','import','pause','import-progress','import-count','view-patterns'])elements['#'+id]={dataset:{},hidden:false,disabled:false,textContent:'',addEventListener(type,fn){listeners[id+':'+type]=fn;}};
-  const storage={async get(names){return Object.fromEntries((Array.isArray(names)?names:[names]).map(name=>[name,data[name]]));},async set(value){Object.assign(data,structuredClone(value));}};
-  let connections=0,release,began;
-  const waiting=new Promise(resolve=>{release=resolve;}),batchStarted=new Promise(resolve=>{began=resolve;});
-  const api=async(path,body)=>{
-    if(body?.problems?.length&&holdBatch){began();await waiting;}
-    return {completed:Boolean(body)&&(path==='/imports/recent'||body.complete===true),added:body?.problems?.length||0};
-  };
-  const read=async(type,extra)=>type==='SCAN_LEGACY_PROBLEMS'?{username:'alice',problems:[{slug:'two-sum'}]}:type==='READ_LEGACY_TOPICS'?extra.slugs.map(slug=>({url:`https://leetcode.com/problems/${slug}/`,title:slug,topics:['Hash Table']})):type==='READ_IMPORT_ACCOUNT'?{username:'alice'}:{username:'alice',submissions:[]};
   const source=readFileSync(new URL('../apps/extension/src/setup.js',import.meta.url),'utf8').replace(/^import .*;\r?$/gm,'');
-  const context={api,scopedStorage:storage,connection:async()=>{connections++;if(failedConnection)throw new Error('API offline');return {connected:true,scope:'local'};},runImportSession,connectLeetCode:async()=>read,requestError,retryImportRequest:(operation,options)=>retryImportRequest(operation,{...options,wait:async()=>{}}),document:{querySelector:id=>elements[id],querySelectorAll:()=>[]},window:{addEventListener(){}},location:{hash:''},chrome:{runtime:{sendMessage:async()=>data.legacySetup}},navigator:{locks:{request:async(_name,_options,fn)=>fn(lock?{}:null)}},setInterval:()=>1,clearInterval(){},Date};
-  const ready=vm.runInNewContext('(async()=>{'+source+'})()',context);
-  return {data,elements,listeners,ready,release,batchStarted,get connections(){return connections;}};
+  const context={importView,connection:async()=>{if(fail)throw new Error('API offline');return {connected:true,scope:'alice'};},document:{querySelector:id=>elements[id],querySelectorAll:()=>[]},window:{addEventListener(){}},location:{hash:''},chrome:{runtime:{async sendMessage(message){calls.push(message);if(message.action==='START_IMPORT')Object.assign(snapshot.import,{running:true,phase:'scanning'});if(message.action==='PAUSE_IMPORT')snapshot.import.pausing=true;return {data:structuredClone(snapshot)};}}},setTimeout:fn=>{poll=fn;return 1;},clearTimeout(){}};
+  return {snapshot,elements,listeners,calls,ready:vm.runInNewContext('(async()=>{'+source+'})()',context),poll:()=>poll(),reconnect(){fail=false;}};
 }
-test('import screen uses one controller, finishes both phases and offers the dashboard',async()=>{
+
+test('extension import controls start the shared job in the connected workspace',async()=>{
   const f=fixture();await f.ready;await f.listeners['import:click']();
-  assert.equal(f.data.legacySetup.decision,'complete');assert.equal(f.data.retentionSetup.complete,true);assert.equal(f.elements['#view-patterns'].hidden,false);assert.match(f.elements['#status'].textContent,/finished/);assert.equal(f.elements['#pause'].hidden,true);
+  assert.equal(f.calls.find(value=>value.action==='START_IMPORT').workspaceScope,'alice');
+  assert.equal(f.elements['#import'].disabled,true);assert.equal(f.elements['#pause'].hidden,false);assert.match(f.elements['#status'].textContent,/Finding/);
 });
-test('pausing during a save preserves its acknowledged offset before stopping',async()=>{
-  const f=fixture({holdBatch:true});await f.ready;const operation=f.listeners['import:click']();await f.batchStarted;f.listeners['pause:click']();assert.match(f.elements['#status'].textContent,/Pausing/);f.release();await operation;
-  assert.equal(f.data.legacySetup.offset,1);assert.equal(f.data.legacySetup.decision,'pending');assert.equal(f.data.importProgress.phase,'paused');assert.equal(f.elements['#import'].textContent,'Resume import');
+
+test('pause and polled checkpoints expose resume and completion on the same screen',async()=>{
+  const f=fixture();await f.ready;await f.listeners['import:click']();await f.listeners['pause:click']();
+  assert.equal(f.calls.at(-2).action,'PAUSE_IMPORT');assert.equal(f.elements['#pause'].disabled,true);
+  Object.assign(f.snapshot.import,{running:false,pausing:false,phase:'paused',saved:10,total:12});await f.poll();
+  assert.equal(f.elements['#import'].textContent,'Resume import');assert.equal(f.elements['#import-progress'].value,10);assert.equal(f.elements['#import-progress'].max,12);
+  Object.assign(f.snapshot.import,{decision:'complete',datesComplete:true,phase:null,saved:12});await f.poll();
+  assert.equal(f.elements['#view-patterns'].hidden,false);assert.equal(f.elements['#import'].textContent,'Check for new solves');assert.equal(f.elements['#pause'].hidden,true);
 });
-test('a second import tab cannot overwrite the active import progress',async()=>{
-  const f=fixture({lock:false});f.data.importProgress={phase:'saving',updatedAt:123};await f.ready;await f.listeners['import:click']();assert.equal(f.data.importProgress.phase,'saving');assert.match(f.elements['#status'].textContent,/another Recall tab/);
+
+test('a background import failure is visible and keeps a resumable checkpoint',async()=>{
+  const f=fixture();Object.assign(f.snapshot.import,{total:12,saved:10,phase:'error',error:'Refresh your LeetCode tab, then retry.'});await f.ready;
+  assert.match(f.elements['#status'].textContent,/Refresh your LeetCode/);assert.equal(f.elements['#import'].disabled,false);assert.equal(f.elements['#import'].textContent,'Resume import');
 });
-test('initial connection failure leaves a usable retry action and the saved checkpoint intact',async()=>{
-  const f=fixture({failedConnection:true});await f.ready;assert.equal(f.elements['#import'].disabled,false);assert.equal(f.elements['#import'].textContent,'Retry connection');assert.match(f.elements['#status'].textContent,/API offline/);assert.equal(f.data.legacySetup.offset,0);
+
+test('a failed initial connection can retry without leaving the import screen',async()=>{
+  const f=fixture({failedConnection:true});await f.ready;assert.equal(f.elements['#import'].textContent,'Retry connection');assert.equal(f.elements['#import'].disabled,false);assert.match(f.elements['#status'].textContent,/API offline/);
+  f.reconnect();await f.listeners['import:click']();assert.equal(f.calls.find(value=>value.action==='START_IMPORT').workspaceScope,'alice');assert.equal(f.elements['#import'].textContent,'Importing…');
 });

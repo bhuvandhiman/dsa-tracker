@@ -39,3 +39,31 @@ verification and uninterrupted renewal. The browser UI fixture verifies removal
 of the password form and connection enabling imports; it simulates Chrome and
 does not prove a live Supabase/Chrome connection. Check that once after deploying
 the website/API and replacing the installed extension with the new hosted ZIP.
+
+## Imports on the Connect page (0.13.0)
+
+Installation instructions expand immediately under the Installation steps button.
+Import my solves starts a background job and keeps the website on Connect. The
+same page shows progress, connection errors, pause/resume, and the dashboard
+link after accepted problems are saved. Extension Settings remains an optional
+control surface for the same job; it does not run a separate importer.
+
+Bridge protocol 3 adds START_IMPORT and PAUSE_IMPORT under the existing exact
+origin, top-frame, nonce and verified-owner checks. STATUS returns only counts,
+phase and error summaries. The legacy OPEN_IMPORT command remains compatible
+with older clients; the current website never uses it. Update the installed
+extension and refresh Recall and LeetCode after deploying this change.
+
+One extension-origin Web Lock prevents parallel import sessions. A serialized
+writer persists progress, while the existing account-scoped snapshots and
+acknowledged-batch checkpoints allow safe resume after a worker restart.
+Ten-second storage activity keeps a user-started job active during long provider
+reads; resume remains available if Chrome interrupts it. This follows Chrome's
+[service-worker lifetime guidance](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle).
+No additional Chrome permissions, database migration, or auth settings are needed.
+
+For isolated browser QA, run `npm run test:website-import`, then open
+`http://127.0.0.1:5175/#/connect`. Add `?fixture=missing`, `?fixture=outdated`, or
+`?fixture=failed` before the hash to exercise installation, upgrades, and provider
+errors. This uses the real import engine with simulated LeetCode/API data; it
+does not access a live account or database.

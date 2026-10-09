@@ -1,6 +1,8 @@
 // Return only onboarding summaries, never tokens, full snapshots or drafts.
-export async function connectionAction({action,owner,account,chromeApi}){
+export async function connectionAction({action,owner,account,chromeApi,importer}){
   const scope=await account.assertScope(owner);
+  if(action==='START_IMPORT')return importer.start(scope);
+  if(action==='PAUSE_IMPORT')return importer.pause(scope);
   if(action==='OPEN_IMPORT'){
     const base=chromeApi.runtime.getURL('setup.html');
     const tabs=await chromeApi.tabs.query({});
@@ -24,8 +26,9 @@ export async function connectionAction({action,owner,account,chromeApi}){
   const stored=await chromeApi.storage.local.get(keys);
   await account.assertScope(scope);
   const legacy=stored[keys[0]],recent=stored[keys[1]],progress=stored[keys[2]];
-  const fresh=progress&&(progress.phase==='error'||Date.now()-progress.updatedAt<30000);
-  return {connected:true,scope,import:{decision:legacy?.decision||'pending',saved:legacy?.count??legacy?.offset??(legacy?.decision==='complete'?null:0),total:legacy?.count??legacy?.snapshot?.length??null,datesComplete:recent?.complete===true,phase:fresh?progress.phase:null,error:fresh?progress.error||'':''}};
+  const running=importer?.running(scope)===true,pausing=importer?.pausing(scope)===true;
+  const phase=progress?.phase==='error'||progress?.phase==='paused'||running?progress?.phase:null;
+  return {connected:true,scope,import:{decision:legacy?.decision||'pending',saved:legacy?.count??legacy?.offset??(legacy?.decision==='complete'?null:0),total:legacy?.count??legacy?.snapshot?.length??null,datesComplete:recent?.complete===true,running,pausing,phase,error:phase==='error'?progress.error||'':'',message:running?progress?.message||'':''}};
 }
 
 export async function openRecallWebsite(chromeApi,origin){

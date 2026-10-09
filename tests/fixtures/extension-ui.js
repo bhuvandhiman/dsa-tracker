@@ -1,6 +1,7 @@
 /* QA-only Chrome and API simulation. These pages never contact LeetCode or PostgreSQL. */
 const fixtureChanges=new Set();
 const initialSetup={installationId:'00000000-0000-4000-8000-000000000001',decision:'pending',offset:0};
+let fixtureImporter;
 const fixtureStorage={
   async get(keys){const result={};for(const key of Array.isArray(keys)?keys:[keys]){const raw=localStorage.getItem(key);result[key]=raw?JSON.parse(raw):key==='legacySetup'?initialSetup:undefined;}return result;},
   async set(values){for(const [key,value] of Object.entries(values)){localStorage.setItem(key,JSON.stringify(value));for(const listener of fixtureChanges)listener({[key]:{newValue:value}},'local');}},
@@ -24,6 +25,12 @@ globalThis.chrome={storage:{local:fixtureStorage,onChanged:{addListener:listener
     if(!account)return {error:'Sign into your Recall account in extension Settings, then retry.'};
     if(message.workspaceScope!==undefined&&message.workspaceScope!==account.id)return {error:'Recall account changed. Refresh this page.'};
     const key=name=>'fixture-user:'+account.id+':'+name;
+    if(message.type==='RECALL_IMPORT_ACTION'){
+      const [{createImportController},{connectionAction}]=await Promise.all([import('/src/import-controller.js'),import('/src/connection-flow.js')]);
+      const fixtureAccount={key:(scope,name)=>'fixture-user:'+scope+':'+name,async assertScope(owner){if(JSON.parse(sessionStorage.getItem('fixture-account')||'null')?.id!==owner)throw new Error('Recall account changed. Refresh this page.');return owner;},async localScope(owner){return this.assertScope(owner);},async request(path,options,owner){await this.assertScope(owner);const body=options.body?JSON.parse(options.body):null;return Response.json({completed:body?path==='/imports/recent'||body.complete===true:false,added:body?.problems?.length||0});}};
+      fixtureImporter??=createImportController({account:fixtureAccount,chromeApi:globalThis.chrome});
+      try{return {data:await connectionAction({action:message.action,owner:message.workspaceScope,account:fixtureAccount,chromeApi:globalThis.chrome,importer:fixtureImporter})};}catch(error){return {error:error.message};}
+    }
     if(message.type==='LEGACY_SETUP_STATE'){const stored=(await fixtureStorage.get(key('legacySetup')))[key('legacySetup')];if(!stored)await fixtureStorage.set({[key('legacySetup')]:initialSetup});return {...stored||initialSetup,workspaceScope:account.id};}
     if(message.type==='RECALL_STATE_GET'){const names=message.names,values=await fixtureStorage.get(names.map(key));return {data:Object.fromEntries(names.map(name=>[name,values[key(name)]]))};}
     if(message.type==='RECALL_STATE_SET'){await fixtureStorage.set(Object.fromEntries(Object.entries(message.values).map(([name,value])=>[key(name),value])));return {kept:true};}

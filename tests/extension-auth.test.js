@@ -6,6 +6,7 @@ import { createExtensionAuth } from '../apps/api/src/extension-auth.js';
 import { createApp } from '../apps/api/src/app.js';
 import { readRecallResponse } from '../apps/extension/src/import-request.js';
 import { createAccountClient, workspaceKey } from '../apps/extension/src/account-client.js';
+import { createImportController } from '../apps/extension/src/import-controller.js';
 
 const owner='fa631c58-72ad-4a67-89d8-f6a4ae5d1641',other='ea631c58-72ad-4a67-89d8-f6a4ae5d1642';
 const config={mode:'supabase',configured:true,url:'https://example.supabase.co',key:'sb_publishable_fixture'};
@@ -77,7 +78,7 @@ test('account switches reject stale pages and preserve separate namespaces inclu
 });
 test('trusted extension messages expose no tokens and refuse content-script auth or arbitrary API paths',async()=>{
   let listener,calls=0;const account={status:async()=>({connected:true,scope:owner}),localScope:async()=>owner,assertScope:async()=>owner,request:async()=>{calls++;return Response.json({ok:true});},key:workspaceKey};
-  const context=vm.createContext({URL,readRecallResponse,recallRuntime:{websiteOrigin:'http://127.0.0.1:5173'},chrome:{runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onMessage:{addListener(fn){listener=fn;}}}},createAccountClient:()=>account});
+  const context=vm.createContext({URL,readRecallResponse,createImportController,recallRuntime:{websiteOrigin:'http://127.0.0.1:5173'},chrome:{runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onMessage:{addListener(fn){listener=fn;}}}},createAccountClient:()=>account});
   const source=readFileSync(new URL('../apps/extension/src/account-worker.js',import.meta.url),'utf8').replace(/^import .*;\r?$/gm,'').replace(/^export /gm,'');vm.runInContext(source,context);
   const send=(message,sender)=>new Promise(resolve=>listener(message,sender,resolve)),page={id:'test',url:'chrome-extension://test/setup.html'};
   for(const type of ['RECALL_ACCOUNT_STATUS','RECALL_SIGN_IN','RECALL_API','RECALL_STATE_GET'])assert.match((await send({type},{id:'test',url:'https://leetcode.com/problems/two-sum/'})).error,/Settings/);
