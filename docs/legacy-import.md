@@ -13,3 +13,5 @@ The workspace is bound to one LeetCode username. Logged-out, changed-account, in
 Local checkpoints and recordings can be stored during an API outage or expired session. Remote requests still require the current authenticated account. Lost final responses are recovered through the API's completion status before another import write. See [extension import reliability](extension-import-reliability.md) for verification and update instructions.
 
 Existing installationId payloads remain accepted for recovery, while new requests use runId. SQL installation_id columns are retained as compatible run-identity storage.
+
+Accepted-problem and recent-date batches use bulk database writes. The API validates patterns once per batch and preserves the existing transaction, account binding and duplicate checks. See [import performance](import-performance.md) for measured query reductions and regression coverage.

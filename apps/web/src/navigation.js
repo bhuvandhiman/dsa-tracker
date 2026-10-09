@@ -17,7 +17,23 @@ export function readRoute(hash) {
   }
   return {page:'dashboard',slug:null,query:''};
 }
-export function readLocation(location){return readRoute(location.hash&&location.hash!=='#main'?location.hash:location.pathname+location.search);}
+export function readLocation(location){
+  const query=new URLSearchParams(location.search),fragment=new URLSearchParams(location.hash.replace(/^#/,''));
+  const route=readRoute(location.hash&&location.hash!=='#main'?location.hash:location.pathname+location.search);
+  // Keep the existing email redirect URL compatible with Supabase's allowlist.
+  // Its login hash is an auth callback, not an invitation to sign in again.
+  const callback=query.get('auth'),hasResult=query.has('code')||fragment.has('access_token')||fragment.has('error')||query.has('error');
+  if(callback==='recovery'&&(hasResult||!location.hash||route.page==='reset-password')||fragment.get('type')==='recovery')return {page:'reset-password'};
+  if(hasResult||callback==='callback'&&(!location.hash||route.page==='login'))return {page:'auth-callback',error:fragment.get('error_description')||query.get('error_description')||fragment.get('error')||query.get('error')||''};
+  return route;
+}
+
+export function confirmedLocation(location){
+  const query=new URLSearchParams(location.search);
+  for(const name of ['auth','code','sb_flow_id','error','error_code','error_description'])query.delete(name);
+  const search=query.toString();
+  return `${location.pathname}${search?'?'+search:''}#/dashboard`;
+}
 
 export function patternLink(slug, query = '') {
   return `#/patterns${slug ? `/${encodeURIComponent(slug)}` : ''}${query ? `?q=${encodeURIComponent(query)}` : ''}`;

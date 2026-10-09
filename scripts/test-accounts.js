@@ -11,11 +11,20 @@ let setup={completed:false,extensionAcknowledged:false,goal:{configured:false}},
 const backup={format:'recall-backup',version:1,exportedAt:new Date().toISOString(),tables:{}};
 const app=express();app.use(express.json());app.use((req,res,next)=>{if(req.headers.origin===web){res.set('Access-Control-Allow-Origin',web);res.set('Access-Control-Allow-Headers','authorization,apikey,content-type,x-client-info,x-supabase-api-version');res.set('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');}if(req.method==='OPTIONS')return res.sendStatus(204);next();});
 app.post('/auth/v1/signup',(_req,res)=>res.json({user,session:null}));
-app.post('/auth/v1/token',(req,res)=>{if(req.query.grant_type==='password'&&req.body.password!=='fixture-password')return res.status(400).json({error:'invalid_grant',error_description:'Invalid login credentials'});res.json(session);});
+app.post('/auth/v1/token',(req,res)=>{
+  if(req.query.grant_type==='password'&&req.body.password!=='fixture-password')return res.status(400).json({error:'invalid_grant',error_description:'Invalid login credentials'});
+  if(req.query.grant_type==='pkce')return setTimeout(()=>{
+    if(req.body.auth_code==='fixture-expired-code')return res.status(400).json({error:'invalid_grant',error_description:'Confirmation link expired'});
+    res.json(session);
+  },2000);
+  res.json(session);
+});
 app.get('/auth/v1/user',(_req,res)=>res.json(user));app.put('/auth/v1/user',(_req,res)=>res.json(user));
 for(const path of ['recover','resend','logout'])app.post('/auth/v1/'+path,(_req,res)=>res.json({}));
 app.get('/auth/v1/authorize',(req,res)=>{const redirect=new URL(req.query.redirect_to);if(redirect.origin!==web)return res.sendStatus(400);redirect.searchParams.set('code','fixture-auth-code');res.redirect(redirect.href);});
 app.get('/fixture',(_req,res)=>res.type('html').send('<h1>Recall account fixture</h1><p>Simulated accounts only. No real sign-in, email, Google or database calls.</p><a href="http://127.0.0.1:5175/#/signup">Open signup</a><form method="POST" action="/fixture/reset"><button>Reset fixture setup</button></form><form method="POST" action="/fixture/fail"><button>Fail next setup save</button></form>'));
+app.get('/fixture/confirm',(_req,res)=>res.redirect(web+'/?auth=callback&code=fixture-auth-code#/login'));
+app.get('/fixture/expired',(_req,res)=>res.redirect(web+'/?auth=callback&code=fixture-expired-code#/login'));
 app.post('/fixture/reset',(_req,res)=>{setup={completed:false,extensionAcknowledged:false,goal:{configured:false}};res.redirect('/fixture');});
 app.post('/fixture/fail',(_req,res)=>{failSetup=true;res.redirect('/fixture');});
 app.get('/fixture/workspace',(_req,res)=>res.type('html').send('<h1>Workspace outage fixture</h1><p>Simulated failure only. No real account or database changes.</p><form method="POST" action="/fixture/unavailable"><button>Simulate unavailable workspace</button></form><form method="POST" action="/fixture/available"><button>Restore simulated workspace</button></form>'));

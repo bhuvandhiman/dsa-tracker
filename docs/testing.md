@@ -1,5 +1,25 @@
 # Verification
 
+## Email confirmation navigation — 9 October 2026
+
+Email confirmation opens a progress screen while Supabase exchanges the link and
+the API loads the verified workspace, then replaces the callback URL with the
+dashboard. Login/signup forms remain hidden during initial session checks and
+the redirect after sign-in. Existing Supabase redirect allowlist URLs remain valid.
+
+Eight regressions cover callback recognition, expired links, recovery routing,
+credential cleanup, delayed initialization, initialization errors, missing PKCE
+verifiers and cancellation. The isolated account browser fixture confirms a
+two-second exchange shows no email fields, a fresh account reaches the dashboard
+directly, rejected/missing-verifier links show errors, and password recovery opens
+an enabled reset form. These use simulated accounts; real email delivery and the
+hosted Supabase flow still require a check after deployment.
+
+Run `npm run test:accounts` alongside Vite on port 5175 with
+`API_PROXY_TARGET=http://127.0.0.1:8766`. After fixture signup, navigate to
+`http://127.0.0.1:8766/fixture/confirm` or `/fixture/expired` to exercise the
+delayed exchange and rejected-code cases.
+
 ## Website-to-extension login — 3 October 2026
 
 Extension 0.11.0 connects through the website login without a second password

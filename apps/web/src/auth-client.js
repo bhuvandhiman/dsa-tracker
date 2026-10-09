@@ -23,3 +23,15 @@ export function authFetch(input,options={}){
 export function authRedirect(kind='callback'){
   return `${window.location.origin}/?auth=${kind}#/${kind==='recovery'?'reset-password':'login'}`;
 }
+
+export async function initializedSession(client,signal){
+  // getSession alone doesn't report a failed automatic URL exchange.
+  const initialized=await abortable(client.auth.initialize(),signal);
+  if(initialized.error)throw initialized.error;
+  // The SDK ignores a PKCE code when this browser has no matching verifier.
+  // Successful exchanges remove the code; a leftover code isn't a confirmed login.
+  if(new URLSearchParams(globalThis.window?.location?.search).has('code'))throw new Error('Open the confirmation link in the browser where you signed up. If the link has expired, request a new one.');
+  const {data,error}=await abortable(client.auth.getSession(),signal);
+  if(error)throw error;
+  return data.session;
+}

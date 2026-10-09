@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import './styles.css';
 import LiveDashboard from './LiveDashboard.jsx';
 import Workflows from './Workflows.jsx';
-import { readLocation } from './navigation.js';
+import { confirmedLocation,readLocation } from './navigation.js';
 import Privacy from './Privacy.jsx';
 import PublicPages from './PublicPages.jsx';
 import AuthPages from './AuthPages.jsx';
@@ -41,21 +41,28 @@ export default function App() {
     return () => {window.removeEventListener('hashchange', navigate);window.removeEventListener('popstate',navigate);};
   }, []);
   const authPage=['signup','login','forgot-password','reset-password'].includes(route.page);
+  const callbackPage=route.page==='auth-callback';
+  const callbackPending=auth.loading||Boolean(auth.user)&&!auth.error&&!route.error;
   const setupPage=route.page==='setup';
   const installationPage=route.page==='install-extension';
   const privatePage=['dashboard','patterns','settings','connect'].includes(route.page);
   const publicPage = ['home','about','privacy'].includes(route.page);
-  const accountShell=authPage||setupPage;
+  const accountShell=authPage||setupPage||callbackPage;
   const accountsEnabled=auth.config?.mode==='supabase';
   const canReadWorkspace=!auth.loading&&auth.config&&(accountsEnabled?Boolean(auth.user):true);
   useEffect(()=>{
     if(auth.loading||auth.error)return;
-    if(accountsEnabled&&privatePage&&!auth.user){rememberDestination(window.location.hash.slice(1)||window.location.pathname);window.location.hash='/login';}
+    if(callbackPage&&auth.user&&!route.error){
+      const destination=confirmedLocation(window.location);
+      window.history.replaceState(null,'',destination);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+    else if(accountsEnabled&&privatePage&&!auth.user){rememberDestination(window.location.hash.slice(1)||window.location.pathname);window.location.hash='/login';}
     else if(auth.user&&['signup','login'].includes(route.page))window.location.hash=accountDestination(auth.setup);
-  },[auth.loading,auth.error,auth.user,auth.setup,accountsEnabled,privatePage,route.page]);
+  },[auth.loading,auth.error,auth.user,auth.setup,accountsEnabled,privatePage,callbackPage,route.page,route.error]);
   useEffect(() => {
     const titles={home:'Recall — Know which DSA pattern to practice next',about:'About Recall',privacy:'Privacy · Recall',dashboard:'Dashboard · Recall',patterns:'Patterns · Recall',connect:'Connect LeetCode · Recall',settings:'Settings · Recall',signup:'Create account · Recall',login:'Log in · Recall','forgot-password':'Reset password · Recall','reset-password':'New password · Recall',setup:'Your setup · Recall','install-extension':'Install the extension · Recall'};
-    document.title=titles[route.page] || 'Recall';
+    document.title=callbackPage?'Confirming email · Recall':titles[route.page] || 'Recall';
     const frame=requestAnimationFrame(()=>{
       const section=route.page==='home'&&['how-it-works','questions'].includes(route.section)?document.getElementById(route.section):null;
       const target=section || document.getElementById('main');
@@ -63,7 +70,7 @@ export default function App() {
       if(section)section.scrollIntoView({block:'start'});else window.scrollTo(0,0);
     });
     return ()=>cancelAnimationFrame(frame);
-  },[route]);
+  },[route,callbackPage]);
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('recall-theme') === 'dark' ? 'dark' : 'light'; }
     catch { return 'light'; }
@@ -104,7 +111,11 @@ export default function App() {
       {publicPage&&route.page!=='privacy'&&<PublicPages page={route.page} signedIn={Boolean(auth.user)} localMode={auth.config?.mode==='local'} hosted={auth.config?.deployment?.mode==='hosted'} />}
       {route.page==='privacy'&&<Privacy />}
       {route.page==='login'&&route.account&&<p role="status" className="account-notice">{route.account==='deleted'?'Your Recall account and workspace were deleted.':route.account==='deletion-pending'?'Your deletion request is queued. Workspace access is blocked while cleanup retries.':''}</p>}
-      {authPage&&<AuthPages key={route.page} page={route.page} auth={auth} />}
+      {callbackPage&&<div className="account-loading" role={callbackPending?'status':'alert'}>
+        <h1>{callbackPending?'Opening your dashboard…':'Could not finish signing you in.'}</h1>
+        {callbackPending?<p>Confirming your email and preparing your workspace.</p>:<><p>{route.error||auth.error||'Open the confirmation link in the browser where you signed up. If the link has expired, request a new one.'}</p>{auth.error&&!route.error&&<button className="secondary-button" onClick={auth.retry}>Try again</button>}<a className="primary-button" href="/#/login">Log in</a><a className="inline-link" href="/#/signup">Back to signup</a></>}
+      </div>}
+      {authPage&&(auth.loading||auth.user&&['signup','login'].includes(route.page)?<div className="account-loading" role="status"><h1>Opening your workspace…</h1><p>Checking your session.</p></div>:<AuthPages key={route.page} page={route.page} auth={auth} />)}
       {setupPage&&(auth.user?<Onboarding key={auth.user.id} auth={auth} />:<div className="account-loading"><h1>Start with your account.</h1><p>{auth.loading?'Checking your session…':'Sign in to save your setup and open your private workspace.'}</p><a className="primary-button" href="#/login">Log in</a><a className="inline-link" href="#/signup">Create account</a></div>)}
       {installationPage&&<Installation auth={auth} />}
       {canReadWorkspace&&route.page==='connect'&&<Connection key={auth.user?.id||'local'} auth={auth} extension={extension} />}

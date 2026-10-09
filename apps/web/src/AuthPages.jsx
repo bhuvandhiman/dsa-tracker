@@ -16,7 +16,7 @@ export default function AuthPages({page,auth}){
       let result;
       if(forgot){result=await auth.client.auth.resetPasswordForEmail(email.trim(),{redirectTo:authRedirect('recovery')});if(result.error)throw result.error;setMessage('If an account exists for this email, a reset link is on its way. Open it in this browser.');return;}
       if(reset){result=await auth.client.auth.updateUser({password});if(result.error)throw result.error;setPassword('');setMessage('Password updated.');const account=await auth.refresh();window.location.hash=accountDestination(account.setup);return;}
-      if(signup){result=await auth.client.auth.signUp({email:email.trim(),password,options:{emailRedirectTo:authRedirect()}});if(result.error)throw result.error;setPassword('');if(!result.data.session){setVerification(true);setMessage('Check your inbox to confirm your email. Open the link in this browser, then continue setup.');return;}}
+      if(signup){result=await auth.client.auth.signUp({email:email.trim(),password,options:{emailRedirectTo:authRedirect()}});if(result.error)throw result.error;setPassword('');if(!result.data.session){setVerification(true);setMessage('Check your inbox to confirm your email. Open the link in this browser to go straight to your dashboard.');return;}}
       else {result=await auth.client.auth.signInWithPassword({email:email.trim(),password});if(result.error)throw result.error;setPassword('');}
       await auth.refresh();
     });

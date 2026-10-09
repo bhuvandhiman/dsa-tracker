@@ -6,6 +6,7 @@ import { GOAL_POLICY_VERSION, applyGoalOrdering, goalCoverage, goalQueueSnapshot
 import { isDsaTrackingProblem, splitDsaTrackingProblems } from './problem-scope.js';
 import { exportBackup, restoreBackup } from './backup.js';
 import { transaction as runTransaction } from './transaction.js';
+import { upsertImportedProblems, insertRecentEvidence } from './import-bulk.js';
 
 // New classification captures hash normalized user choices, not a derived
 // unit that a future classifier refinement could change. Legacy hashes stay exact.
@@ -136,23 +137,8 @@ export function createRepository(pool) {
         const job=(await client.query('SELECT * FROM recent_imports WHERE installation_id=$1 FOR UPDATE',[installationId])).rows[0];
         if(job.username!==username) throw new DomainError(409,'This initialization belongs to a different account.');
         if(job.completed) return {completed:true,added:0};
-        let added=0;
-        for(const p of submissions) {
-          await requirePatterns(client,p.patternSlugs);
-          const created=await client.query('INSERT INTO problems(platform,external_id,title,url,difficulty) VALUES($1,$2,$3,$4,$5) ON CONFLICT(platform,external_id) DO NOTHING RETURNING id',[p.platform,p.externalId,p.title,p.url,p.difficulty]);
-          const id=created.rows[0]?.id||(await client.query('SELECT id FROM problems WHERE platform=$1 AND external_id=$2',[p.platform,p.externalId])).rows[0].id;
-          // Reimports can reveal more specific provider evidence. Merge it for
-          // existing problems without replacing user-entered tags or placement.
-          await client.query('UPDATE problems SET difficulty=COALESCE(difficulty,$2) WHERE id=$1',[id,p.difficulty]);
-          if (Array.isArray(p.providerTopics)) await client.query('UPDATE problems SET provider_topics=$2::jsonb WHERE id=$1',[id,JSON.stringify(p.providerTopics)]);
-          for(const slug of p.patternSlugs) await client.query('INSERT INTO problem_patterns VALUES($1,$2) ON CONFLICT DO NOTHING',[id,slug]);
-          const saved=await client.query('INSERT INTO imported_submissions VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING submission_id',[username,p.submissionId,id,p.submittedAt]);
-          if(!saved.rowCount) {
-            const old=(await client.query('SELECT problem_id,submitted_at FROM imported_submissions WHERE username=$1 AND submission_id=$2',[username,p.submissionId])).rows[0];
-            if(old.problem_id!==id||new Date(old.submitted_at).toISOString()!==p.submittedAt) throw new DomainError(409,'Submission identity changed. Nothing was imported.');
-          }
-          added+=saved.rowCount;
-        }
+        const ids=await upsertImportedProblems(client,submissions);
+        const added=await insertRecentEvidence(client,username,submissions,ids);
         await client.query('UPDATE recent_imports SET completed=true WHERE installation_id=$1',[installationId]);
         return {completed:true,added,alreadyPresent:submissions.length-added,excluded:submissions.filter(p=>!isDsaTrackingProblem(p)).length};
       });
@@ -167,19 +153,8 @@ export function createRepository(pool) {
         const job=(await client.query('SELECT username,completed FROM legacy_imports WHERE installation_id=$1 FOR UPDATE',[installationId])).rows[0];
         if (job.username!==username) throw new DomainError(409,'This import belongs to a different LeetCode account. Sign back into '+job.username+'.');
         if (job.completed) return {completed:true,added:0};
-        let added=0;
-        for (const p of problems) {
-          await requirePatterns(client,p.patternSlugs);
-          const created=await client.query(`INSERT INTO problems(platform,external_id,title,url,difficulty) VALUES($1,$2,$3,$4,$5)
-            ON CONFLICT(platform,external_id) DO NOTHING RETURNING id`,[p.platform,p.externalId,p.title,p.url,p.difficulty]);
-          const id=created.rowCount?created.rows[0].id:(await client.query('SELECT id FROM problems WHERE platform=$1 AND external_id=$2',[p.platform,p.externalId])).rows[0].id;
-          await client.query('UPDATE problems SET difficulty=COALESCE(difficulty,$2) WHERE id=$1',[id,p.difficulty]);
-          if (Array.isArray(p.providerTopics)) await client.query('UPDATE problems SET provider_topics=$2::jsonb WHERE id=$1',[id,JSON.stringify(p.providerTopics)]);
-          // Reimports can add newly preserved provider topics while keeping all
-          // existing titles, attempts, notes, assistance, and manual placement.
-          for(const slug of p.patternSlugs) await client.query('INSERT INTO problem_patterns VALUES($1,$2) ON CONFLICT DO NOTHING',[id,slug]);
-          added+=(await client.query('INSERT INTO historical_solves(problem_id) VALUES($1) ON CONFLICT DO NOTHING',[id])).rowCount;
-        }
+        const ids=await upsertImportedProblems(client,problems);
+        const added=ids.length?(await client.query('INSERT INTO historical_solves(problem_id) SELECT DISTINCT unnest($1::integer[]) ON CONFLICT DO NOTHING RETURNING problem_id',[ids])).rowCount:0;
         if(complete) await client.query('UPDATE legacy_imports SET completed=true WHERE installation_id=$1',[installationId]);
         return {completed:complete,added,alreadyPresent:problems.length-added,excluded:problems.filter(p=>!isDsaTrackingProblem(p)).length};
       });

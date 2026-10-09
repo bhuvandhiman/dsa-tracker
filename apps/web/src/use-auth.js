@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { connectAuth } from './auth-client.js';
+import { connectAuth,initializedSession } from './auth-client.js';
 import { abortable,request,setWorkspaceScope } from './api.js';
 
 export default function useAuth(){
@@ -24,15 +24,18 @@ export default function useAuth(){
         const config=await request('/auth/config',{signal:controller.signal}),client=await connectAuth(config);
         if(!active)return;
         if(!client){setState({loading:false,config,client:null,user:null,sessionUser:null,setup:null,error:''});return;}
+        const session=await initializedSession(client,AbortSignal.any([controller.signal,AbortSignal.timeout(15000)]));
+        if(!active)return;
+        const initialGeneration=generation.current;
         const {data:{subscription}}=client.auth.onAuthStateChange((_event,session)=>{
+          if(!active)return;
           const scheduled=++generation.current;
           setWorkspaceScope(session?.user?.id||null);
           setState(value=>value.user?.id===session?.user?.id&&session?{...value,sessionUser:session.user}:{...value,loading:true,user:null,sessionUser:session?.user||null,setup:null,error:''});
           // SDK callbacks must finish before another SDK/session operation.
           setTimeout(()=>{if(active&&scheduled===generation.current)void hydrate(session,config,client);},0);
         });unsubscribe=()=>subscription.unsubscribe();
-        const {data,error}=await abortable(client.auth.getSession(),AbortSignal.any([controller.signal,AbortSignal.timeout(15000)]));if(error)throw error;
-        await hydrate(data.session,config,client);
+        if(initialGeneration===generation.current)await hydrate(session,config,client);
       }catch(error){if(active)setState({loading:false,config:null,client:null,user:null,sessionUser:null,setup:null,error:error.message});}
     }
     void load();return()=>{active=false;epoch.current++;controller.abort();unsubscribe();};
