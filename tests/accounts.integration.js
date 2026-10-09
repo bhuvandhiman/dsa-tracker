@@ -24,6 +24,7 @@ test('account workspaces isolate solves, goals, captures, backups and pooled err
   assert.equal((await second.setup()).extensionAcknowledged,false);
   await first.saveSetup({extensionAcknowledged:true,completed:true});
   assert.equal((await first.setup()).completed,true);
+  assert.deepEqual((await first.exportAccount()).setup,await first.setup());
   const backupA=await first.backup(),backupB=await second.backup();
   assert.equal(JSON.stringify(backupA).includes('two-sum'),true);
   assert.equal(JSON.stringify(backupB).includes('two-sum'),false);

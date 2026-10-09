@@ -1,13 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { authSettings, createAuthenticator } from '../apps/api/src/auth.js';
-import { workspaceSchema, scopedPool } from '../apps/api/src/user-workspaces.js';
+import { workspaceSchema, scopedPool, readWorkspaceSetup } from '../apps/api/src/user-workspaces.js';
 import { installationLink } from '../apps/web/src/installation-model.js';
 import { createApp } from '../apps/api/src/app.js';
 import { DomainError } from '../apps/api/src/domain.js';
 
 const user={id:'fa631c58-72ad-4a67-89d8-f6a4ae5d1641',email:'fixture@example.test',email_confirmed_at:'2026-10-03T00:00:00Z'};
 const settings={mode:'supabase',configured:true,url:'https://example.supabase.co',key:'sb_publishable_example'};
+
+test('workspace startup reads onboarding and optional goal in a single database checkout',async()=>{
+  let calls=0;
+  const pool={query:async sql=>{calls++;assert.match(sql,/LEFT JOIN workspace_goal/);return {rows:[{extensionAcknowledged:false,completed:false,profile:null,target:null}]};}};
+  const first=await readWorkspaceSetup(pool);assert.equal(calls,1);
+  assert.equal(first.completed,false);assert.equal(first.goal.configured,false);assert.ok(first.goal.targets.length);
+  pool.query=async()=>{calls++;return {rows:[{extensionAcknowledged:true,completed:true,profile:'interview',target:300,policyVersion:1,updatedAt:'2026-10-09'}]};};
+  assert.deepEqual(await readWorkspaceSetup(pool),{extensionAcknowledged:true,completed:true,goal:{configured:true,profile:'interview',target:300,policyVersion:1,updatedAt:'2026-10-09'}});assert.equal(calls,2);
+});
 test('provider failures distinguish rate limits and reject malformed account records',async()=>{
   for(const payload of [null,[],{}, {...user,id:7}])await assert.rejects(createAuthenticator(settings,async()=>Response.json(payload))({get:()=> 'Bearer fixture'}),{status:503});
   await assert.rejects(createAuthenticator(settings,async()=>Response.json({},{status:429}))({get:()=> 'Bearer fixture'}),{status:429});

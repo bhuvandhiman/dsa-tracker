@@ -120,7 +120,7 @@ export default function App() {
       {installationPage&&<Installation auth={auth} />}
       {canReadWorkspace&&route.page==='connect'&&<Connection key={auth.user?.id||'local'} auth={auth} extension={extension} />}
       {privatePage&&!canReadWorkspace&&<div className="account-loading" role="status"><h2>{auth.error?'Could not open your workspace.':'Opening your workspace…'}</h2>{auth.error&&<><p>{auth.error}</p><button className="secondary-button" onClick={auth.retry}>Retry connection</button><a className="inline-link" href="#/login">Go to login</a></>}</div>}
-      {canReadWorkspace&&['dashboard','patterns'].includes(route.page) && <LiveDashboard key={`${auth.user?.id||'local'}:${route.page}:${route.slug || ''}:${route.query}`} route={route} />}
+      {canReadWorkspace&&['dashboard','patterns'].includes(route.page) && <LiveDashboard key={auth.user?.id||'local'} route={route} />}
       {canReadWorkspace&&route.page === 'settings' && <Workflows key={auth.user?.id||'local'} auth={auth} />}
       </WorkspaceContext.Provider>
       <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><nav className="footer-links" aria-label="Footer"><a href="/">Home</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/install-extension">Extension</a><a href="#/home?section=questions">FAQ</a></nav><span className="footer-flower" aria-hidden="true">✳</span></footer>

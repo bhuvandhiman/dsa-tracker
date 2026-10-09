@@ -3,6 +3,17 @@ import { createRepository } from './repository.js';
 import { DomainError } from './domain.js';
 import { exportBackup } from './backup.js';
 import { transaction } from './transaction.js';
+import { unconfiguredGoal } from './goal-policy.js';
+
+export async function readWorkspaceSetup(pool){
+  // One consistent read and one scoped checkout, rather than separate
+  // onboarding/goal queries with repeated account locks and search_path setup.
+  const row=(await pool.query(`SELECT o.extension_acknowledged AS "extensionAcknowledged",o.completed,
+    g.profile,g.target,g.policy_version AS "policyVersion",g.updated_at AS "updatedAt"
+    FROM recall_onboarding o LEFT JOIN workspace_goal g ON g.singleton=true WHERE o.singleton=true`)).rows[0];
+  const {extensionAcknowledged,completed,profile,target,policyVersion,updatedAt}=row;
+  return {extensionAcknowledged,completed,goal:profile?{configured:true,profile,target,policyVersion,updatedAt}:unconfiguredGoal()};
+}
 
 export function workspaceSchema(userId,prefix='recall_user_'){
   if(!/^[a-z][a-z0-9_]{0,20}$/.test(prefix)||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(userId||''))throw new Error('Invalid workspace identity.');
@@ -29,8 +40,7 @@ export function createUserWorkspaces(pool,{prefix='recall_user_',lifecycle=null}
     else await pool.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
     const scoped=scopedPool(pool,schema,lifecycle);
     await migrate(scoped);
-    await scoped.query('CREATE TABLE IF NOT EXISTS recall_onboarding(singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK(singleton),extension_acknowledged BOOLEAN NOT NULL DEFAULT false,completed BOOLEAN NOT NULL DEFAULT false)');
-    await scoped.query('INSERT INTO recall_onboarding(singleton) VALUES(true) ON CONFLICT DO NOTHING');
+    await scoped.query('CREATE TABLE IF NOT EXISTS recall_onboarding(singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK(singleton),extension_acknowledged BOOLEAN NOT NULL DEFAULT false,completed BOOLEAN NOT NULL DEFAULT false); INSERT INTO recall_onboarding(singleton) VALUES(true) ON CONFLICT DO NOTHING');
   }
   return async user=>{
     const schema=workspaceSchema(user.id,prefix);
@@ -44,13 +54,12 @@ export function createUserWorkspaces(pool,{prefix='recall_user_',lifecycle=null}
     return {...repository,
       async exportAccount(){
         return transaction(scoped,async client=>{
-          const state=(await client.query('SELECT extension_acknowledged AS "extensionAcknowledged",completed FROM recall_onboarding WHERE singleton=true')).rows[0];
-          const goal=await createRepository({query:(...args)=>client.query(...args)}).goal();
-          const workspace=await exportBackup(client);return {setup:{...state,goal},workspace};
+          const setup=await readWorkspaceSetup(client);
+          const workspace=await exportBackup(client);return {setup,workspace};
         },{readOnly:true});
       },
       async readiness(){return {...await repository.readiness(),storage:'Private Recall workspace'};},
-      async setup(){const state=(await scoped.query('SELECT extension_acknowledged AS "extensionAcknowledged",completed FROM recall_onboarding WHERE singleton=true')).rows[0];return {...state,goal:await repository.goal()};},
+      setup:()=>readWorkspaceSetup(scoped),
       async saveSetup(input){
         return transaction(scoped,async client=>{
           const transactional=createRepository({query:(...args)=>client.query(...args)});

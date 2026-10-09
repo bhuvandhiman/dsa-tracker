@@ -2,10 +2,14 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import {Installation} from './Onboarding.jsx';
 import {importView} from '../../extension/src/import-view.js';
 import './accounts.css';
+import {practiceCache} from './practice-cache.js';
 
 export default function Connection({auth,extension}){
   const [status,setStatus]=useState(null),[error,setError]=useState(''),[statusError,setStatusError]=useState(''),[busy,setBusy]=useState(false),[username,setUsername]=useState(''),[showInstall,setShowInstall]=useState(false);
   const {state,request}=extension,version=useRef(0);
+  // Extension imports bypass the website API client. Refresh practice when
+  // returning from this screen, retaining the previous snapshot while loading.
+  useEffect(()=>{practiceCache.invalidate();},[]);
   const refresh=useCallback(async(shouldApply=()=>true)=>{
     const current=++version.current,result=await request('STATUS');
     if(current===version.current&&shouldApply())setStatus(result);

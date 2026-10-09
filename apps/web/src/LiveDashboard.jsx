@@ -5,6 +5,7 @@ import SubpatternProblems from './SubpatternProblems.jsx';
 import { useEffect, useState } from 'react';
 import { useWorkspaceRequest } from './workspace-context.js';
 import { patternLink } from './navigation.js';
+import { practiceCache } from './practice-cache.js';
 import { classifiedSolves, filterPatterns, prioritizedPatterns, recommendationReason, difficultyProgress } from './dashboard-model.js';
 
 function GoalForm({ goal, onSaved }) {
@@ -56,21 +57,23 @@ function PatternDetail({ category, goalConfigured, query, onChanged }) {
 }
 export default function LiveDashboard({ route }) {
   const request=useWorkspaceRequest();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(()=>practiceCache.read());
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
-  const [query, setQuery] = useState(route.query);
-  const [loading, setLoading] = useState(true);
+  const [searchState, setSearchState] = useState(null);
+  const query=searchState?.route===route?searchState.value:route.query||'';
+  const [loading, setLoading] = useState(()=>!practiceCache.read());
   function search(value) {
-    setQuery(value);
+    setSearchState({route,value});
     window.history.replaceState(null,'',patternLink(null,value));
   }
   function refresh() { setLoading(true); setRevision(value => value + 1); }
   useEffect(() => {
     const controller = new AbortController();
     let poll;
-    request('/retention', {signal:controller.signal}).then(result => {
-      if (!Array.isArray(result.categories)) throw new Error('The dashboard response is incomplete. Please refresh.');
+    // Share pending reads across StrictMode mounts and reuse the snapshot when
+    // returning from another screen. Writes invalidate it in the API client.
+    practiceCache.load(()=>request('/retention'),{force:revision>0}).then(result => {
       if (!controller.signal.aborted) {setData(result); setError('');}
     }).catch(failure => { if (!controller.signal.aborted) setError(failure.message); }).finally(() => {
       if (!controller.signal.aborted) { setLoading(false); poll = setTimeout(() => {if (!document.hidden) setRevision(value => value + 1);}, 45000); }
