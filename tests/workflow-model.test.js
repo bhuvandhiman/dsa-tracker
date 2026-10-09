@@ -8,9 +8,9 @@ test('problem links refuse credentials, custom ports and missing slugs',()=>{
   assert.equal(safeProblemUrl('https://leetcode.com/problems/two-sum/'),'https://leetcode.com/problems/two-sum/');
 });
 
-test('removed history and problem URLs fall back to the dashboard',()=>{
-  assert.equal(readRoute('#/history').page,'dashboard');
-  assert.equal(readRoute('#/history?q=two-sum').page,'dashboard');
+test('history opens the simple solve list and removed problem URLs fall back to the dashboard',()=>{
+  assert.equal(readRoute('#/history').page,'history');
+  assert.deepEqual(readRoute('#/history?q=two-sum'),{page:'history'});
   assert.equal(readRoute('#/settings').page,'settings');
   assert.notEqual(readRoute('#/problems/12').page,'problems');
 });

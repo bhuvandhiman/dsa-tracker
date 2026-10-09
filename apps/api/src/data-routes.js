@@ -12,6 +12,7 @@ export function dataRoutes(repository) {
     next();
   });
   router.get('/ready',async(_request,response)=>response.json(await repository.readiness()));
+  router.get('/history',async(request,response)=>response.json(await repository.solvedHistory(pageInput(request.query))));
   router.get('/workspace/backup',async(_request,response)=>response.json(await repository.backup()));
   router.post('/workspace/restore',async(request,response)=>response.json(await repository.restoreBackup(request.body)));
   router.get('/attempts/removed',async(request,response)=>response.json({attempts:await repository.removedAttempts(pageInput(request.query))}));

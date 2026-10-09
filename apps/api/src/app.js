@@ -44,7 +44,7 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
   // Match known data resources only, so unrelated URLs retain a JSON 404 even without a database.
   const routes = dataRoutes(repository);
   app.use('/api', async (request, response, next) => {
-    if (!/^\/(account|session|setup|patterns|problems|attempts|imports|pattern-problems|practice-context|capture|retention|goal|workspace|ready)(\/|$)/.test(request.path)) return next();
+    if (!/^\/(account|session|setup|patterns|problems|attempts|imports|pattern-problems|practice-context|capture|retention|goal|workspace|ready|history)(\/|$)/.test(request.path)) return next();
     if(auth.mode==='supabase'){
       response.set('Cache-Control','no-store');
       const user=await authenticate(request);
@@ -81,7 +81,7 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
 
   if(webRoot){
     app.use((request,response,next)=>request.path.startsWith('/api')?next():express.static(webRoot,{index:false,dotfiles:'deny',setHeaders(response,path){response.set('Cache-Control',/[/\\]assets[/\\]/.test(path)?'public,max-age=31536000,immutable':'no-store');}})(request,response,next));
-    for(const path of ['/','/home','/about','/privacy','/signup','/login','/forgot-password','/reset-password','/install-extension','/connect'])app.get(path,(_request,response)=>{response.set('Cache-Control','no-store');response.sendFile('index.html',{root:webRoot});});
+    for(const path of ['/','/home','/about','/privacy','/signup','/login','/forgot-password','/reset-password','/install-extension','/connect','/profile','/history'])app.get(path,(_request,response)=>{response.set('Cache-Control','no-store');response.sendFile('index.html',{root:webRoot});});
   }
   app.use((_request, response) => response.status(404).json({ error: 'Route not found.' }));
   // Express requires all four parameters to recognize error middleware.

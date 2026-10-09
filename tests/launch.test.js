@@ -59,7 +59,7 @@ test('hosted app serves clean public routes and rejects foreign hosts, origins a
   const headers={Host:'recall-fixture.onrender.com',Origin:'https://recall-fixture.onrender.com'};
   // Node fetch replaces Host. Use HTTP to exercise production host validation.
   const get=(route,values=headers)=>new Promise((resolve,reject)=>{http.get(origin+route,{headers:values},response=>{let body='';response.setEncoding('utf8');response.on('data',chunk=>body+=chunk);response.on('end',()=>resolve({status:response.statusCode,headers:response.headers,body}));}).on('error',reject);});
-  for(const route of ['/','/about','/privacy','/install-extension']){const response=await get(route);assert.equal(response.status,200);assert.ok(response.body.includes('Recall fixture'));assert.ok(response.headers['content-security-policy'].includes("frame-ancestors 'none'"));}
+  for(const route of ['/','/about','/privacy','/install-extension','/profile','/history']){const response=await get(route);assert.equal(response.status,200);assert.ok(response.body.includes('Recall fixture'));assert.ok(response.headers['content-security-policy'].includes("frame-ancestors 'none'"));}
   assert.equal((await get('/api/ready')).status,401);assert.equal((await get('/api/unknown')).status,404);
   assert.equal((await get('/privacy',{...headers,Origin:'https://evil.test'})).status,403);
   assert.equal((await get('/privacy',{...headers,Host:'evil.test'})).status,403);

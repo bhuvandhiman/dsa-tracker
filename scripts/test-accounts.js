@@ -6,12 +6,13 @@ import {overview} from '../apps/api/src/retention-policy.js';
 import {goalCoverage,applyGoalOrdering,unconfiguredGoal} from '../apps/api/src/goal-policy.js';
 
 const origin='http://127.0.0.1:8766',web='http://127.0.0.1:5175';
-const user={id:'45cd664a-c96c-4e3a-829c-9ced5dd40eaf',email:'fixture@example.test',email_confirmed_at:'2026-10-03T00:00:00Z',aud:'authenticated',role:'authenticated',user_metadata:{}};
+const user={id:'45cd664a-c96c-4e3a-829c-9ced5dd40eaf',email:'fixture@example.test',email_confirmed_at:'2026-10-03T00:00:00Z',created_at:'2026-10-01T12:00:00Z',aud:'authenticated',role:'authenticated',user_metadata:{full_name:'Ada Lovelace'}};
 const jwt=`${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url')}.${Buffer.from(JSON.stringify({sub:user.id,exp:Math.floor(Date.now()/1000)+3600,iss:origin+'/auth/v1',aud:'authenticated',role:'authenticated'})).toString('base64url')}.fixture-signature`;
 const session={access_token:jwt,refresh_token:'fixture-refresh',token_type:'bearer',expires_in:3600,user};
 let setup={completed:false,extensionAcknowledged:false,goal:{configured:false}},failSetup=false,deleted=false,workspaceUnavailable=false;
 let performanceMode=false,startupFailures=0,sessionDelay=0,retentionDelay=0;
-const metrics={sessionReads:0,retentionReads:0};
+const metrics={sessionReads:0,retentionReads:0,historyReads:0};
+let historyRows=[],historyUnavailable=false;
 const backup={format:'recall-backup',version:1,exportedAt:new Date().toISOString(),tables:{}};
 const app=express();app.use(express.json());app.use((req,res,next)=>{if(req.headers.origin===web){res.set('Access-Control-Allow-Origin',web);res.set('Access-Control-Allow-Headers','authorization,apikey,content-type,x-client-info,x-supabase-api-version');res.set('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');}if(req.method==='OPTIONS')return res.sendStatus(204);next();});
 app.use('/auth/v1',(_req,res,next)=>{res.set('X-Supabase-Api-Version','2024-01-01');res.set('Access-Control-Expose-Headers','X-Supabase-Api-Version');next();});
@@ -51,6 +52,15 @@ app.post('/fixture/performance',(req,res)=>{
   res.json({fixture:true});
 });
 app.get('/fixture/metrics',(_req,res)=>res.json(metrics));
+app.post('/fixture/history',(req,res)=>{
+  performanceMode=true;startupFailures=0;sessionDelay=0;retentionDelay=0;deleted=false;workspaceUnavailable=false;
+  setup={completed:true,extensionAcknowledged:true,goal:{configured:true,profile:'interview',target:300}};
+  if(Number.isInteger(req.body.count))historyRows=Array.from({length:req.body.count},(_,i)=>({id:i+1,title:i===0?'Two Sum':i===1?'Valid Parentheses':`Solved problem ${i+1}`,url:`https://leetcode.com/problems/${i===0?'two-sum':i===1?'valid-parentheses':'fixture-'+i}/`,difficulty:i%3===0?'easy':i%3===1?'medium':'hard',solvedAt:new Date(Date.UTC(2026,9,8)-i*86400000).toISOString()}));
+  if(req.body.add)historyRows=[{id:100,title:'Climbing Stairs',url:'https://leetcode.com/problems/climbing-stairs/',difficulty:'easy',solvedAt:'2026-10-09T12:00:00.000Z'},...historyRows.filter(row=>row.id!==100)];
+  historyUnavailable=req.body.unavailable===true;
+  if(req.body.resetMetrics)metrics.historyReads=0;
+  res.json({fixture:true,count:historyRows.length});
+});
 app.post('/fixture/onboarding',(req,res)=>{
   performanceMode=true;startupFailures=0;sessionDelay=0;retentionDelay=0;deleted=false;workspaceUnavailable=false;
   setup={completed:req.body.completed===true,extensionAcknowledged:false,goal:{configured:false}};
@@ -69,6 +79,6 @@ app.get('/api/retention',(_req,res,next)=>{
   const result=overview([],[]),goal=setup.goal.configured?goalCoverage([],setup.goal):unconfiguredGoal();
   setTimeout(()=>res.json({...result,goal,categories:goal.configured?applyGoalOrdering(result.categories,goal):result.categories}),retentionDelay);
 });
-const recall=createApp({auth:{mode:'supabase',configured:true,url:origin,key:'fixture-publishable-key'},installation:{downloadUrl:'/downloads/recall-extension.zip'},authenticate:async req=>{if(deleted||req.get('Authorization')!==`Bearer ${jwt}`)throw new DomainError(401,'Please sign in again.');return user;},extensionAuth:async(_kind,body)=>{if(body.password!=='fixture-password')throw new DomainError(401,'Incorrect fixture password.');return {user};},accountLifecycle:{enabled:true,remove:async()=>{deleted=true;return {deleted:true,pending:false};}},repositoryForUser:async()=>{if(workspaceUnavailable)throw new DomainError(503,'Simulated workspace unavailable.');return {setup:async()=>setup,exportAccount:async()=>({setup,workspace:backup}),backup:async()=>backup,readiness:async()=>({status:'ready',storage:'Simulated fixture workspace',account:'fixture',timeZone:'Asia/Calcutta'}),removedAttempts:async()=>[],saveSetup:async body=>{if(failSetup){failSetup=false;throw new DomainError(503,'Fixture save failed. Try again.');}if(body.profile)setup.goal={configured:true,profile:body.profile,target:body.target};if(body.extensionAcknowledged!==undefined)setup.extensionAcknowledged=body.extensionAcknowledged;if(body.completed!==undefined)setup.completed=body.completed;return setup;},retention:async()=>{throw new DomainError(503,'Fixture dashboard has no real practice data.');}};}});
+const recall=createApp({auth:{mode:'supabase',configured:true,url:origin,key:'fixture-publishable-key'},installation:{downloadUrl:'/downloads/recall-extension.zip'},authenticate:async req=>{if(deleted||req.get('Authorization')!==`Bearer ${jwt}`)throw new DomainError(401,'Please sign in again.');return {id:user.id,email:user.email,name:user.user_metadata.full_name,emailVerified:true,createdAt:user.created_at};},extensionAuth:async(_kind,body)=>{if(body.password!=='fixture-password')throw new DomainError(401,'Incorrect fixture password.');return {user};},accountLifecycle:{enabled:true,remove:async()=>{deleted=true;return {deleted:true,pending:false};}},repositoryForUser:async()=>{if(workspaceUnavailable)throw new DomainError(503,'Simulated workspace unavailable.');return {setup:async()=>setup,goal:async()=>setup.goal,solvedHistory:async({limit,offset})=>{metrics.historyReads++;if(historyUnavailable)throw new DomainError(503,'Simulated history unavailable.');return {problems:historyRows.slice(offset,offset+limit),more:historyRows.length>offset+limit};},exportAccount:async()=>({setup,workspace:backup}),backup:async()=>backup,readiness:async()=>({status:'ready',storage:'Simulated fixture workspace',account:'fixture',timeZone:'Asia/Calcutta'}),removedAttempts:async()=>[],saveSetup:async body=>{if(failSetup){failSetup=false;throw new DomainError(503,'Fixture save failed. Try again.');}if(body.profile)setup.goal={configured:true,profile:body.profile,target:body.target};if(body.extensionAcknowledged!==undefined)setup.extensionAcknowledged=body.extensionAcknowledged;if(body.completed!==undefined)setup.completed=body.completed;return setup;},retention:async()=>{throw new DomainError(503,'Fixture dashboard has no real practice data.');}};}});
 app.use((req,res,next)=>{delete req.headers.origin;return recall(req,res,next);});
 app.listen(8766,'127.0.0.1',()=>console.log(`Account fixture: ${origin}/fixture; use Vite at ${web} with API_PROXY_TARGET=${origin}`));

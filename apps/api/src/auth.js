@@ -23,6 +23,6 @@ export function createAuthenticator(settings,fetchImpl=fetch){
     let user;try{user=await response.json();}catch{throw new DomainError(503,'Sign-in verification is unavailable. Please retry.');}
     if(!user||typeof user!=='object'||Array.isArray(user)||typeof user.id!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(user.id))throw new DomainError(503,'Sign-in verification returned an invalid account. Please retry.');
     if(!user.email_confirmed_at)throw new DomainError(401,'Verify your email before opening your workspace.');
-    return {id:user.id.toLowerCase(),email:typeof user.email==='string'?user.email.slice(0,320):'',name:typeof user.user_metadata?.full_name==='string'?user.user_metadata.full_name.slice(0,100):''};
+    return {id:user.id.toLowerCase(),email:typeof user.email==='string'?user.email.slice(0,320):'',name:typeof user.user_metadata?.full_name==='string'?user.user_metadata.full_name.slice(0,100):'',emailVerified:true,createdAt:typeof user.created_at==='string'&&Number.isFinite(Date.parse(user.created_at))?new Date(user.created_at).toISOString():null};
   };
 }

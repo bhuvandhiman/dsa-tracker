@@ -39,6 +39,16 @@ test('lists return bounded pagination and prevent stale browser caching', async 
   assert.deepEqual(await response.json(), { attempts: [], persistence: true, limit: 5, offset: 10 });
 });
 
+test('solved history is read only, bounded and never computes pattern rankings',async t=>{
+  let reads=0;
+  const base=await serverFor(t,{solvedHistory:async page=>{reads++;assert.deepEqual(page,{limit:25,offset:25});return {problems:[],more:false};},retention:()=>{throw new Error('History must not calculate rankings');}});
+  const response=await fetch(`${base}/history?limit=25&offset=25`);
+  assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
+  assert.deepEqual(await response.json(),{problems:[],more:false});
+  for(const query of ['limit=101','offset=-1','userId=someone-else'])assert.equal((await fetch(`${base}/history?${query}`)).status,400);
+  assert.equal(reads,1);
+});
+
 test('history search and assistance are forwarded with pagination and invalid filters never reach storage',async(t)=>{
   let calls=0;
   const base=await serverFor(t,{async listAttempts(filters){calls++;assert.deepEqual(filters,{limit:25,offset:25,q:'Two Sum',assistance:'hint'});return [];} });

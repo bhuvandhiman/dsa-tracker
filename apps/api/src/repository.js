@@ -172,6 +172,21 @@ export function createRepository(pool) {
         return {problem:{...problem,placement:classifyProblem(problem),candidates:candidateUnits(problem)},attempts:history.slice(offset,offset+limit),more:history.length>offset+limit,legacy:problem.historicallySolved,units:retentionUnits};
       },{readOnly:true});
     },
+    async solvedHistory({limit,offset}) {
+      // Import time is not a solve date. Undated historical solves stay out of
+      // this feed; repeats and imported evidence collapse to one latest solve.
+      const {rows}=await pool.query(`WITH dated_solves AS (
+        SELECT problem_id,attempted_at AS solved_at FROM attempts WHERE deleted_at IS NULL
+        UNION ALL SELECT problem_id,submitted_at FROM imported_submissions
+      ), latest AS (
+        SELECT problem_id,max(solved_at) AS solved_at FROM dated_solves GROUP BY problem_id
+      )
+      SELECT p.id,p.title,p.url,p.difficulty,l.solved_at AS "solvedAt"
+      FROM latest l JOIN problems p ON p.id=l.problem_id
+      WHERE NOT EXISTS(SELECT 1 FROM problem_patterns pp WHERE pp.problem_id=p.id AND pp.pattern_slug='database')
+      ORDER BY l.solved_at DESC,p.id DESC LIMIT $1 OFFSET $2`,[limit+1,offset]);
+      return {problems:rows.slice(0,limit),more:rows.length>limit};
+    },
     async capture(input) {
       const hash = captureHash(input);
       // Older extension drafts must still recover a committed save after an upgrade.

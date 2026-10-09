@@ -531,3 +531,49 @@ button:disabled { opacity: .65; cursor: not-allowed; }
 
 .pattern-row-heading h3, .subpattern-row-heading h3, .priority-pattern-content h3 { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .focus-emphasis { white-space:nowrap; }
+
+/* Account tools live together, leaving the primary navigation for practice. */
+.account-dropdown { position:relative; flex-shrink:0; }
+.account-menu-trigger { display:flex; align-items:center; gap:10px; min-height:44px; border:1px solid var(--line); border-radius:999px; padding:5px 12px 5px 5px; background:var(--surface); list-style:none; }
+.account-menu-trigger::-webkit-details-marker { display:none; }
+.account-menu-trigger:hover, .account-menu-trigger.is-current { background:var(--coral-soft); }
+.account-avatar { display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:var(--coral-soft); color:var(--nav-ink); font-size:12px; font-weight:800; flex-shrink:0; }
+.account-menu-name { max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.account-menu-trigger svg { width:16px; height:16px; }
+.account-dropdown[open] .account-menu-trigger svg { transform:rotate(180deg); }
+.account-menu-panel { position:absolute; right:0; top:calc(100% + 12px); z-index:30; width:min(280px,calc(100vw - 44px)); padding:8px; border:1px solid var(--line); border-radius:18px; background:var(--surface-raised); box-shadow:var(--dialog-shadow); }
+.account-menu-identity { display:flex; flex-direction:column; gap:6px; padding:14px 12px; border-bottom:1px solid var(--line); margin-bottom:6px; font-size:13px; overflow-wrap:anywhere; }
+.account-menu-identity span { color:var(--muted); font-size:12px; }
+.account-menu-panel nav { display:flex; flex-direction:column; }
+.account-menu-panel a, .account-menu-signout { display:flex; align-items:center; width:100%; min-height:44px; padding:12px; border:0; border-radius:10px; background:transparent; color:var(--ink); font-size:13px; text-align:left; }
+.account-menu-panel a:hover, .account-menu-signout:hover { background:var(--surface); }
+.account-menu-panel a[aria-current='page'] { background:var(--coral-soft); color:var(--nav-ink); }
+.account-menu-signout { border-top:1px solid var(--line); border-radius:0 0 10px 10px; margin-top:6px; }
+.profile-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:24px; margin-top:32px; max-width:1050px; }
+.profile-identity { display:flex; gap:18px; align-items:center; margin-bottom:28px; }
+.profile-identity h2 { font-size:24px; overflow-wrap:anywhere; }
+.profile-identity p { margin:8px 0 0; color:var(--muted); font-size:13px; }
+.profile-avatar { width:64px; height:64px; font-size:22px; }
+.profile-layout .workspace-panel { padding:28px; }
+.profile-layout dl { margin:24px 0; }
+.profile-layout .inline-link { font-size:13px; }
+.solve-history { list-style:none; margin:28px 0 0; padding:0; border:1px solid var(--line); border-radius:18px; overflow:hidden; background:var(--surface); }
+.solve-history-row { display:grid; grid-template-columns:minmax(0,1fr) 110px 190px; align-items:center; gap:24px; padding:22px 24px; border-top:1px solid var(--line); }
+.solve-history-row:first-child { border-top:0; }
+.history-problem-link { font-weight:700; font-size:16px; line-height:1.5; overflow-wrap:anywhere; }
+.history-problem-link:hover { text-decoration:underline; text-underline-offset:4px; }
+.history-problem-link span { color:var(--muted); font-size:13px; }
+.solve-history-row time { font-size:12px; color:var(--muted); text-align:right; }
+.solve-history-row .problem-difficulty { font-size:12px; font-weight:700; }
+.solve-history-row .difficulty-medium { color:var(--difficulty-medium-ink); }
+.solve-history-row .difficulty-hard { color:var(--difficulty-hard-ink); }
+.solve-history-row .difficulty-unknown { color:var(--muted); }
+@media(max-width:720px) {
+  .account-menu-name { display:none; }
+  .topbar-actions { gap:12px; }
+  .profile-layout { grid-template-columns:minmax(0,1fr); gap:16px; }
+  .profile-layout .workspace-panel { padding:22px; }
+  .solve-history-row { grid-template-columns:minmax(0,1fr) auto; padding:18px; gap:10px 16px; }
+  .history-problem-link { grid-column:1 / -1; }
+  .solve-history-row time { font-size:11px; }
+}
