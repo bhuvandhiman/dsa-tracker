@@ -35,7 +35,7 @@ export default function AuthPages({page,auth}){
         result=await auth.client.auth.signUp({email:email.trim(),password,options:{emailRedirectTo:authRedirect()}});
         const outcome=signupOutcome(result);setPassword('');
         if(outcome==='existing'){setExisting(true);setMessage('An account with this email already exists. Log in to continue, or reset your password.');return;}
-        if(outcome!=='signed-in'){setVerification(true);setCooldown(60);setMessage(outcome==='confirmation'?'Check your inbox and spam folder to confirm your email. Open the link in this browser to go straight to your dashboard.':'If this email needs confirmation, check your inbox and spam folder. Already confirmed your account? Log in instead.');return;}
+        if(outcome!=='signed-in'){setVerification(true);setCooldown(60);setMessage(outcome==='confirmation'?'Check your inbox and spam folder to confirm your email. Open the link in this browser to finish setting up your workspace.':'If this email needs confirmation, check your inbox and spam folder. Already confirmed your account? Log in instead.');return;}
       }
       else {result=await auth.client.auth.signInWithPassword({email:email.trim(),password});requireSignedIn(result);setPassword('');setUnconfirmed(false);}
       await auth.refresh();

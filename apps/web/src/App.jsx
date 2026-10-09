@@ -11,7 +11,7 @@ import useAuth from './use-auth.js';
 import { WorkspaceContext } from './workspace-context.js';
 import useExtension from './use-extension.js';
 import Connection from './Connection.jsx';
-import { accountDestination, rememberDestination } from './auth-navigation.js';
+import { accountDestination, rememberDestination, needsGoalSetup } from './auth-navigation.js';
 
 function Icon({ name, ...props }) {
   const paths = {
@@ -49,17 +49,20 @@ export default function App() {
   const publicPage = ['home','about','privacy'].includes(route.page);
   const accountShell=authPage||setupPage||callbackPage;
   const accountsEnabled=auth.config?.mode==='supabase';
-  const canReadWorkspace=!auth.loading&&auth.config&&(accountsEnabled?Boolean(auth.user):true);
+  const goalSetupPending=accountsEnabled&&Boolean(auth.user)&&needsGoalSetup(auth.setup);
+  const goalPage=['dashboard','patterns','connect'].includes(route.page);
+  const canReadWorkspace=!auth.loading&&auth.config&&(accountsEnabled?Boolean(auth.user):true)&&!(goalPage&&goalSetupPending);
   useEffect(()=>{
     if(auth.loading||auth.error)return;
     if(callbackPage&&auth.user&&!route.error){
-      const destination=confirmedLocation(window.location);
+      const destination=confirmedLocation(window.location,accountDestination(auth.setup));
       window.history.replaceState(null,'',destination);
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
     else if(accountsEnabled&&privatePage&&!auth.user){rememberDestination(window.location.hash.slice(1)||window.location.pathname);window.location.hash='/login';}
+    else if(goalPage&&goalSetupPending){rememberDestination(window.location.hash.slice(1)||window.location.pathname);window.location.hash='/setup';}
     else if(auth.user&&['signup','login'].includes(route.page))window.location.hash=accountDestination(auth.setup);
-  },[auth.loading,auth.error,auth.user,auth.setup,accountsEnabled,privatePage,callbackPage,route.page,route.error]);
+  },[auth.loading,auth.error,auth.user,auth.setup,accountsEnabled,privatePage,goalPage,goalSetupPending,callbackPage,route.page,route.error]);
   useEffect(() => {
     const titles={home:'Recall — Know which DSA pattern to practice next',about:'About Recall',privacy:'Privacy · Recall',dashboard:'Dashboard · Recall',patterns:'Patterns · Recall',connect:'Connect LeetCode · Recall',settings:'Settings · Recall',signup:'Create account · Recall',login:'Log in · Recall','forgot-password':'Reset password · Recall','reset-password':'New password · Recall',setup:'Your setup · Recall','install-extension':'Install the extension · Recall'};
     document.title=callbackPage?'Confirming email · Recall':titles[route.page] || 'Recall';
@@ -112,7 +115,7 @@ export default function App() {
       {route.page==='privacy'&&<Privacy />}
       {route.page==='login'&&route.account&&<p role="status" className="account-notice">{route.account==='deleted'?'Your Recall account and workspace were deleted.':route.account==='deletion-pending'?'Your deletion request is queued. Workspace access is blocked while cleanup retries.':''}</p>}
       {callbackPage&&<div className="account-loading" role={callbackPending?'status':'alert'}>
-        <h1>{callbackPending?'Opening your dashboard…':'Could not finish signing you in.'}</h1>
+        <h1>{callbackPending?'Opening your workspace…':'Could not finish signing you in.'}</h1>
         {callbackPending?<p>Confirming your email and preparing your workspace.</p>:<><p>{route.error||auth.error||'Open the confirmation link in the browser where you signed up. If the link has expired, request a new one.'}</p>{auth.error&&!route.error&&<button className="secondary-button" onClick={auth.retry}>Try again</button>}<a className="primary-button" href="/#/login">Log in</a><a className="inline-link" href="/#/signup">Back to signup</a></>}
       </div>}
       {authPage&&(auth.loading||auth.user&&['signup','login'].includes(route.page)?<div className="account-loading" role="status"><h1>Opening your workspace…</h1><p>Checking your session.</p></div>:<AuthPages key={route.page} page={route.page} auth={auth} />)}

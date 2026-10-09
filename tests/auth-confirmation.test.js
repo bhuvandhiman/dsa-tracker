@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readLocation,confirmedLocation} from '../apps/web/src/navigation.js';
 import {authRedirect,initializedSession} from '../apps/web/src/auth-client.js';
+import {accountDestination,needsGoalSetup,rememberDestination} from '../apps/web/src/auth-navigation.js';
 
 const location=value=>new URL(value,'https://recall.test');
 
@@ -30,6 +31,21 @@ test('successful confirmation removes callback credentials and lands on the dash
   assert.equal(cleaned,'/?campaign=welcome#/dashboard');
   assert.equal(readLocation(location(cleaned)).page,'dashboard');
   assert.equal(confirmedLocation(location('/?auth=callback#access_token=secret&refresh_token=secret')),'/#/dashboard');
+});
+
+test('confirmation takes unconfigured accounts through goal setup before the saved destination',()=>{
+  const values=new Map(),storage={getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value),removeItem:key=>values.delete(key)};
+  rememberDestination('/patterns/graphs?q=dfs',storage);
+  for(const setup of [null,{}, {completed:false,goal:{configured:false}},{completed:true,goal:{configured:false}}]){
+    assert.equal(needsGoalSetup(setup),true);
+    const cleaned=confirmedLocation(location('/?auth=callback&code=secret&campaign=welcome#/login'),accountDestination(setup,storage));
+    assert.equal(cleaned,'/?campaign=welcome#/setup');assert.equal(readLocation(location(cleaned)).page,'setup');
+  }
+  assert.equal(needsGoalSetup({completed:false,goal:{configured:true}}),false);
+  const destination=accountDestination({completed:true,goal:{configured:true,profile:'deep',target:500}},storage);
+  assert.equal(destination,'/patterns/graphs?q=dfs');
+  assert.equal(confirmedLocation(location('/?auth=callback&code=secret#/login'),destination),'/#/patterns/graphs?q=dfs');
+  assert.equal(accountDestination({goal:{configured:true}},storage),'/dashboard');
 });
 
 test('existing email redirect allowlist URLs remain compatible',t=>{

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useWorkspaceRequest } from './workspace-context.js';
 import { installationLink } from './installation-model.js';
 import { accountDestination } from './auth-navigation.js';
+import { practiceCache } from './practice-cache.js';
 import './accounts.css';
 
 export function Installation({auth,embedded=false}){
@@ -17,6 +18,14 @@ export function Installation({auth,embedded=false}){
 export default function Onboarding({auth}){
   const request=useWorkspaceRequest();
   const [profile,setProfile]=useState(auth.setup?.goal?.profile||'interview'),[target,setTarget]=useState(auth.setup?.goal?.target||300),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function save(){setBusy(true);setError('');try{await request('/setup',{method:'PUT',body:JSON.stringify({profile,target,completed:true})});const account=await auth.refresh();window.location.hash=accountDestination(account.setup);}catch(e){setError(e.message);}finally{setBusy(false);}}
-  return <section className="goal-onboarding" aria-labelledby="setup-title"><p className="eyebrow">A starting point, not a commitment</p><h1 id="setup-title">What are you<br /><span>working toward?</span></h1><p className="page-description">Choose your focus. Connect LeetCode whenever you are ready.</p><form onSubmit={event=>{event.preventDefault();if(!busy)void save();}}><fieldset disabled={busy}><legend>Preparation mode</legend>{[['interview','Interview focused','Give interview-relevant patterns more emphasis.','↗'],['deep','Deep understanding','Build a broader foundation across patterns.','✳']].map(([value,title,description,symbol])=><label className={'setup-mode-option '+(profile===value?'setup-mode-selected':'')} key={value}><input type="radio" name="profile" value={value} checked={profile===value} onChange={()=>setProfile(value)} /><span><strong>{title}</strong><span>{description}</span></span><i aria-hidden="true">{symbol}</i></label>)}</fieldset><details className="goal-settings"><summary>Adjust starting goal · {target} problems</summary><label className="setup-target" htmlFor="setup-target">Balanced coverage target<select id="setup-target" value={target} disabled={busy} onChange={e=>setTarget(Number(e.target.value))}>{[300,500,1000].map(value=><option key={value} value={value}>{value} problems</option>)}</select><small>A target across patterns and difficulty, not a daily quota. Change it later on your dashboard.</small></label></details><button className="primary-button" disabled={busy}>{busy?'Saving…':'Open my workspace'} →</button></form><p className="account-error" role="alert">{error}</p></section>;
+  async function save(){setBusy(true);setError('');try{await request('/setup',{method:'PUT',body:JSON.stringify({profile,target,completed:true})});const account=await auth.refresh();practiceCache.clear();window.location.hash=accountDestination(account.setup);}catch(e){setError(e.message);}finally{setBusy(false);}}
+  return <section className="goal-onboarding" aria-labelledby="setup-title">
+    <p className="eyebrow">A starting point, not a commitment</p><h1 id="setup-title">What are you<br /><span>working toward?</span></h1>
+    <p className="page-description">Choose your focus and coverage target to organize your patterns. Connect LeetCode whenever you are ready.</p>
+    <form onSubmit={event=>{event.preventDefault();if(!busy)void save();}}>
+      <fieldset disabled={busy}><legend>Preparation mode</legend>{[['interview','Interview focused','Give interview-relevant patterns more emphasis.','↗'],['deep','Deep understanding','Build a broader foundation across patterns.','✳']].map(([value,title,description,symbol])=><label className={'setup-mode-option '+(profile===value?'setup-mode-selected':'')} key={value}><input type="radio" name="profile" value={value} checked={profile===value} onChange={()=>setProfile(value)} /><span><strong>{title}</strong><span>{description}</span></span><i aria-hidden="true">{symbol}</i></label>)}</fieldset>
+      <label className="setup-target" htmlFor="setup-target">Balanced coverage target<select id="setup-target" value={target} disabled={busy} onChange={e=>setTarget(Number(e.target.value))}>{[300,500,1000].map(value=><option key={value} value={value}>{value} problems</option>)}</select><small>A target across patterns and difficulty, not a daily quota. Change it later on your dashboard.</small></label>
+      <button className="primary-button" disabled={busy}>{busy?'Saving…':'Open my workspace'} →</button>
+    </form><p className="account-error" role="alert">{error}</p>
+  </section>;
 }

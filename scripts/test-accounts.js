@@ -3,7 +3,7 @@ import express from 'express';
 import { createApp } from '../apps/api/src/app.js';
 import { DomainError } from '../apps/api/src/domain.js';
 import {overview} from '../apps/api/src/retention-policy.js';
-import {goalCoverage,applyGoalOrdering} from '../apps/api/src/goal-policy.js';
+import {goalCoverage,applyGoalOrdering,unconfiguredGoal} from '../apps/api/src/goal-policy.js';
 
 const origin='http://127.0.0.1:8766',web='http://127.0.0.1:5175';
 const user={id:'45cd664a-c96c-4e3a-829c-9ced5dd40eaf',email:'fixture@example.test',email_confirmed_at:'2026-10-03T00:00:00Z',aud:'authenticated',role:'authenticated',user_metadata:{}};
@@ -51,6 +51,12 @@ app.post('/fixture/performance',(req,res)=>{
   res.json({fixture:true});
 });
 app.get('/fixture/metrics',(_req,res)=>res.json(metrics));
+app.post('/fixture/onboarding',(req,res)=>{
+  performanceMode=true;startupFailures=0;sessionDelay=0;retentionDelay=0;deleted=false;workspaceUnavailable=false;
+  setup={completed:req.body.completed===true,extensionAcknowledged:false,goal:{configured:false}};
+  metrics.sessionReads=0;metrics.retentionReads=0;
+  res.json({fixture:true,setup});
+});
 app.use('/api/session',(_req,res,next)=>{
   metrics.sessionReads++;
   if(startupFailures>0){startupFailures--;return res.status(503).json({error:'Simulated cold workspace. Please try again.'});}
@@ -60,8 +66,8 @@ app.use('/api/session',(_req,res,next)=>{
 app.get('/api/retention',(_req,res,next)=>{
   if(!performanceMode)return next();
   metrics.retentionReads++;
-  const result=overview([],[]),goal=goalCoverage([],setup.goal);
-  setTimeout(()=>res.json({...result,goal,categories:applyGoalOrdering(result.categories,goal)}),retentionDelay);
+  const result=overview([],[]),goal=setup.goal.configured?goalCoverage([],setup.goal):unconfiguredGoal();
+  setTimeout(()=>res.json({...result,goal,categories:goal.configured?applyGoalOrdering(result.categories,goal):result.categories}),retentionDelay);
 });
 const recall=createApp({auth:{mode:'supabase',configured:true,url:origin,key:'fixture-publishable-key'},installation:{downloadUrl:'/downloads/recall-extension.zip'},authenticate:async req=>{if(deleted||req.get('Authorization')!==`Bearer ${jwt}`)throw new DomainError(401,'Please sign in again.');return user;},extensionAuth:async(_kind,body)=>{if(body.password!=='fixture-password')throw new DomainError(401,'Incorrect fixture password.');return {user};},accountLifecycle:{enabled:true,remove:async()=>{deleted=true;return {deleted:true,pending:false};}},repositoryForUser:async()=>{if(workspaceUnavailable)throw new DomainError(503,'Simulated workspace unavailable.');return {setup:async()=>setup,exportAccount:async()=>({setup,workspace:backup}),backup:async()=>backup,readiness:async()=>({status:'ready',storage:'Simulated fixture workspace',account:'fixture',timeZone:'Asia/Calcutta'}),removedAttempts:async()=>[],saveSetup:async body=>{if(failSetup){failSetup=false;throw new DomainError(503,'Fixture save failed. Try again.');}if(body.profile)setup.goal={configured:true,profile:body.profile,target:body.target};if(body.extensionAcknowledged!==undefined)setup.extensionAcknowledged=body.extensionAcknowledged;if(body.completed!==undefined)setup.completed=body.completed;return setup;},retention:async()=>{throw new DomainError(503,'Fixture dashboard has no real practice data.');}};}});
 app.use((req,res,next)=>{delete req.headers.origin;return recall(req,res,next);});

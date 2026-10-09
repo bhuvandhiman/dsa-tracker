@@ -28,11 +28,11 @@ export function readLocation(location){
   return route;
 }
 
-export function confirmedLocation(location){
+export function confirmedLocation(location,destination='/dashboard'){
   const query=new URLSearchParams(location.search);
   for(const name of ['auth','code','sb_flow_id','error','error_code','error_description'])query.delete(name);
   const search=query.toString();
-  return `${location.pathname}${search?'?'+search:''}#/dashboard`;
+  return `${location.pathname}${search?'?'+search:''}#${destination}`;
 }
 
 export function patternLink(slug, query = '') {

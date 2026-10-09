@@ -37,6 +37,6 @@ test('website reconnect reuses only the configured origin and focuses its window
 test('login returns only to internal allowed destinations, preserving them through focus setup',()=>{
   const data=new Map(),storage={getItem:key=>data.get(key),setItem:(key,value)=>data.set(key,value),removeItem:key=>data.delete(key)};
   for(const path of ['https://evil.test','//evil.test','/login','/patterns/../login','/dashboard#evil'])assert.equal(safeDestination(path),null);
-  rememberDestination('/patterns/graphs?q=dfs',storage);assert.equal(accountDestination({},storage),'/setup');assert.equal(accountDestination({completed:true},storage),'/patterns/graphs?q=dfs');assert.equal(accountDestination({completed:true},storage),'/dashboard');
+  rememberDestination('/patterns/graphs?q=dfs',storage);assert.equal(accountDestination({},storage),'/setup');assert.equal(accountDestination({completed:true},storage),'/setup');assert.equal(accountDestination({completed:true,goal:{configured:true}},storage),'/patterns/graphs?q=dfs');assert.equal(accountDestination({completed:true,goal:{configured:true}},storage),'/dashboard');
   rememberDestination('/connect',storage);assert.equal(accountDestination({goal:{configured:true}},storage),'/connect');
 });
