@@ -28,12 +28,13 @@ globalThis.chrome={storage:{local:fixtureStorage,onChanged:{addListener:listener
     if(message.type==='RECALL_STATE_GET'){const names=message.names,values=await fixtureStorage.get(names.map(key));return {data:Object.fromEntries(names.map(name=>[name,values[key(name)]]))};}
     if(message.type==='RECALL_STATE_SET'){await fixtureStorage.set(Object.fromEntries(Object.entries(message.values).map(([name,value])=>[key(name),value])));return {kept:true};}
     if(message.type==='RECALL_STATE_REMOVE'){for(const name of message.names)await fixtureStorage.remove(key(name));return {kept:true};}
-    if(message.type==='RECALL_API')return {data:message.path==='/ready'?{status:'ready',account:'fixture-account'}:message.method==='POST'?{added:1,alreadyPresent:0,excluded:0}:{completed:false}};
+    if(message.type==='RECALL_API')return {data:message.path==='/ready'?{status:'ready',account:'fixture-account'}:message.method==='POST'?{completed:message.path==='/imports/recent'||message.body.complete===true,added:1,alreadyPresent:0,excluded:0}:{completed:false}};
     if(message.type==='LIST_RECORDINGS')return {records:[]};
     return {};
   }},
   tabs:{async query(){return [{id:1,active:true}];},async create({url}){location.href=url;},async sendMessage(_id,message){
     if(message.type==='GET_CURRENT_PROBLEM')return {status:'content-script-ready',problem:{platform:'leetcode',problemId:'two-sum',url:'https://leetcode.com/problems/two-sum/',title:'Two Sum'}};
+    if(message.type==='READ_IMPORT_ACCOUNT')return {data:{username:'fixture-account'}};
     if(message.type==='GET_ACCOUNT_STATUS')return {username:'fixture-account'};
     if(message.type==='SHOW_RECORDER')return {opened:true};
     if(message.type==='SCAN_LEGACY_PROBLEMS')return {data:{username:'fixture-account',problems:[{slug:'two-sum'}]}};

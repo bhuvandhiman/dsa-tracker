@@ -3,16 +3,18 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { captureInput } from '../apps/api/src/domain.js';
+import { readRecallResponse } from '../apps/extension/src/import-request.js';
 import { recallRuntime } from '../apps/extension/src/runtime-config.js';
 const read = path => readFileSync(new URL('../apps/extension/src/'+path,import.meta.url),'utf8');
 const problem={url:'https://leetcode.com/problems/two-sum/',platform:'leetcode',problemId:'two-sum'};
 const payload={requestId:'00000000-0000-4000-8000-000000000001',url:problem.url,title:'Two Sum',difficulty:'easy',topics:['Array','Hash Table'],selectedTopics:[],assistance:'hint',attemptedAt:'2025-01-01T00:00:00.000Z'};
 function worker(fetcher,storage={},account) {
   let listener;
-  const context=vm.createContext({URL,AbortSignal,recallRuntime,fetch:fetcher,trustedPage:sender=>sender.id==='test',recallAccount:account||{scope:async()=>'local',assertScope:async()=>'local',key:(_scope,key)=>key,request:(path,options)=>fetcher('http://127.0.0.1:3001/api'+path,options)},chrome:{
+  const context=vm.createContext({URL,AbortSignal,readRecallResponse,recallRuntime,fetch:fetcher,trustedPage:sender=>sender.id==='test',recallAccount:account||{scope:async()=>'local',assertScope:async()=>'local',key:(_scope,key)=>key,request:(path,options)=>fetcher('http://127.0.0.1:3001/api'+path,options)},chrome:{
     storage:{local:{async get(key){return key===null?{...storage}:Object.fromEntries((Array.isArray(key)?key:[key]).map(k=>[k,storage[k]]));},async set(data){Object.assign(storage,data);},async remove(key){delete storage[key];}}},
     runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onMessage:{addListener(fn){listener=fn;}}},
   }});
+  context.recallAccount.localScope=async expected=>expected===undefined?context.recallAccount.scope():context.recallAccount.assertScope(expected);
   vm.runInContext(read('adapters/leetcode.js'),context);
   vm.runInContext(read('service-worker.js').replace(/^import .*;\r?$/gm,''),context);
   return {context,storage,send(message,sender={id:'test',frameId:0,tab:{id:1},url:problem.url}) {return new Promise(resolve=>listener(message,sender,resolve));}};
@@ -116,6 +118,21 @@ test('definitive validation failures unlock editing; uncertain failures retain t
     assert.equal(result.saved,false);assert.equal(Boolean(result.editable),status===400);
     assert.equal(Object.keys(ui.storage).length,status===400?0:1);
   }
+});
+
+test('non-JSON server failures keep the pending recording and give usable recovery text',async()=>{
+  const ui=worker(async()=>new Response('<html>gateway unavailable</html>',{status:502}));
+  const result=await ui.send({type:'SAVE_CAPTURE',problem,payload});
+  assert.equal(result.saved,false);assert.match(result.error,/temporarily unavailable/);assert.ok(!result.error.includes('<html>'));
+  assert.deepEqual(ui.storage['recall-pending:'+problem.url],payload);
+  const checked=await ui.send({type:'RECONCILE_CAPTURE',problem});assert.match(checked.error,/temporarily unavailable/);assert.ok(ui.storage['recall-pending:'+problem.url]);
+});
+
+test('a damaged conflict entry does not hide valid saved recordings',async()=>{
+  const ui=worker(()=>assert.fail('Listing drafts must not use the API'),{['recall-conflict:broken']:null,['recall-pending:'+problem.url]:payload});
+  const result=await ui.send({type:'LIST_RECORDINGS'},{id:'test',url:'chrome-extension://test/setup.html'});
+  assert.equal(result.error,undefined);assert.equal(result.records.length,2);
+  assert.ok(result.records.some(record=>record.url===problem.url));
 });
 test('topic extraction accepts LeetCode tag links only and deduplicates',()=>{
   const ui=worker(()=>{});const adapter=ui.context.DsaAdapters[0];

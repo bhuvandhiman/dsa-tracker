@@ -34,7 +34,7 @@ export async function connectLeetCode(chromeApi,onReconnect=()=>{}) {
         }
       }catch {throw connectionError();}
     }
-    if(result?.error)throw new Error(result.error);
+    if(result?.error)throw Object.assign(new Error(result.error),{code:result.code,retryable:result.retryable===true,retryAfter:result.retryAfter||0});
     if(!result?.data)throw new Error('LeetCode did not provide the expected data. Retry when the page is available.');
     return result.data;
   };

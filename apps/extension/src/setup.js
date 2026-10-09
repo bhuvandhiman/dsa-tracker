@@ -1,51 +1,63 @@
 import { api, scopedStorage, connection } from './account-page.js';
-import { runLegacyImport } from './legacy-runner.js';
+import { runImportSession } from './import-session.js';
 import { connectLeetCode } from './leetcode-connection.js';
-const status=document.querySelector('#status'), start=document.querySelector('#import'), skip=document.querySelector('#skip');
-let state, busy=false, failure='';
-let progressWrites=Promise.resolve();
-const report=(phase,error='')=>{progressWrites=progressWrites.then(()=>scopedStorage.set({importProgress:{phase,error,updatedAt:Date.now()}})).catch(()=>{});return progressWrites;};
-const store=async value=>{await scopedStorage.set({legacySetup:value});state=value;};
-
-function render() {
-  const pending=state?.decision==='pending';
-  start.hidden=false; skip.hidden=!pending;
-  start.disabled=busy||!state; skip.disabled=busy||!pending;
-  // Once an import has started, keep its checkpoint instead of silently abandoning it.
-  skip.hidden=!pending||Boolean(state?.snapshot);
-  start.textContent=state?.snapshot?'Resume import':pending||!state?'Import previously solved problems':'Reimport accepted problems';
-  if(state?.decision==='complete')status.textContent=`Accepted problems imported${state.username?' for '+state.username:''}${state.count!==undefined?' · '+state.count+' problems':''}. Your patterns are available. The recent-date check below completes the import.`;
-  if(state?.decision==='skipped')status.textContent='Setup complete. New practice will be recorded through the LeetCode panel.';
+import { requestError, retryImportRequest } from './import-request.js';
+const status=document.querySelector('#status'),start=document.querySelector('#import'),pause=document.querySelector('#pause'),progress=document.querySelector('#import-progress'),counts=document.querySelector('#import-count'),dashboard=document.querySelector('#view-patterns');
+let state=null,recent=null,busy=false,pauseRequested=false,phase='connecting',failure='',ready=false,writes=Promise.resolve();
+function report(value,error=''){
+  phase=value;
+  writes=writes.then(()=>scopedStorage.set({importProgress:{phase,error,updatedAt:Date.now()}})).catch(()=>{});
+  return writes;
 }
-start.addEventListener('click',async()=>{
-  if(busy)return;
-  busy=true;failure='';render();void report('scanning');status.textContent='Connecting to your signed-in LeetCode account…';
-  try {
+function check(){if(pauseRequested)throw requestError('Import paused. Resume whenever you are ready.',{code:'PAUSED'});}
+async function loadState(){const stored=await scopedStorage.get(['legacySetup','retentionSetup']);state=stored.legacySetup;recent=stored.retentionSetup;}
+function render(){
+  const complete=state?.decision==='complete',done=complete&&recent?.complete;
+  start.disabled=busy;pause.hidden=!busy;pause.disabled=pauseRequested;
+  start.textContent=busy?'Importing…':!ready?'Retry connection':done?'Check for new solves':complete?'Retry recent dates':state?.snapshot?'Resume import':'Import my solves';
+  dashboard.hidden=!complete;
+  const total=state?.count??state?.snapshot?.length,saved=state?.count??state?.offset??0;
+  progress.hidden=!Number.isInteger(total)||total===0;
+  if(!progress.hidden){progress.max=total;progress.value=saved;}
+  counts.textContent=Number.isInteger(total)?saved+' / '+total+' accepted problems saved':'';
+  if(!busy&&!failure)status.textContent=done?'Import finished. Your patterns are ready.':complete?'Your solves are ready. Finish the recent-date check to include available practice dates.':state?.snapshot?'Your checkpoint is saved. Resume to continue from here.':'Bring your accepted LeetCode problems into Recall. Recent available dates are included automatically.';
+  status.dataset.state=failure?'error':done?'complete':'working';
+  for(const item of document.querySelectorAll('[data-import-step]'))item.dataset.active=String((item.dataset.importStep==='prepare'&&['connecting','scanning'].includes(phase))||(item.dataset.importStep==='problems'&&['metadata','saving'].includes(phase))||(item.dataset.importStep==='dates'&&phase==='dates'));
+}
+async function initialize(){
+  const account=await retryImportRequest(()=>connection(),{check,onRetry:({attempt,error})=>{status.textContent=error.message+' Retrying connection ('+attempt+'/2)…';}});
+  if(!account.connected)throw new Error('Open Recall to connect your account, then retry here.');
+  const setup=await chrome.runtime.sendMessage({type:'LEGACY_SETUP_STATE',workspaceScope:account.scope});if(setup?.error)throw new Error(setup.error);
+  if(!setup?.installationId)throw new Error('Extension setup did not respond. Reload this page and retry.');
+  await loadState();ready=true;
+}
+async function begin(newRun=false){
+  if(busy)return;busy=true;pauseRequested=false;failure='';render();status.textContent='Checking Recall connection…';
+  let ownsLock=false,heartbeat;
+  try{
+    if(!ready)await initialize();
     await navigator.locks.request('recall-legacy-import',{ifAvailable:true},async lock=>{
-    if(!lock)throw new Error('Import is already running in another setup tab.');
-    state=(await scopedStorage.get('legacySetup')).legacySetup;
-    if(state?.decision!=='pending') {
-      await scopedStorage.remove('retentionSetup');
-      await store({installationId:crypto.randomUUID(),username:state?.username,decision:'pending',offset:0});
-    }
-    const saved=await api('/imports/legacy/'+state.installationId);
-    if(saved.completed){await store({installationId:state.installationId,username:saved.username,decision:'complete'});return;}
-    const read=await connectLeetCode(chrome,()=>{status.textContent='Reconnecting through a fresh LeetCode tab… Your existing editor stays open.';});
-    await runLegacyImport({state,scan:()=>read('SCAN_LEGACY_PROBLEMS'),topics:(slugs,username)=>read('READ_LEGACY_TOPICS',{slugs,username}),writeBatch:body=>api('/imports/legacy',body),saveState:store,onPhase:s=>{void report(s.phase);status.textContent=s.phase==='scanning'?'Scanning accepted problems…':`${s.username}: ${s.phase==='metadata'?'Fetching topics and difficulty':'Saving batch'} · ${s.offset} of ${s.total} saved…`;},onProgress:s=>{status.textContent=`${s.username}: imported ${s.offset} of ${s.snapshot.length} problems… Latest batch: ${s.lastBatch?.added??0} added, ${s.lastBatch?.alreadyPresent??0} already present, ${s.lastBatch?.excluded??0} Database problems preserved outside DSA.`;}});
+      if(!lock)throw new Error('An import is running in another Recall tab. Return to that tab to follow its progress.');
+      ownsLock=true;await report('connecting');
+      heartbeat=setInterval(()=>{void report(phase);},10000);
+      let reader;
+      const read=async(type,extra)=>{check();reader??=await connectLeetCode(chrome,()=>{status.textContent='Reconnecting to LeetCode. Your problem editor stays open.';});return retryImportRequest(()=>reader(type,extra),{check,onRetry:({attempt,error})=>{status.textContent=error.message+' Retrying ('+attempt+'/2)…';}});};
+      const request=(path,body)=>api(path,body,{check,onRetry:({attempt,error})=>{status.textContent=error.message+' Retrying ('+attempt+'/2)…';}});
+      await runImportSession({storage:scopedStorage,api:request,read,newRun,check,phase:value=>{
+        if(value.phase!=='complete')check();void report(value.phase);render();
+        status.textContent=({connecting:'Checking the saved import…',scanning:'Verifying your LeetCode account and accepted problems…',metadata:'Reading problem topics and difficulty…',saving:'Saving problems to your Recall workspace…',dates:'Checking available recent practice dates…',complete:'Import finished. Your patterns are ready.'})[value.phase];
+        if(value.total!==undefined){progress.hidden=!value.total;progress.max=value.total||1;progress.value=value.saved??value.offset??0;counts.textContent=(value.saved??value.offset??0)+' / '+value.total+' accepted problems saved';}
+      }});
     });
-  }catch(error){failure=error.message;await report('error',failure);}
-  finally{busy=false;render();if(failure)status.textContent=failure;if(state?.decision==='complete'){await report('dates');document.dispatchEvent(new Event('legacy-completed'));}}
-});
-skip.addEventListener('click',async()=>{
-  if(busy)return;
-  try{await navigator.locks.request('recall-legacy-import',{ifAvailable:true},async lock=>{
-    if(!lock)throw new Error('Import is already running in another setup tab.');
-    state=(await scopedStorage.get('legacySetup')).legacySetup;
-    if(state?.decision!=='pending'||state.snapshot)return;
-    await store({installationId:state.installationId,decision:'skipped'});
-  });}catch(error){state=null;render();status.textContent=error.message;}finally{render();document.dispatchEvent(new Event('legacy-skipped'));}
-});
-function startRequested(){if(location.hash.startsWith('#start-import-')&&state&&!busy){if(state.decision!=='complete')start.click();else document.dispatchEvent(new Event('legacy-completed'));}}
-window.addEventListener('hashchange',startRequested);
-try {const account=await connection();state=await chrome.runtime.sendMessage({type:'LEGACY_SETUP_STATE',workspaceScope:account.scope});if(state.error)throw new Error(state.error);status.textContent='Import accepted problems, or resume an interrupted import. Recent available dates are included automatically.';render();startRequested();}
-catch(error){state=null;render();status.textContent=error.message;}
+  }catch(error){failure=error.message;status.textContent=failure;if(ownsLock)await report(error.code==='PAUSED'?'paused':'error',error.code==='PAUSED'?'':failure);}
+  finally{
+    clearInterval(heartbeat);busy=false;
+    try{await loadState();}catch{/* Keep the last known checkpoint visible. */}
+    render();if(failure)status.textContent=failure;
+  }
+}
+start.addEventListener('click',()=>begin(state?.decision==='complete'&&recent?.complete===true));
+pause.addEventListener('click',()=>{pauseRequested=true;pause.disabled=true;status.textContent='Pausing after the current step. Keep this tab open until the checkpoint is saved.';});
+function requested(){if(location.hash.startsWith('#start-import-')&&ready&&!(state?.decision==='complete'&&recent?.complete))void begin();}
+window.addEventListener('hashchange',requested);
+try{await initialize();render();requested();}catch(error){failure=error.message;status.textContent=failure;render();}

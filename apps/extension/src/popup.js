@@ -12,6 +12,7 @@ let recallReady = false;
 
 async function readProblem() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if(!tab)throw new Error('Open a LeetCode problem tab first.');
   const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_CURRENT_PROBLEM' });
   if (response?.status !== 'content-script-ready') throw new Error('Unexpected reply. Reload the extension and refresh this page.');
   if (response.problem === null) return null;
@@ -48,7 +49,7 @@ async function checkExtension() {
     await connection().then(()=>api('/ready')).then(async data=>{
       if(data.status!=='ready')throw new Error('Database is not ready.');
       recallReady=true;
-      apiStatus.textContent=`API ready · database connected · ${data.account?'workspace account: '+data.account:'account binds on first recording or import'}`;
+      apiStatus.textContent='Recall is ready to save your practice.';
     }).catch(error=>{apiStatus.textContent=error.message;});
   })():Promise.resolve();
   try {

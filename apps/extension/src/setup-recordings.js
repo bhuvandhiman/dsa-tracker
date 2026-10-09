@@ -7,8 +7,8 @@ async function render(){
     list.replaceChildren();
     for(const record of result.records){
       const row=document.createElement('p'), link=document.createElement('a');
-      const url=new URL(record.url);
-      if(url.origin!=='https://leetcode.com'||!url.pathname.startsWith('/problems/'))continue;
+      let url;try{url=new URL(record.url);}catch{continue;}
+      if(url.origin!=='https://leetcode.com'||url.username||url.password||!/^\/problems\/[a-z0-9]+(?:-[a-z0-9]+)*\//.test(url.pathname))continue;
       link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';
       link.textContent=`${record.kind}: ${url.pathname.split('/')[2]}${Array.isArray(record.value)?' · '+record.value.length+' submissions':''}`;
       row.append(link);

@@ -1,6 +1,7 @@
 import { createAccountClient } from './account-client.js';
 import { recallRuntime } from './runtime-config.js';
 import { connectionAction, openRecallWebsite } from './connection-flow.js';
+import { readRecallResponse } from './import-request.js';
 export const recallAccount=createAccountClient(chrome);
 const stateNames=['legacySetup','retentionSetup','importProgress'];
 export function trustedPage(sender){return sender.id===chrome.runtime.id&&['setup.html','popup.html'].some(page=>sender.url?.split('#')[0]===chrome.runtime.getURL(page));}
@@ -26,11 +27,12 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
     if(message.type==='RECALL_OPEN_WEBSITE')return openRecallWebsite(chrome,recallRuntime.websiteOrigin);
     if(message.type==='RECALL_SIGN_IN')return recallAccount.signIn(message.email,message.password);
     if(message.type==='RECALL_SIGN_OUT'){await recallAccount.signOut();return {signedOut:true};}
-    const scope=await recallAccount.assertScope(message.workspaceScope);
+    const localMessage=['RECALL_STATE_GET','RECALL_STATE_SET','RECALL_STATE_REMOVE'].includes(message.type);
+    const scope=await (localMessage?recallAccount.localScope(message.workspaceScope):recallAccount.assertScope(message.workspaceScope));
     if(message.type==='RECALL_API'){
       if(!/^\/(ready|imports\/(legacy|recent)(\/[a-f0-9-]{36})?)$/.test(message.path||'')||!['GET','POST'].includes(message.method))throw new Error('Invalid extension request.');
-      const response=await recallAccount.request(message.path,{method:message.method,headers:{'Content-Type':'application/json'},...(message.body!==undefined?{body:JSON.stringify(message.body)}:{})},scope),data=await response.json();
-      if(!response.ok)throw new Error(data.error||'Recall could not complete the request.');return {data};
+      const response=await recallAccount.request(message.path,{method:message.method,headers:{'Content-Type':'application/json'},...(message.body!==undefined?{body:JSON.stringify(message.body)}:{})},scope),data=await readRecallResponse(response);
+      await recallAccount.localScope(scope);return {data};
     }
     const names=message.type==='RECALL_STATE_SET'?Object.keys(message.values||{}):message.names;
     if(!Array.isArray(names)||names.some(name=>!stateNames.includes(name)))throw new Error('Invalid extension state.');
@@ -41,5 +43,5 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
     else await chrome.storage.local.remove(names.map(name=>recallAccount.key(scope,name)));
     return {kept:true};
   };
-  run().then(respond,error=>respond({error:error.message||'Recall account connection failed.'}));return true;
+  run().then(respond,error=>respond({error:error.message||'Recall account connection failed.',code:error.code,status:error.status,retryable:error.retryable===true,retryAfter:error.retryAfter||0}));return true;
 });

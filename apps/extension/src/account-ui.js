@@ -4,7 +4,7 @@ const retry=document.createElement('button');retry.type='button';retry.className
 let connected=false,scope=null,loaded=false;
 async function render(){
   try{const state=await connection();connected=state.connected;scope=state.scope;loaded=true;connect.hidden=state.mode==='local';connect.textContent=connected?'Open Recall':'Connect through Recall';status.textContent=state.mode==='local'?'Using your existing local workspace.':connected?`Connected to Recall as ${state.email}`:'Sign in on the Recall website. Your extension connects automatically.';}
-  catch(error){status.textContent=error.message;connect.hidden=false;retry.hidden=false;}
+  catch(error){loaded=true;status.textContent=error.message;connect.hidden=false;retry.hidden=false;}
 }
 connect.addEventListener('click',async()=>{
   connect.disabled=true;

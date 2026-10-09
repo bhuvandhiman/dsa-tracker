@@ -1,8 +1,8 @@
-export async function runLegacyImport({state,scan,topics,writeBatch,saveState,onProgress=()=>{},onPhase=()=>{}}) {
+export async function runLegacyImport({state,scan,verifyAccount,topics,writeBatch,saveState,onProgress=()=>{},onPhase=()=>{}}) {
   if(state.decision!=='pending') return state;
   const validSnapshot=rows=>Array.isArray(rows)&&rows.length<=10000&&rows.every(row=>typeof row?.slug==='string'&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.slug)&&row.slug.length<=200)&&new Set(rows.map(row=>row.slug)).size===rows.length;
   const invalidCheckpoint=state.snapshot&&(!validSnapshot(state.snapshot)||!Number.isInteger(state.offset)||state.offset<0||state.offset>state.snapshot.length||state.offset!==state.snapshot.length&&state.offset%10!==0);
-  onPhase({phase:'scanning'});const found=await scan();
+  onPhase({phase:'scanning'});const found=state.snapshot&&!invalidCheckpoint&&state.username&&verifyAccount?{...await verifyAccount(),problems:state.snapshot}:await scan();
   if(!found||typeof found.username!=='string'||!found.username||!validSnapshot(found.problems))throw new Error('LeetCode returned an incomplete problem list. Retry the import.');
   if(state.username&&state.username!==found.username) throw new Error('Sign back into '+state.username+' to resume.');
   // A corrupt checkpoint is rebuilt from a verified scan under the same run

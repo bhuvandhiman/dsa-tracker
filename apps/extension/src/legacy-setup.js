@@ -4,7 +4,7 @@ import { recallRuntime } from './runtime-config.js';
 // First-run state is per installation. Uninstalling clears Chrome extension storage.
 const initializing=new Map();
 async function setupState(expected) {
-  const scope=await recallAccount.assertScope(expected),key=recallAccount.key(scope,'legacySetup');
+  const scope=await recallAccount.localScope(expected),key=recallAccount.key(scope,'legacySetup');
   if(!initializing.has(key))initializing.set(key,(async()=>{
     const old=(await chrome.storage.local.get(key))[key];
     if(!old)await chrome.storage.local.set({[key]:{installationId:crypto.randomUUID(),decision:'pending',offset:0}});

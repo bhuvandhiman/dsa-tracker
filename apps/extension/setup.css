@@ -12,15 +12,27 @@ p { overflow-wrap:anywhere; }
 button { font:inherit; font-size:13px; font-weight:700; background:var(--ink); color:var(--canvas); border:1px solid transparent; padding:12px 18px; min-height:44px; border-radius:14px; cursor:pointer; margin:6px 6px 6px 0; }
 button:hover:not(:disabled) { background:var(--teal); color:#fffdec; }
 button:disabled { opacity:.6; cursor:default; }
-#skip,#refresh-recordings,#initialize-retention { background:var(--surface); color:var(--ink); border-color:var(--line); }
+#pause,#refresh-recordings { background:var(--surface); color:var(--ink); border-color:var(--line); }
 a { color:var(--success); text-underline-offset:3px; }
 #help { font-size:12px; color:var(--muted); }
-#status { font-weight:700; color:var(--accent); }
+#status { font-weight:700; color:var(--ink); }
+#status[data-state=error] { color:var(--accent); }
+#status[data-state=complete] { color:var(--success); }
+.import-steps { display:flex; flex-wrap:wrap; gap:12px; list-style:none; padding:0; color:var(--muted); font-size:12px; }
+.import-steps [data-active=true] { color:var(--ink); font-weight:700; text-decoration:underline; text-decoration-color:var(--mustard); text-underline-offset:6px; }
+#import-progress { width:100%; accent-color:var(--teal); height:20px; }
+.compact-account { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:16px; padding:16px 20px; }
+.compact-account h2 { font-size:14px; margin-bottom:4px; }
+.compact-account p { margin:0; }
+#recall-account.compact-account #recall-connect { width:auto; }
+.recordings-panel { border-top:1px solid var(--line); padding:20px 0; margin:28px 0; }
+summary { cursor:pointer; min-height:36px; }
+summary:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
 section { background:var(--surface); padding:22px; border:1px solid var(--line); border-radius:22px; margin:28px 0; }
 section h2 { margin-top:0; }
 section p { font-size:13px; color:var(--muted); }
 #recordings p { padding:14px 0; border-top:1px solid var(--line); }
 button:focus-visible,a:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
 [hidden] { display:none !important; }
-@media(max-width:480px) { header { margin-bottom:24px; } section { padding:18px; } #import,#skip { width:100%; margin-right:0; } }
+@media(max-width:480px) { header { margin-bottom:24px; } section { padding:18px; } #import,#pause { width:100%; margin-right:0; } }
 @media(prefers-reduced-motion:reduce) { * { transition:none !important; } }

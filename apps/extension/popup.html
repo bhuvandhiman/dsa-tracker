@@ -4,14 +4,12 @@
   <body>
     <header><span class="mark" aria-hidden="true">R</span><h1>recall<span class="brand-dot">.</span></h1><button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode"></button></header>
     <p class="eyebrow">LEETCODE CONNECTION</p>
-    <p id="worker" role="status">Checking extension…</p>
-    <p id="api" role="status">Checking local API and database…</p>
+    <details><summary>Connection details</summary><p id="worker" role="status">Checking extension…</p><p id="api" role="status">Checking Recall…</p></details>
     <p id="account" role="status">Checking LeetCode sign-in…</p>
 <section id="recall-account"><h2>Your Recall account</h2><p id="recall-account-status" role="status" aria-live="polite">Checking Recall connection…</p><button id="recall-connect" hidden>Connect through Recall</button><p class="note">Already signed in? Open Recall to connect. After restarting Chrome or reloading the extension, open the website again. Your drafts and import progress stay saved.</p></section>
     <section><h2>Current problem</h2><p id="problem" aria-live="polite">Checking this tab…</p></section>
     <button id="record" type="button" disabled>Open recording panel</button>
     <button id="refresh" class="secondary" type="button">Check again</button>
-    <button id="legacy-setup" class="secondary" type="button" hidden>Finish first-time setup</button>
     <button id="settings" class="secondary" type="button">Import & recordings</button>
     <a href="http://127.0.0.1:5173/#/dashboard" target="_blank" rel="noopener noreferrer">Open dashboard</a>
     <p id="launch-status" role="status"></p>

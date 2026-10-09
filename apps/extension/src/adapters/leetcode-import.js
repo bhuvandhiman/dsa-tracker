@@ -6,8 +6,9 @@ globalThis.DsaLegacy = {
     return data.userStatus.username;
   },
   async json(path, options = {}) {
-    const response = await fetch('https://leetcode.com'+path, {credentials:'include',redirect:'error',signal:AbortSignal.timeout(20000),...options});
-    if(!response.ok) throw new Error(response.status===429?'LeetCode is rate limiting requests. Wait a little, then resume.':'Could not read LeetCode. Check that you are signed in and the page loads normally.');
+    let response;
+    try{response=await fetch('https://leetcode.com'+path, {credentials:'include',redirect:'error',signal:AbortSignal.timeout(20000),...options});}catch{throw Object.assign(new Error('LeetCode did not respond. Your import checkpoint is kept.'),{code:'LEETCODE_NETWORK',retryable:true});}
+    if(!response.ok) throw Object.assign(new Error(response.status===429?'LeetCode is rate limiting requests. Wait a little, then resume.':'Could not read LeetCode. Check that you are signed in and the page loads normally.'),{code:'LEETCODE_HTTP',retryable:response.status===429||response.status>=500,retryAfter:Math.max(0,Number(response.headers?.get('Retry-After'))||0)*1000});
     try {return await response.json();} catch {throw new Error('LeetCode returned an unexpected page. Open LeetCode normally, then resume.');}
   },
   async graphql(query,variables={}) {

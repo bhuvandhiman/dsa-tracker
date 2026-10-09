@@ -66,7 +66,7 @@ test('legacy API bounds batch size, maps standard topics and rejects invented da
 test('first-run setup persists decisions across worker restarts and ignores foreign senders',async()=>{
   const stored={};const tabs=[];
   function load(){let onInstall,listener;const context=vm.createContext({crypto:{randomUUID:()=>installationId},chrome:{storage:{local:{async get(){return stored;},async set(value){Object.assign(stored,value);}}},tabs:{async create(value){tabs.push(value);}},runtime:{id:'recall',getURL:path=>'chrome-extension://recall/'+path,onInstalled:{addListener(fn){onInstall=fn;}},onMessage:{addListener(fn){listener=fn;}}}}});
-    context.recallAccount={assertScope:async()=>'local',key:(_scope,key)=>key};
+    context.recallAccount={localScope:async()=>'local',key:(_scope,key)=>key};
     context.recallRuntime={websiteOrigin:'https://recall.test'};
     context.openRecallWebsite=async(chromeApi,origin)=>chromeApi.tabs.create({url:origin+'/#/connect'});
     vm.runInContext(readFileSync(new URL('../apps/extension/src/legacy-setup.js',import.meta.url),'utf8').replace(/^import .*;\r?$/gm,''),context);
@@ -79,13 +79,11 @@ test('first-run setup persists decisions across worker restarts and ignores fore
   assert.equal((await restarted.send({type:'LEGACY_SETUP_STATE'})).decision,'complete');
   assert.ok((await restarted.send({type:'LEGACY_SETUP_STATE'},{id:'other',url:'https://evil.test'})).error);
 });
-test('popup offers setup only while pending, never after completing or skipping',async()=>{
-  for(const decision of ['pending','complete','skipped']) {
-    let click;const button={hidden:true,addEventListener(_event,fn){click=fn;}};
-    const context=vm.createContext({document:{querySelector:()=>button},chrome:{runtime:{sendMessage:async()=>({decision})},tabs:{}},window:{}});
-    vm.runInContext(readFileSync(new URL('../apps/extension/src/popup-legacy.js',import.meta.url),'utf8'),context);
-    await Promise.resolve();await Promise.resolve();assert.equal(button.hidden,decision!=='pending');assert.equal(typeof click,'function');
-  }
+test('popup import controls reuse an existing tab instead of opening duplicates',async()=>{
+  let clicked,closed=false;const opened=[];
+  const context=vm.createContext({document:{querySelector:()=>({addEventListener(_event,fn){clicked=fn;}})},chrome:{runtime:{getURL:path=>'chrome-extension://recall/'+path},tabs:{query:async()=>[{id:7,url:'chrome-extension://recall/setup.html#start-import-old'}],update:async(id)=>opened.push(id),create:()=>assert.fail('Do not duplicate the import tab')}},window:{close(){closed=true;}}});
+  vm.runInContext(readFileSync(new URL('../apps/extension/src/popup-legacy.js',import.meta.url),'utf8'),context);
+  await clicked();assert.deepEqual(opened,[7]);assert.equal(closed,true);
 });
 
 test('recent accepted submissions retain validated dates and never invent assistance',async()=>{
