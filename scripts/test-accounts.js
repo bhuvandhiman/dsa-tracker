@@ -10,8 +10,17 @@ const session={access_token:jwt,refresh_token:'fixture-refresh',token_type:'bear
 let setup={completed:false,extensionAcknowledged:false,goal:{configured:false}},failSetup=false,deleted=false,workspaceUnavailable=false;
 const backup={format:'recall-backup',version:1,exportedAt:new Date().toISOString(),tables:{}};
 const app=express();app.use(express.json());app.use((req,res,next)=>{if(req.headers.origin===web){res.set('Access-Control-Allow-Origin',web);res.set('Access-Control-Allow-Headers','authorization,apikey,content-type,x-client-info,x-supabase-api-version');res.set('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');}if(req.method==='OPTIONS')return res.sendStatus(204);next();});
-app.post('/auth/v1/signup',(_req,res)=>res.json({user,session:null}));
+app.use('/auth/v1',(_req,res,next)=>{res.set('X-Supabase-Api-Version','2024-01-01');res.set('Access-Control-Expose-Headers','X-Supabase-Api-Version');next();});
+app.post('/auth/v1/signup',(req,res)=>{
+  if(req.body.email==='duplicate-error@example.test')return res.status(422).json({code:'user_already_exists',msg:'User already registered'});
+  if(req.body.email==='rate-limit@example.test')return res.status(429).json({code:'over_email_send_rate_limit',msg:'Email rate limit exceeded'});
+  if(req.body.email==='offline@example.test')return res.status(503).json({code:'unexpected_failure',msg:'Fixture service unavailable'});
+  if(req.body.password==='weak-password')return res.status(422).json({code:'weak_password',msg:'Password should contain an uppercase letter and a number.'});
+  const existing=req.body.email==='existing@example.test';
+  res.json({user:{...user,email:req.body.email,email_confirmed_at:null,identities:existing?[]:[{id:user.id,user_id:user.id,provider:'email',identity_data:{email:req.body.email}}]},session:null});
+});
 app.post('/auth/v1/token',(req,res)=>{
+  if(req.query.grant_type==='password'&&req.body.email==='unconfirmed@example.test')return res.status(400).json({code:'email_not_confirmed',error:'email_not_confirmed',error_description:'Email not confirmed'});
   if(req.query.grant_type==='password'&&req.body.password!=='fixture-password')return res.status(400).json({error:'invalid_grant',error_description:'Invalid login credentials'});
   if(req.query.grant_type==='pkce')return setTimeout(()=>{
     if(req.body.auth_code==='fixture-expired-code')return res.status(400).json({error:'invalid_grant',error_description:'Confirmation link expired'});

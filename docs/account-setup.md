@@ -162,3 +162,11 @@ identical to the local extension. No real user account was deleted in testing.
 Real Render/Supabase configuration, SMTP, operational backups/monitoring, a
 support/privacy contact and complete live email/import checks remain launch work;
 see the deployment guide. Hosting is prepared, not already published.
+
+## Signup and login feedback (2026-10-09)
+
+Repeated signup handles both Supabase's obfuscated empty-identities response and explicit email_exists/user_already_exists errors. Existing accounts receive login and password-reset actions; the page does not claim another signup email was sent. New/unconfirmed identities retain confirmation, while responses without identity metadata use conditional guidance. An incomplete response cannot advance to confirmation or workspace loading.
+
+Login explains invalid credentials and offers confirmation resend for email_not_confirmed. Email/request quotas, network failures, unavailable delivery and provider password requirements remain visible on the form. Resend has a 60-second cooldown and actions share a synchronous pending guard. Editing credentials or returning to a different email clears obsolete errors. Form links preserve the email in memory only; passwords do not transfer between forms. Inline outcome headings receive keyboard focus.
+
+Provider behavior reference: https://github.com/supabase/auth/blob/master/internal/api/signup.go; errors and limits: https://supabase.com/docs/guides/auth/debugging/error-codes and https://supabase.com/docs/guides/auth/rate-limits. No account-existence lookup, privileged key, provider-setting change or database migration is introduced.

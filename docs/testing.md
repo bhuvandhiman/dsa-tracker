@@ -117,3 +117,9 @@ Browser QA uses the real website and import engine with simulated LeetCode/API r
 
 The extension download was rebuilt with all 35 source files, including the shared controller and labels. Run npm run test:website-import for the isolated website fixture; npm run test:extension-ui continues providing the optional extension fixture. No live practice records were changed.
 Final validation: npm run check passes lint, all 303 tests, and the production build. The packaged ZIP is byte-for-byte identical to all 35 included source files.
+
+## Login/signup feedback audit (2026-10-09)
+
+All 311 tests pass. Eight new regressions cover obfuscated and explicit duplicate signup, genuinely unconfirmed users, real sessions, missing/malformed results, credential/confirmation errors, email/request quotas, outages, password requirements, and StrictMode-safe email transfer. The final lint and production build pass after keyboard-focus corrections.
+
+Isolated browser QA confirms existing-account signup offers login/reset instead of claiming email delivery; form links carry the email and clear the password; invalid credentials clear on edit; unconfirmed login can resend and enters a visible cooldown; new signup reaches confirmation; weak-password, rate-limit and service-outage failures remain on the form; changing email clears feedback and returns focus to the email field. Valid login still reaches setup. The fixture now supplies the provider API-version header so SDK error codes match production. These checks use simulated accounts and do not create users, send email, or modify a live workspace. Live email delivery remains dependent on the configured Supabase sender. No extension update or database migration is required for this change.
