@@ -10,6 +10,8 @@
     "node": "^22.13.0 || >=24.0.0"
   },
   "scripts": {
+    "owner": "node --env-file-if-exists=apps/api/.env scripts/owner.js",
+    "test:owner": "node scripts/test-owner.js",
     "dev": "node scripts/dev.js",
     "dev:web": "npm run dev --workspace=@dsa/web",
     "dev:api": "npm run dev --workspace=@dsa/api",
@@ -25,7 +27,7 @@
     "check": "npm run lint && npm test && npm run build",
     "db:check": "npm run db:check --workspace=@dsa/api",
     "db:migrate": "npm run db:migrate --workspace=@dsa/api",
-    "test:db": "node --env-file-if-exists=apps/api/.env --test tests/database.integration.js tests/journal.integration.js tests/legacy.integration.js tests/retention.integration.js tests/strength.integration.js tests/accounts.integration.js tests/deletion.integration.js tests/robustness.integration.js tests/import-bulk.integration.js tests/history.integration.js"
+    "test:db": "node --env-file-if-exists=apps/api/.env --test tests/database.integration.js tests/journal.integration.js tests/legacy.integration.js tests/retention.integration.js tests/strength.integration.js tests/accounts.integration.js tests/deletion.integration.js tests/robustness.integration.js tests/import-bulk.integration.js tests/history.integration.js tests/owner.integration.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

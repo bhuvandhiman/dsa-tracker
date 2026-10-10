@@ -1,6 +1,14 @@
 import {practiceCache} from './practice-cache.js';
 let tokenProvider=null;
 let workspaceScope=null,accountRevision=0;
+const diagnosticAt=new Map();
+function reportFailure(path,code,session,revision){
+  const operation=path==='/retention'?'dashboard':path==='/capture'?'capture':/^\/imports\/(recent|legacy)$/.test(path)?'import':null;
+  if(!operation||!session?.token||!session.scope||session.scope==='local'||revision!==accountRevision)return;
+  const key=session.scope+operation;if((diagnosticAt.get(key)||0)>Date.now()-30000)return;
+  diagnosticAt.set(key,Date.now());if(diagnosticAt.size>100)diagnosticAt.delete(diagnosticAt.keys().next().value);
+  void fetch('/api/diagnostics',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.token}`,'X-Recall-Workspace':session.scope},body:JSON.stringify({operation,code,eventId:crypto.randomUUID()}),signal:AbortSignal.timeout(5000)}).catch(()=>{});
+}
 export function setTokenProvider(provider){tokenProvider=provider;accountRevision++;practiceCache.clear();}
 export function setWorkspaceScope(scope){if(scope!==workspaceScope){workspaceScope=scope;accountRevision++;practiceCache.clear();}}
 export function abortable(operation,signal){
@@ -17,9 +25,11 @@ export async function request(path, { signal, timeoutMs, workspaceScope:expected
   const combined=signal?AbortSignal.any([signal,timeout.signal]):timeout.signal;
   const revision=accountRevision;
   const changed=()=>Object.assign(new Error('Recall account changed. Refresh before continuing.'),{status:409});
+  let observedSession;
   try {
     combined.throwIfAborted();
     const session=path==='/auth/config'?null:await abortable(Promise.resolve().then(()=>tokenProvider?.()),combined);
+    observedSession=session;
     const token=typeof session==='string'?session:session?.token;
     if(path!=='/auth/config'&&(revision!==accountRevision||expected!==workspaceScope||session?.scope&&session.scope!==expected))throw changed();
     const headers=new Headers(options.headers);
@@ -34,14 +44,14 @@ export async function request(path, { signal, timeoutMs, workspaceScope:expected
       throw Object.assign(new Error(response.status >= 500 ? 'Recall is unavailable or waking up. Wait a moment and try again.' : 'Recall returned an unreadable response. Reload and try again.', {cause:error}),{status:response.status});
     }
     if(!body||typeof body!=='object'||Array.isArray(body))throw new Error('Recall returned an unreadable response. Reload and try again.');
-    if (!response.ok) throw Object.assign(new Error(typeof body.error==='string'?body.error:`Request failed (${response.status}).`),{status:response.status});
+    if (!response.ok) throw Object.assign(new Error(typeof body.error==='string'?body.error:`Request failed (${response.status}).`),{status:response.status,...(body.code==='OWNER_MFA_REQUIRED'?{code:body.code}:{})});
     if(path!=='/auth/config'&&revision!==accountRevision)throw changed();
-    if(options.method&&!['GET','HEAD'].includes(options.method.toUpperCase())&&path!=='/account/profile')practiceCache.invalidate();
+    if(options.method&&!['GET','HEAD'].includes(options.method.toUpperCase())&&path!=='/account/profile'&&!path.startsWith('/owner/')&&path!=='/diagnostics')practiceCache.invalidate();
     return body;
   } catch (error) {
     if(signal?.aborted)throw signal.reason;
-    if (timeout.signal.aborted && !signal?.aborted) throw Object.assign(new Error('The API took too long to respond. Please try again.', {cause:error}),{code:'REQUEST_TIMEOUT'});
-    if (error instanceof TypeError) throw Object.assign(new Error('Cannot reach Recall. Check your connection and try again.', {cause:error}),{code:'NETWORK_ERROR'});
+    if (timeout.signal.aborted && !signal?.aborted){reportFailure(path,'TIMEOUT',observedSession,revision);throw Object.assign(new Error('The API took too long to respond. Please try again.', {cause:error}),{code:'REQUEST_TIMEOUT'});}
+    if (error instanceof TypeError){reportFailure(path,'NETWORK',observedSession,revision);throw Object.assign(new Error('Cannot reach Recall. Check your connection and try again.', {cause:error}),{code:'NETWORK_ERROR'});}
     throw error;
   } finally { clearTimeout(timer); }
 }

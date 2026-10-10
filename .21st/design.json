@@ -71,6 +71,11 @@
   },
   "decisions": [
     {
+      "date": "2026-10-10",
+      "direction": "Private owner console using Recall's existing palette, compact summary cards, section navigation and native tables",
+      "reason": "Five operational views stay separate from practice navigation. Desktop uses a sidebar; mobile uses horizontal section links. Account summaries open in the main panel, emails stay masked by default, and loading, denial, MFA and retry states are explicit. Views refresh on opening or manual action, without polling. Existing controls reused; the 21st CLI is unavailable."
+    },
+    {
       "date": "2026-10-01",
       "direction": "Blank website frontend pending new inspiration",
       "reason": "User rejected the previous UI and requested a complete frontend reset before rebuilding from inspiration photos."

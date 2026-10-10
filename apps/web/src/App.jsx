@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import './styles.css';
 import LiveDashboard from './LiveDashboard.jsx';
 import Workflows from './Workflows.jsx';
@@ -15,6 +15,7 @@ import { accountDestination, rememberDestination, needsWorkspaceSetup } from './
 import AccountMenu from './AccountMenu.jsx';
 import Profile from './Profile.jsx';
 import History from './History.jsx';
+const OwnerDashboard=lazy(()=>import('./OwnerDashboard.jsx'));
 
 function Icon({ name, ...props }) {
   const paths = {
@@ -49,7 +50,7 @@ export default function App() {
   const callbackPending=auth.loading||Boolean(auth.user)&&!auth.error&&!route.error;
   const setupPage=route.page==='setup';
   const installationPage=route.page==='install-extension';
-  const privatePage=['dashboard','patterns','history','profile','settings','connect'].includes(route.page);
+  const privatePage=['dashboard','patterns','history','profile','settings','connect','owner'].includes(route.page);
   const publicPage = ['home','about','privacy'].includes(route.page);
   const accountShell=authPage||setupPage||callbackPage;
   const accountsEnabled=auth.config?.mode==='supabase';
@@ -70,6 +71,7 @@ export default function App() {
   useEffect(() => {
     const titles={home:'Recall — Know which DSA pattern to practice next',about:'About Recall',privacy:'Privacy · Recall',dashboard:'Dashboard · Recall',patterns:'Patterns · Recall',history:'History · Recall',profile:'Profile · Recall',connect:'Connect LeetCode · Recall',settings:'Settings · Recall',signup:'Create account · Recall',login:'Log in · Recall','forgot-password':'Reset password · Recall','reset-password':'New password · Recall',setup:'Your setup · Recall','install-extension':'Install the extension · Recall'};
     document.title=callbackPage?'Confirming email · Recall':titles[route.page] || 'Recall';
+    if(route.page==='owner')document.title='Owner dashboard · Recall';
     const frame=requestAnimationFrame(()=>{
       const section=route.page==='home'&&['how-it-works','questions'].includes(route.section)?document.getElementById(route.section):null;
       const target=section || document.getElementById('main');
@@ -104,11 +106,11 @@ export default function App() {
         </>}
       </nav>
       <div className="topbar-actions">
-        {privatePage&&<span className="workspace-label"><span className="status-dot" />Your learning space</span>}
+        {privatePage&&<span className="workspace-label"><span className="status-dot" />{route.page==='owner'?'Owner workspace':'Your learning space'}</span>}
         <button className="theme-toggle" type="button" aria-label={themeAction} title={themeAction} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button>
         {(publicPage||installationPage)&&<>{!auth.user&&<a className="account-header-link" href="#/login">Log in</a>}<a className="primary-button public-nav-cta" href={auth.user?'#/dashboard':'#/signup'}>{auth.user?'Open dashboard':'Get started'} <Icon name="arrow" /></a></>}
         {authPage&&<a className="account-header-link" href={route.page==='signup'?'#/login':'#/signup'}>{route.page==='signup'?'Log in':'Create account'}</a>}
-        {(privatePage||setupPage)&&(auth.user||auth.config?.mode==='local')&&<AccountMenu key={auth.user?.id||'local'} user={auth.user} page={route.page} onSignOut={async()=>{try{await auth.signOut();setAccountError('');}catch(error){setAccountError(error.message);}}} />}
+        {(privatePage||setupPage)&&(auth.user||auth.config?.mode==='local')&&<AccountMenu key={auth.user?.id||'local'} user={auth.user} owner={auth.owner?.enabled===true} page={route.page} onSignOut={async()=>{try{await auth.signOut();setAccountError('');}catch(error){setAccountError(error.message);}}} />}
       </div>
     </header>
 
@@ -130,6 +132,7 @@ export default function App() {
       {canReadWorkspace&&['dashboard','patterns'].includes(route.page) && <LiveDashboard key={auth.user?.id||'local'} route={route} />}
       {canReadWorkspace&&['dashboard','patterns','history'].includes(route.page)&&<History key={`history-${auth.user?.id||'local'}`} visible={route.page==='history'} />}
       {canReadWorkspace&&route.page==='profile'&&<Profile key={auth.user?.id||'local'} auth={auth} />}
+      {canReadWorkspace&&route.page==='owner'&&<Suspense fallback={<p className="account-loading" role="status">Opening owner dashboard…</p>}><OwnerDashboard key={auth.user?.id||'local'} auth={auth} section={route.section} /></Suspense>}
       {canReadWorkspace&&route.page === 'settings' && <Workflows key={auth.user?.id||'local'} auth={auth} />}
       </WorkspaceContext.Provider>
       <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><nav className="footer-links" aria-label="Footer"><a href="/">Home</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/install-extension">Extension</a><a href="#/home?section=questions">FAQ</a></nav><span className="footer-flower" aria-hidden="true">✳</span></footer>

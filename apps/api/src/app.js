@@ -8,8 +8,11 @@ import { deletionInput } from './account-lifecycle.js';
 import { databaseFailure, reportDatabaseFailure } from './database-diagnostics.js';
 import {createProfileUpdater,profileInput,profileSetup} from './account-profile.js';
 import { BACKUP_MAX_BYTES, BACKUP_SIZE_ERROR } from '../../shared/backup-limits.js';
+import {ownerRoutes} from './owner-routes.js';
+import {diagnosticInput} from './owner-policy.js';
+import {metricsMiddleware,timedStage} from './request-metrics.js';
 
-export function createApp({ repository = null, auth = {mode:'local',configured:false}, repositoryForUser = null, authenticate = createAuthenticator(auth), extensionAuth = createExtensionAuth(auth), updateProfile=createProfileUpdater(auth), accountLifecycle=null, installation = {},deployment={mode:'local',origin:null},webRoot=null, reportDatabaseError=reportDatabaseFailure } = {}) {
+export function createApp({ repository = null, auth = {mode:'local',configured:false}, repositoryForUser = null, authenticate = createAuthenticator(auth), extensionAuth = createExtensionAuth(auth), updateProfile=createProfileUpdater(auth), accountLifecycle=null, ownerStore=null,operations=null, installation = {},deployment={mode:'local',origin:null},webRoot=null, reportDatabaseError=reportDatabaseFailure } = {}) {
   if(deployment.mode==='hosted'&&(auth.mode!=='supabase'||!auth.configured))throw new Error('Hosted Recall requires configured Supabase authentication.');
   const app = express();
   app.disable('x-powered-by');
@@ -27,6 +30,7 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
     }
     next();
   });
+  if(operations)app.use(metricsMiddleware(operations));
   app.use('/api/workspace/restore',express.json({limit:BACKUP_MAX_BYTES}));
   app.use(express.json({ limit: '16kb' }));
 
@@ -40,30 +44,55 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
   });
   for(const kind of ['login','refresh','connect'])app.post(`/api/auth/extension/${kind}`,async(request,response)=>{
     response.set('Cache-Control','no-store');
-    response.json(await extensionAuth(kind,request.body));
+    const result=await timedStage('auth',()=>extensionAuth(kind,request.body));
+    if(kind==='connect')operations?.connected(result.user,request.body.version);
+    response.json(result);
   });
+
+  app.use('/api/owner',ownerRoutes({store:ownerStore,operations,authenticate,auth}));
+  const diagnosticLimits=new Map();
 
   // Match known data resources only, so unrelated URLs retain a JSON 404 even without a database.
   const routes = dataRoutes(repository);
   app.use('/api', async (request, response, next) => {
-    if (!/^\/(account|session|setup|patterns|problems|attempts|imports|pattern-problems|practice-context|capture|retention|goal|workspace|ready|history)(\/|$)/.test(request.path)) return next();
+    if (!/^\/(account|session|setup|patterns|problems|attempts|imports|pattern-problems|practice-context|capture|retention|goal|workspace|ready|history|diagnostics)(\/|$)/.test(request.path)) return next();
     if(auth.mode==='supabase'){
       response.set('Cache-Control','no-store');
-      const user=await authenticate(request);
+      const user=await timedStage('auth',()=>authenticate(request));
       if(request.get('X-Recall-Workspace')&&request.get('X-Recall-Workspace')!==user.id)throw new DomainError(409,'Recall account changed. Sign in again in extension Settings.');
+      if(request.path==='/diagnostics'&&request.method==='POST'){
+        const report=diagnosticInput(request.body);
+        if(!ownerStore)return response.json({reported:false});
+        if((diagnosticLimits.get(user.id)||0)>Date.now()-30000)throw new DomainError(429,'Wait before sending another diagnostic report.');
+        diagnosticLimits.delete(user.id);diagnosticLimits.set(user.id,Date.now());if(diagnosticLimits.size>1000)diagnosticLimits.delete(diagnosticLimits.keys().next().value);
+        if(await ownerStore.isErased(user.id))throw new DomainError(403,'This Recall account is being deleted.');
+        await ownerStore.diagnostic({...report,userId:user.id,source:'client',outcome:'failure'});return response.json({reported:true});
+      }
       if(!repositoryForUser)throw new DomainError(503,'Private workspace storage is not configured.');
+      if(operations){
+        const path=request.path,original=response.json.bind(response);let outcome;
+        response.json=value=>{outcome={created:value?.created,added:value?.added};return original(value);};
+        response.once('finish',()=>{
+          const success=response.statusCode<400;
+          const summary=success&&(['/session'].includes(path)||!['GET','HEAD'].includes(request.method)&&!path.startsWith('/account'));
+          if(success&&(summary||['/retention','/history'].includes(path)))operations.observe(user,{summary,active:path!=='/session'});
+          operations.outcome(user,path,response.statusCode,outcome,response.get('X-Recall-Request-ID'));
+        });
+      }
       const privateRepository=await repositoryForUser(user);
-      if(request.path==='/account/profile'&&request.method==='PUT')return response.json({user:await updateProfile(request,user,profileInput(request.body))});
+      if(request.path==='/account/profile'&&request.method==='PUT'){
+        const updated=await timedStage('auth',()=>updateProfile(request,user,profileInput(request.body)));operations?.observe(updated);return response.json({user:updated});
+      }
       if(request.path==='/account'&&request.method==='GET')return response.json({user,deletionAvailable:Boolean(accountLifecycle?.enabled)});
       if(request.path==='/account/export'&&request.method==='GET')return response.json({format:'recall-account-export',version:1,exportedAt:new Date().toISOString(),account:user,...await privateRepository.exportAccount()});
       if(request.path==='/account'&&request.method==='DELETE'){
         const password=deletionInput(request.body);
         if(!accountLifecycle?.enabled)throw new DomainError(503,'Account deletion is not configured yet.');
-        const verified=await extensionAuth('login',{email:user.email,password});
+        const verified=await timedStage('auth',()=>extensionAuth('login',{email:user.email,password}));
         if(verified.user.id!==user.id)throw new DomainError(403,'Confirm the password for your signed-in Recall account.');
         const result=await accountLifecycle.remove(user);return response.status(result.pending?202:200).json(result);
       }
-      if(request.path==='/session'&&request.method==='GET')return response.json({user,setup:profileSetup(await privateRepository.setup(),user)});
+      if(request.path==='/session'&&request.method==='GET')return response.json({user,setup:profileSetup(await privateRepository.setup(),user),owner:ownerStore?await ownerStore.access(user.id):{enabled:false,permissions:[]}});
       if(request.path==='/setup'){
         if(request.method==='GET')return response.json(profileSetup(await privateRepository.setup(),user));
         if(request.method==='PUT'){
@@ -85,12 +114,12 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
 
   if(webRoot){
     app.use((request,response,next)=>request.path.startsWith('/api')?next():express.static(webRoot,{index:false,dotfiles:'deny',setHeaders(response,path){response.set('Cache-Control',/[/\\]assets[/\\]/.test(path)?'public,max-age=31536000,immutable':'no-store');}})(request,response,next));
-    for(const path of ['/','/home','/about','/privacy','/signup','/login','/forgot-password','/reset-password','/install-extension','/connect','/profile','/history','/dashboard','/patterns','/patterns/:slug','/settings','/setup'])app.get(path,(_request,response)=>{response.set('Cache-Control','no-store');response.sendFile('index.html',{root:webRoot});});
+    for(const path of ['/','/home','/about','/privacy','/signup','/login','/forgot-password','/reset-password','/install-extension','/connect','/profile','/history','/dashboard','/patterns','/patterns/:slug','/settings','/setup','/owner','/owner/:section'])app.get(path,(_request,response)=>{response.set('Cache-Control','no-store');response.sendFile('index.html',{root:webRoot});});
   }
   app.use((_request, response) => response.status(404).json({ error: 'Route not found.' }));
   // Express requires all four parameters to recognize error middleware.
   app.use((error, _request, response, _next) => {
-    if (error instanceof DomainError) return response.status(error.status).json({ error: error.message });
+    if (error instanceof DomainError) return response.status(error.status).json({ error: error.message,...(error.publicCode==='OWNER_MFA_REQUIRED'?{code:error.publicCode}:{}) });
     const failure=databaseFailure(error);
     if (failure) {
       reportDatabaseError(error,'request');

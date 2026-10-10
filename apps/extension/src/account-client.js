@@ -9,6 +9,14 @@ export function workspaceKey(scope,key){
 }
 export function createAccountClient(chromeApi,fetchImpl=fetch,now=Date.now){
   let config,configAt=0,configLoading=null,refreshing=null,revision=0,pendingWebsite=null,writes=Promise.resolve();
+  const diagnosticAt=new Map();
+  async function reportDiagnostic(operation,code,owner){
+    if(owner==='local')return;
+    const saved=await session();if(!valid(saved,config?.url)||saved.user.id!==owner||saved.expiresAt<=now())return;
+    const key=owner+operation;if((diagnosticAt.get(key)||0)>now()-30000)return;
+    diagnosticAt.set(key,now());if(diagnosticAt.size>100)diagnosticAt.delete(diagnosticAt.keys().next().value);
+    try{const version=chromeApi.runtime?.getManifest?.().version;await request('/diagnostics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation,code,eventId:crypto.randomUUID(),...(version?{version}:{})}),signal:AbortSignal.timeout(5000)},owner);}catch{/* Diagnostics never alter capture or import recovery. */}
+  }
   function store(work){const next=writes.then(work);writes=next.catch(()=>{});return next;}
   async function raw(path,options={}){
     const signal=options.signal?AbortSignal.any([options.signal,AbortSignal.timeout(25000)]):AbortSignal.timeout(25000);
@@ -56,7 +64,8 @@ export function createAccountClient(chromeApi,fetchImpl=fetch,now=Date.now){
       const options=await settings();if(options.mode!=='supabase')return status();
       const previous=await session();
       if(valid(previous,options.url)&&previous.source==='website'&&previous.accessToken===accessToken&&previous.user.id===owner)return status();
-      const next=await json('/auth/extension/connect',{accessToken});
+      const version=chromeApi.runtime?.getManifest?.().version;
+      const next=await json('/auth/extension/connect',{accessToken,...(version?{version}:{})});
       if(!valid(next,options.url)||next.source!=='website'||next.refreshToken!==undefined||next.user.id!==owner||next.expiresAt<=now()+5000)throw new Error('Open Recall and sign in to reconnect.');
       await store(async()=>{
         if(current!==revision)throw new Error('Website connection changed. Reopen Recall to reconnect.');
@@ -92,10 +101,11 @@ export function createAccountClient(chromeApi,fetchImpl=fetch,now=Date.now){
     const owner=await assertScope(expected);if(saved.user.id!==owner)throw new Error('Recall account changed. Refresh this page.');return saved.accessToken;
   }
   async function request(path,options={},expected){
+    const reportOperation=path==='/capture'?'capture':/^\/imports\/(recent|legacy)$/.test(path)?'import':null;
     const signal=options.signal?AbortSignal.any([options.signal,AbortSignal.timeout(25000)]):AbortSignal.timeout(25000);signal.throwIfAborted();
     const operation=(async()=>{const owner=await assertScope(expected),access=await token(owner);signal.throwIfAborted();return raw(path,{...options,signal,headers:{...options.headers,'X-Recall-Workspace':owner,...(access?{Authorization:`Bearer ${access}`}:{})}});})();
     try{return await new Promise((resolve,reject)=>{const abort=()=>reject(signal.reason);signal.addEventListener('abort',abort,{once:true});operation.then(resolve,reject).finally(()=>signal.removeEventListener('abort',abort));});}
-    catch(error){if(signal.aborted&&(!options.signal?.aborted||options.signal.reason?.name==='TimeoutError'))throw requestError('Recall took too long to respond. Your checkpoint is kept; retry to resume.',{code:'TIMEOUT',retryable:true});throw error;}
+    catch(error){if(signal.aborted&&(!options.signal?.aborted||options.signal.reason?.name==='TimeoutError')){if(reportOperation)void reportDiagnostic(reportOperation,'TIMEOUT',expected);throw requestError('Recall took too long to respond. Your checkpoint is kept; retry to resume.',{code:'TIMEOUT',retryable:true});}if(reportOperation&&error.code==='NETWORK')void reportDiagnostic(reportOperation,'NETWORK',expected);throw error;}
   }
-  return {status,scope,assertScope,localScope,signIn,signOut,connectWebsite,disconnectWebsite,request,key:workspaceKey};
+  return {status,scope,assertScope,localScope,signIn,signOut,connectWebsite,disconnectWebsite,request,reportDiagnostic,key:workspaceKey};
 }

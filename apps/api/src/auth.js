@@ -1,5 +1,6 @@
 import { DomainError } from './domain.js';
 import {normalizeProfileName,hasProfileName} from '../../shared/profile.js';
+import {rememberVerifiedSession} from './owner-policy.js';
 
 export function authSettings(env=process.env){
   const mode=env.AUTH_MODE || (env.SUPABASE_URL || env.SUPABASE_PUBLISHABLE_KEY?'supabase':'local');
@@ -22,7 +23,9 @@ export function createAuthenticator(settings,fetchImpl=fetch){
     try{response=await fetchImpl(`${settings.url}/auth/v1/user`,{headers:{Authorization:authorization,apikey:settings.key},signal:AbortSignal.timeout(8000),redirect:'error'});}catch{throw new DomainError(503,'Sign-in verification is unavailable. Please retry.');}
     if(!response.ok)throw new DomainError(response.status===429?429:response.status>=500?503:401,response.status===429?'Sign-in verification is busy. Wait briefly, then retry.':response.status>=500?'Sign-in verification is unavailable. Please retry.':'Your session expired. Please sign in again.');
     let user;try{user=await response.json();}catch{throw new DomainError(503,'Sign-in verification is unavailable. Please retry.');}
-    return verifiedUser(user);
+    const verified=verifiedUser(user);
+    rememberVerifiedSession(request,user,settings,authorization);
+    return verified;
   };
 }
 

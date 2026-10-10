@@ -27,7 +27,7 @@ export function createAccountAdmin(auth,key,fetchImpl=fetch){
 
 // A durable tombstone blocks late requests from recreating a deleted workspace.
 // Auth and PostgreSQL cannot share a transaction; queued work resumes after failure.
-export function createAccountLifecycle(pool,{prefix='recall_user_',removeIdentity=null}={}){
+export function createAccountLifecycle(pool,{prefix='recall_user_',removeIdentity=null,onDelete=async()=>{}}={}){
   workspaceSchema('00000000-0000-4000-8000-000000000001',prefix);
   const control=prefix+'control',table=`"${control}".deletions`;
   let initialized;const unusable=new WeakSet();
@@ -55,6 +55,7 @@ export function createAccountLifecycle(pool,{prefix='recall_user_',removeIdentit
     if((await raw.query(`SELECT 1 FROM ${table} WHERE replace(user_id::text,'-','')=$1`,[id])).rowCount)throw new DomainError(403,'This Recall account is being deleted.');
   }
   async function finish(raw,id){
+    await onDelete(id);
     await removeIdentity(id);
     const schema=workspaceSchema(id,prefix);
     await raw.query('BEGIN');

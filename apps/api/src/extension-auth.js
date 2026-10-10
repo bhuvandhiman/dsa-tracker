@@ -7,7 +7,7 @@ export function createExtensionAuth(settings,fetchImpl=fetch){
   return async (kind,body)=>{
     if(settings.mode!=='supabase'||!settings.configured)throw new DomainError(400,'Recall is using its local workspace.');
     if(kind==='connect'){
-      if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(key=>key!=='accessToken')||typeof body.accessToken!=='string'||!body.accessToken||body.accessToken.length>8192)throw new DomainError(400,'Invalid website connection.');
+      if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(key=>!['accessToken','version'].includes(key))||typeof body.accessToken!=='string'||!body.accessToken||body.accessToken.length>8192||body.version!==undefined&&!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(body.version))throw new DomainError(400,'Invalid website connection.');
       // Supabase verifies the bearer before we read its expiry. Never transfer
       // the website refresh token: the website remains its only refresh owner.
       const user=await verify({get:()=>`Bearer ${body.accessToken}`});

@@ -43,6 +43,7 @@ export function createImportController({account,chromeApi,locks=navigator.locks,
           await report('complete');
         });
       }catch(error){
+        if(job.ownsLock&&error.code!=='PAUSED')void Promise.resolve().then(()=>account.reportDiagnostic?.('import',error.code==='TIMEOUT'?'TIMEOUT':error.code==='NETWORK'?'NETWORK':error.status===429?'RATE_LIMIT':job.phase==='connecting'?'LEETCODE_SIGNED_OUT':'UNKNOWN',scope)).catch(()=>{});
         if(!job.acknowledged)reject(error);
         if(job.ownsLock)await report(error.code==='PAUSED'?'paused':'error',error.code==='PAUSED'?'':error.message).catch(()=>{});
       }finally{

@@ -2,6 +2,7 @@ export function readRoute(hash) {
   const [path, query = ''] = hash.replace(/^#/, '').split('?');
   const parts = path.split('/').filter(Boolean);
   const account=new URLSearchParams(query).get('account');
+  if(parts[0]==='owner')return {page:'owner',section:parts[1]||'overview'};
   if(parts.length===1&&['signup','login','forgot-password','reset-password','setup','install-extension','privacy','connect','profile','history'].includes(parts[0]))return {page:parts[0],...(parts[0]==='login'&&['deleted','deletion-pending'].includes(account)?{account}:{})};
   if (!parts.length || (parts.length === 1 && ['home','about'].includes(parts[0]))) {
     return {page:parts[0] || 'home',section:new URLSearchParams(query).get('section') || ''};
