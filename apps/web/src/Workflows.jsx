@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useWorkspaceRequest } from './workspace-context.js';
 import { backupSummary } from './workflow-model.js';
 import AccountControls from './AccountControls.jsx';
+import { BACKUP_MAX_BYTES, BACKUP_SIZE_ERROR, backupFileText } from '../../shared/backup-limits.js';
 
 function useResource(path) {
   const request=useWorkspaceRequest();
@@ -60,19 +61,19 @@ function Settings() {
   function clearBackup() {setBackup(null);setSummary(null);if(fileInput.current)fileInput.current.value='';}
   async function download() {
     setBusy(true);setMessage('');
-    try {const data=await request('/workspace/backup');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`recall-backup-${new Date().toISOString().slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setMessage('Backup downloaded.');}
+    try {const data=await request('/workspace/backup',{timeoutMs:60000});backupSummary(data);const url=URL.createObjectURL(new Blob([backupFileText(data)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`recall-backup-${new Date().toISOString().slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setMessage('Backup downloaded.');}
     catch(error) {setMessage(error.message);}
     finally {setBusy(false);}
   }
   async function selectFile(event) {
     setBackup(null);setSummary(null);setMessage('');
     const file=event.target.files?.[0];if(!file)return;
-    try {if(file.size>10*1024*1024)throw new Error('Choose a backup smaller than 10 MB.');const value=JSON.parse(await file.text());const preview=backupSummary(value);setBackup(value);setSummary(preview);}
+    try {if(file.size>BACKUP_MAX_BYTES)throw new Error(BACKUP_SIZE_ERROR);const value=JSON.parse(await file.text());const preview=backupSummary(value);setBackup(value);setSummary(preview);}
     catch(error) {if(fileInput.current)fileInput.current.value='';setMessage(error instanceof SyntaxError ? 'This file is not valid JSON.' : error.message);}
   }
   async function restore() {
     setBusy(true);setMessage('');
-    try {const result=await request('/workspace/restore',{method:'POST',body:JSON.stringify(backup)});setMessage(`Backup restored: ${result.records} records processed.`);clearBackup();ready.reload();removed.reload();}
+    try {const result=await request('/workspace/restore',{method:'POST',body:JSON.stringify(backup),timeoutMs:60000});setMessage(`Backup restored: ${result.records} records processed.`);clearBackup();ready.reload();removed.reload();}
     catch(error) {setMessage(error.message);}
     finally {setBusy(false);}
   }

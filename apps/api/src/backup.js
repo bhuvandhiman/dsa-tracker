@@ -1,5 +1,6 @@
 import { DomainError } from './domain.js';
 import { placementForUnit } from './pattern-catalog.js';
+import { backupLimitError } from '../../shared/backup-limits.js';
 
 // Dependency order, fixed identifiers: backup input never becomes SQL identifiers.
 const tables = [
@@ -20,17 +21,16 @@ export async function exportBackup(client) {
 
 export async function restoreBackup(client, backup) {
   if (!backup || backup.format !== 'recall-backup' || backup.version !== 1 || !backup.tables || !Array.isArray(backup.migrations)) throw new DomainError(400, 'Choose a Recall version 1 backup.');
+  const limitError = backupLimitError(backup);
+  if (limitError) throw new DomainError(413, limitError);
   const migrations = (await client.query('SELECT name,checksum FROM schema_migrations ORDER BY name')).rows;
   if (JSON.stringify(migrations) !== JSON.stringify(backup.migrations)) throw new DomainError(409, 'Backup schema differs. Use the same Recall version to restore.');
   if (Object.keys(backup.tables).length !== tables.length || tables.some(([table]) => !Array.isArray(backup.tables[table]))) throw new DomainError(400, 'Backup is incomplete.');
   // Reject duplicate identities before ON CONFLICT can silently discard one
   // version of a record. Validate JSON columns not constrained by PostgreSQL.
-  let total = 0;
   const topics = value => Array.isArray(value) && value.length <= 30 && value.every(topic => typeof topic === 'string' && topic.trim() && topic.length <= 100);
   for (const [table, keys] of tables) {
     const identities = new Set();
-    total += backup.tables[table].length;
-    if (total > 200000) throw new DomainError(413, 'Backup exceeds 200,000 rows.');
     for (const row of backup.tables[table]) {
       if (!row || typeof row !== 'object' || Array.isArray(row) || keys.some(key => row[key] == null || !['string','number','boolean'].includes(typeof row[key]))) throw new DomainError(400, `Invalid ${table} records.`);
       if (keys.some(key => (key === 'problem_id' || table === 'problems' && key === 'id') && (!Number.isInteger(row[key]) || row[key] < 1)) || keys.includes('singleton') && row.singleton !== true) throw new DomainError(400, `Invalid ${table} record identity.`);
@@ -53,7 +53,6 @@ export async function restoreBackup(client, backup) {
   for (const [table, keys] of tables) {
     const rows = backup.tables[table];
     count += rows.length;
-    if (count > 200000) throw new DomainError(413, 'Backup exceeds 200,000 rows.');
     const columns = (await client.query('SELECT column_name FROM information_schema.columns WHERE table_schema=current_schema() AND table_name=$1 ORDER BY ordinal_position', [table])).rows.map(row => row.column_name);
     if (rows.some(row => !row || typeof row !== 'object' || Array.isArray(row) || columns.some(column => !Object.hasOwn(row,column)) || Object.keys(row).some(column => !columns.includes(column)))) throw new DomainError(400, `Invalid ${table} records.`);
     for (let offset = 0; offset < rows.length; offset += 500) {

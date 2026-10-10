@@ -5,6 +5,9 @@ import pg from 'pg';
 import {migrate} from '../apps/api/src/migrations.js';
 import {createRepository} from '../apps/api/src/repository.js';
 import {captureInput,legacyInput} from '../apps/api/src/domain.js';
+import {exportBackup} from '../apps/api/src/backup.js';
+import {BACKUP_MAX_BYTES,backupFileText} from '../apps/shared/backup-limits.js';
+import {backupSummary} from '../apps/web/src/workflow-model.js';
 
 async function database(t){
   const connectionString=process.env.TEST_DATABASE_URL||process.env.DATABASE_URL;
@@ -67,6 +70,29 @@ test('backup restores into an empty setup goal, ignores derived queue difference
   const empty=await database(t),fresh=createRepository(empty);await fresh.setGoal({profile:'deep',target:300});
   const invalid=structuredClone(backup);invalid.tables.attempts[0].assistance='invalid';await assert.rejects(fresh.restoreBackup(invalid),{status:400});
   assert.equal((await fresh.goal()).target,300);assert.equal((await fresh.library({limit:10,offset:0})).total,0);
+});
+
+test('a downloaded backup over 10 MB restores its recordings and rejects oversized snapshots without changes',async t=>{
+  const source=await database(t),repo=createRepository(source),target=await database(t),recovered=createRepository(target);
+  await repo.setGoal({profile:'interview',target:500});await repo.capture(captureInput(raw()));
+  const problemId=(await source.query('SELECT id FROM problems')).rows[0].id;
+  const addRecordings=count=>source.query(`INSERT INTO attempts(id,problem_id,assistance,notes,attempted_at,request_hash)
+    SELECT gen_random_uuid(),$1,'independent',$2,'2025-01-01T00:00:00Z',repeat('a',64) FROM generate_series(1,$3)`,[problemId,'n'.repeat(5000),count]);
+  await addRecordings(2200);
+  const downloaded=backupFileText(await repo.backup());
+  assert.ok(Buffer.byteLength(downloaded)>10*1024*1024);assert.ok(Buffer.byteLength(downloaded)<BACKUP_MAX_BYTES);
+  const backup=JSON.parse(downloaded);assert.equal(backupSummary(backup).attempts,2201);
+  await recovered.setGoal({profile:'deep',target:300});await recovered.restoreBackup(backup);
+  assert.equal((await target.query('SELECT count(*)::int AS count FROM attempts')).rows[0].count,2201);
+  assert.equal((await target.query('SELECT length(notes) AS length FROM attempts WHERE notes<>\'\' LIMIT 1')).rows[0].length,5000);
+  assert.equal((await recovered.goal()).target,500);
+  await addRecordings(2200);
+  await assert.rejects(repo.backup(),{status:413});
+  // The read-only account archive remains available outside restore budgets.
+  const oversized=await exportBackup(source);
+  await assert.rejects(recovered.restoreBackup(oversized),{status:413});
+  assert.equal((await target.query('SELECT count(*)::int AS count FROM attempts')).rows[0].count,2201);
+  assert.equal((await recovered.goal()).target,500);
 });
 
 test('a large workspace keeps distinct counts, capped goals and finite strength across repeated practice',async t=>{

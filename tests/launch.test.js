@@ -59,8 +59,9 @@ test('hosted app serves clean public routes and rejects foreign hosts, origins a
   const headers={Host:'recall-fixture.onrender.com',Origin:'https://recall-fixture.onrender.com'};
   // Node fetch replaces Host. Use HTTP to exercise production host validation.
   const get=(route,values=headers)=>new Promise((resolve,reject)=>{http.get(origin+route,{headers:values},response=>{let body='';response.setEncoding('utf8');response.on('data',chunk=>body+=chunk);response.on('end',()=>resolve({status:response.statusCode,headers:response.headers,body}));}).on('error',reject);});
-  for(const route of ['/','/about','/privacy','/install-extension','/profile','/history']){const response=await get(route);assert.equal(response.status,200);assert.ok(response.body.includes('Recall fixture'));assert.ok(response.headers['content-security-policy'].includes("frame-ancestors 'none'"));}
+  for(const route of ['/','/home','/about','/privacy','/signup','/login','/forgot-password','/reset-password','/install-extension','/connect','/profile','/history','/dashboard','/patterns','/patterns/arrays-hashing','/settings','/setup']){const response=await get(route);assert.equal(response.status,200,route);assert.ok(response.body.includes('Recall fixture'));assert.equal(response.headers['cache-control'],'no-store');assert.ok(response.headers['content-security-policy'].includes("frame-ancestors 'none'"));}
   assert.equal((await get('/api/ready')).status,401);assert.equal((await get('/api/unknown')).status,404);
+  for(const route of ['/unknown','/assets/missing.js','/.env','/patterns/graphs/missing']){const response=await get(route);assert.equal(response.status,404,route);assert.deepEqual(JSON.parse(response.body),{error:'Route not found.'});}
   assert.equal((await get('/privacy',{...headers,Origin:'https://evil.test'})).status,403);
   assert.equal((await get('/privacy',{...headers,Host:'evil.test'})).status,403);
   assert.equal((await fetch(origin+'/api/health')).status,200);
@@ -68,6 +69,8 @@ test('hosted app serves clean public routes and rejects foreign hosts, origins a
 test('clean public URLs and existing workspace hashes select the correct route',()=>{
   assert.equal(readLocation({hash:'',pathname:'/privacy',search:''}).page,'privacy');
   assert.equal(readLocation({hash:'',pathname:'/about',search:''}).page,'about');
+  for(const page of ['dashboard','patterns','settings','setup'])assert.equal(readLocation({hash:'',pathname:'/'+page,search:''}).page,page);
+  assert.equal(readLocation({hash:'',pathname:'/patterns/arrays-hashing',search:''}).slug,'arrays-hashing');
   assert.equal(readLocation({hash:'#/patterns/graphs',pathname:'/about',search:''}).slug,'graphs');
   assert.equal(readLocation({hash:'#/login?account=deleted',pathname:'/',search:''}).account,'deleted');
 });

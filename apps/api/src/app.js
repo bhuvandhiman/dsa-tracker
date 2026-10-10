@@ -7,6 +7,7 @@ import { createExtensionAuth } from './extension-auth.js';
 import { deletionInput } from './account-lifecycle.js';
 import { databaseFailure, reportDatabaseFailure } from './database-diagnostics.js';
 import {createProfileUpdater,profileInput,profileSetup} from './account-profile.js';
+import { BACKUP_MAX_BYTES, BACKUP_SIZE_ERROR } from '../../shared/backup-limits.js';
 
 export function createApp({ repository = null, auth = {mode:'local',configured:false}, repositoryForUser = null, authenticate = createAuthenticator(auth), extensionAuth = createExtensionAuth(auth), updateProfile=createProfileUpdater(auth), accountLifecycle=null, installation = {},deployment={mode:'local',origin:null},webRoot=null, reportDatabaseError=reportDatabaseFailure } = {}) {
   if(deployment.mode==='hosted'&&(auth.mode!=='supabase'||!auth.configured))throw new Error('Hosted Recall requires configured Supabase authentication.');
@@ -26,7 +27,7 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
     }
     next();
   });
-  app.use('/api/workspace/restore',express.json({limit:'20mb'}));
+  app.use('/api/workspace/restore',express.json({limit:BACKUP_MAX_BYTES}));
   app.use(express.json({ limit: '16kb' }));
 
   // Liveness only: this does not claim that PostgreSQL is connected.
@@ -84,7 +85,7 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
 
   if(webRoot){
     app.use((request,response,next)=>request.path.startsWith('/api')?next():express.static(webRoot,{index:false,dotfiles:'deny',setHeaders(response,path){response.set('Cache-Control',/[/\\]assets[/\\]/.test(path)?'public,max-age=31536000,immutable':'no-store');}})(request,response,next));
-    for(const path of ['/','/home','/about','/privacy','/signup','/login','/forgot-password','/reset-password','/install-extension','/connect','/profile','/history'])app.get(path,(_request,response)=>{response.set('Cache-Control','no-store');response.sendFile('index.html',{root:webRoot});});
+    for(const path of ['/','/home','/about','/privacy','/signup','/login','/forgot-password','/reset-password','/install-extension','/connect','/profile','/history','/dashboard','/patterns','/patterns/:slug','/settings','/setup'])app.get(path,(_request,response)=>{response.set('Cache-Control','no-store');response.sendFile('index.html',{root:webRoot});});
   }
   app.use((_request, response) => response.status(404).json({ error: 'Route not found.' }));
   // Express requires all four parameters to recognize error middleware.
@@ -104,7 +105,7 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
     const status = Object.hasOwn(messages, error.status) ? error.status : 500;
     // SQL details, credentials and submitted notes can be embedded in errors.
     if (status === 500) console.error('Recall request failed: unexpected internal error.');
-    response.status(status).json({ error: messages[status] || 'Internal server error.' });
+    response.status(status).json({ error: status===413&&_request.path==='/api/workspace/restore'?BACKUP_SIZE_ERROR:messages[status] || 'Internal server error.' });
   });
   return app;
 }

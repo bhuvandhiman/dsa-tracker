@@ -9,7 +9,7 @@ function ProblemLink({problem}) {
   return url ? <a className="problem-title-link" href={url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${problem.title} on LeetCode (opens in a new tab)`}>{problem.title}</a> : problem.title;
 }
 
-function ProblemList({slug,name,onChanged}) {
+function ProblemList({slug,name,onChanged,refreshToken}) {
   const request=useWorkspaceRequest();
   const [sort,setSort] = useState({field:null,direction:null});
   const [offset,setOffset] = useState(0);
@@ -27,7 +27,7 @@ function ProblemList({slug,name,onChanged}) {
       if (!controller.signal.aborted) setState({query,data:null,error:error.message});
     });
     return ()=>controller.abort();
-  },[query,revision,offset,request]);
+  },[query,revision,offset,request,refreshToken]);
   const current = state.query === query ? state : {data:null,error:''};
   function reorder(field) {setSort(value=>nextProblemSort(value,field));setOffset(0);}
   function heading(field,label) {
@@ -44,7 +44,7 @@ function ProblemList({slug,name,onChanged}) {
   </div>;
 }
 
-export default function SubpatternProblems({slug,name,children,onChanged,next = false}) {
+export default function SubpatternProblems({slug,name,children,onChanged,refreshToken,next = false}) {
   const [open,setOpen] = useState(next);
-  return <details open={open} className={`subpattern-row ${next ? 'is-next' : ''}`} onToggle={event=>setOpen(event.currentTarget.open)}><summary className="subpattern-header" aria-label={`${name} problems${next ? '. Next recommended subpattern' : ''}`}>{children}<NextAction next={next} expanded={open} disclosure /></summary>{open && <ProblemList slug={slug} name={name} onChanged={onChanged} />}</details>;
+  return <details open={open} className={`subpattern-row ${next ? 'is-next' : ''}`} onToggle={event=>setOpen(event.currentTarget.open)}><summary className="subpattern-header" aria-label={`${name} problems${next ? '. Next recommended subpattern' : ''}`}>{children}<NextAction next={next} expanded={open} disclosure /></summary>{open && <ProblemList slug={slug} name={name} onChanged={onChanged} refreshToken={refreshToken} />}</details>;
 }

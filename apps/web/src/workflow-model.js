@@ -1,3 +1,5 @@
+import { backupLimitError } from '../../shared/backup-limits.js';
+
 export function subpatternQuery(slug, sort, offset = 0) {
   const order = !sort.direction ? 'newest' : sort.field === 'practiced' ? (sort.direction === 'asc' ? 'oldest-practice' : 'recent-practice') : `difficulty-${sort.direction === 'desc' ? 'desc' : 'asc'}`;
   return new URLSearchParams({category:slug,sort:order,offset:String(Number.isInteger(offset) && offset >= 0 && offset <= 1000000 ? offset : 0),limit:'25'}).toString();
@@ -18,6 +20,8 @@ export function backupSummary(value) {
   if (!value || value.format !== 'recall-backup' || value.version !== 1 || !value.tables || !Array.isArray(value.migrations)) throw new Error('Choose a Recall version 1 JSON backup.');
   const entries = Object.entries(value.tables);
   if (!entries.length || entries.some(([,rows])=>!Array.isArray(rows))) throw new Error('Backup tables are invalid.');
+  const limitError = backupLimitError(value);
+  if (limitError) throw new Error(limitError);
   return {records:entries.reduce((sum,[,rows])=>sum+rows.length,0),problems:value.tables.problems?.length || 0,attempts:value.tables.attempts?.length || 0};
 }
 

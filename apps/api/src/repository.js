@@ -7,6 +7,7 @@ import { isDsaTrackingProblem, splitDsaTrackingProblems } from './problem-scope.
 import { exportBackup, restoreBackup } from './backup.js';
 import { transaction as runTransaction } from './transaction.js';
 import { upsertImportedProblems, insertRecentEvidence } from './import-bulk.js';
+import { backupLimitError } from '../../shared/backup-limits.js';
 
 // New classification captures hash normalized user choices, not a derived
 // unit that a future classifier refinement could change. Legacy hashes stay exact.
@@ -46,7 +47,14 @@ export function createRepository(pool) {
       const account = (await pool.query('SELECT username FROM workspace_account')).rows[0]?.username || null;
       return { status:'ready', database:'connected', account, storage:'Local PostgreSQL workspace', timeZone:'Asia/Calcutta' };
     },
-    async backup() { return transaction(async client => { await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY'); return exportBackup(client); }); },
+    async backup() {
+      return transaction(async client => {
+        await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+        const backup=await exportBackup(client),limitError=backupLimitError(backup);
+        if(limitError)throw new DomainError(413,limitError);
+        return backup;
+      });
+    },
     async restoreBackup(backup) {
       try { return await transaction(async client => { await client.query('LOCK TABLE workspace_account,problems,attempts IN EXCLUSIVE MODE'); return restoreBackup(client,backup); }); }
       catch(error){if(/^22|^23/.test(error.code||''))throw new DomainError(400,'Backup records are invalid or inconsistent. No records were changed.');throw error;}
