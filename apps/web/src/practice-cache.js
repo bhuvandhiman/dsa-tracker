@@ -1,6 +1,7 @@
 // One in-memory snapshot; never persist private practice data across accounts.
-export function createPracticeCache({now=Date.now,maxAge=45000}={}){
+export function createPracticeCache({now=Date.now,maxAge=Infinity}={}){
   let snapshot=null,updatedAt=-Infinity,pending=null,revision=0;
+  const listeners=new Set();
   return {
     read:()=>snapshot,
     async load(fetchSnapshot,{force=false}={}){
@@ -15,6 +16,8 @@ export function createPracticeCache({now=Date.now,maxAge=45000}={}){
       pending=operation;return operation;
     },
     invalidate(){revision++;updatedAt=-Infinity;pending=null;},
+    changed(){this.invalidate();for(const listener of listeners)listener();},
+    subscribe(listener){listeners.add(listener);return()=>listeners.delete(listener);},
     clear(){this.invalidate();snapshot=null;},
   };
 }

@@ -4,7 +4,7 @@ import {createPracticeCache,practiceCache} from '../apps/web/src/practice-cache.
 import {request,setWorkspaceScope,setTokenProvider} from '../apps/web/src/api.js';
 const snapshot=owner=>({categories:[],owner});
 
-test('practice reads reuse a fresh snapshot, deduplicate pending loads and expire after 45 seconds',async()=>{
+test('practice reads deduplicate pending loads and reuse snapshots until practice changes',async()=>{
   let time=0,calls=0,finish;
   const cache=createPracticeCache({now:()=>time});
   const load=()=>{calls++;return new Promise(resolve=>{finish=resolve;});};
@@ -12,9 +12,23 @@ test('practice reads reuse a fresh snapshot, deduplicate pending loads and expir
   assert.equal(calls,1);finish(snapshot('alice'));
   assert.equal(await first,await second);
   await cache.load(()=>assert.fail('Fresh page navigation must not refetch'));
-  time=45000;
+  time=86400000;
+  await cache.load(()=>assert.fail('Time passing must not trigger another read'));
+  cache.invalidate();
   await cache.load(async()=>{calls++;return snapshot('alice refreshed');});
   assert.equal(calls,2);assert.equal(cache.read().owner,'alice refreshed');
+});
+
+test('confirmed extension changes invalidate pending reads and notify mounted subscribers once',async()=>{
+  const cache=createPracticeCache();await cache.load(async()=>snapshot('old'));
+  let finish,notifications=0;
+  const stop=cache.subscribe(()=>{notifications++;});
+  const pending=cache.load(()=>new Promise(resolve=>{finish=resolve;}),{force:true});await Promise.resolve();
+  cache.changed();assert.equal(notifications,1);
+  await cache.load(async()=>snapshot('saved'));
+  finish(snapshot('before save'));await assert.rejects(pending,{status:409});
+  assert.equal(cache.read().owner,'saved');
+  stop();cache.changed();assert.equal(notifications,1);
 });
 
 test('manual refresh bypasses age and failed refresh retains the last successful snapshot',async()=>{

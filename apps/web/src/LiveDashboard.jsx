@@ -67,21 +67,19 @@ export default function LiveDashboard({ route }) {
     setSearchState({route,value});
     window.history.replaceState(null,'',patternLink(null,value));
   }
-  function refresh() { setLoading(true); setRevision(value => value + 1); }
+  function refresh() { practiceCache.invalidate(); setLoading(true); setRevision(value => value + 1); }
   useEffect(() => {
     const controller = new AbortController();
-    let poll;
-    // Share pending reads across StrictMode mounts and reuse the snapshot when
-    // returning from another screen. Writes invalidate it in the API client.
-    practiceCache.load(()=>request('/retention'),{force:revision>0}).then(result => {
+    // Opening Dashboard refreshes once. Pattern navigation shares the snapshot;
+    // confirmed extension writes and explicit actions request another read.
+    practiceCache.load(()=>request('/retention'),{force:route.page==='dashboard'}).then(result => {
       if (!controller.signal.aborted) {setData(result); setError('');}
     }).catch(failure => { if (!controller.signal.aborted) setError(failure.message); }).finally(() => {
-      if (!controller.signal.aborted) { setLoading(false); poll = setTimeout(() => {if (!document.hidden) setRevision(value => value + 1);}, 45000); }
+      if (!controller.signal.aborted) setLoading(false);
     });
-    function visible() { if (!document.hidden) setRevision(value => value + 1); }
-    document.addEventListener('visibilitychange', visible);
-    return () => { controller.abort(); clearTimeout(poll); document.removeEventListener('visibilitychange', visible); };
-  }, [revision,request]);
+    return () => controller.abort();
+  }, [revision,request,route.page]);
+  useEffect(()=>practiceCache.subscribe(()=>{setLoading(true);setRevision(value=>value+1);}),[]);
   const categories = data ? filterPatterns(prioritizedPatterns(data.categories), query) : [];
   const isDashboard = route.page === 'dashboard';
   const selected = data?.categories.find(category => category.slug === route.slug);

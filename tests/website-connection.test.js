@@ -8,6 +8,7 @@ import { createAccountClient } from '../apps/extension/src/account-client.js';
 import { createImportController } from '../apps/extension/src/import-controller.js';
 import { connectWebsiteExtension } from '../apps/web/src/extension-bridge.js';
 import { connectionAction, openRecallWebsite } from '../apps/extension/src/connection-flow.js';
+import {notifyPracticeChanged} from '../apps/extension/src/practice-notifications.js';
 
 const owner='fa631c58-72ad-4a67-89d8-f6a4ae5d1641',other='ea631c58-72ad-4a67-89d8-f6a4ae5d1642';
 const config={mode:'supabase',configured:true,url:'https://fixture.supabase.co',key:'sb_publishable_fixture'};
@@ -100,7 +101,7 @@ test('sign-out before the content bridge is ready still disconnects the recorded
 });
 test('isolated content bridge rejects foreign frames, origins, sources and nonces',async()=>{
   const target=fakeWindow(),calls=[];
-  vm.runInNewContext(readFileSync(new URL('../apps/extension/src/website-bridge.js',import.meta.url),'utf8'),{window:target,location:target.location,crypto:{randomUUID:()=>other},chrome:{runtime:{sendMessage:async message=>{calls.push(message);return {};}}}});
+  vm.runInNewContext(readFileSync(new URL('../apps/extension/src/website-bridge.js',import.meta.url),'utf8'),{window:target,location:target.location,crypto:{randomUUID:()=>other},chrome:{runtime:{onMessage:{addListener(){}},sendMessage:async message=>{calls.push(message);return {};}}}});
   const message={channel,type:'SESSION',nonce:other,owner,accessToken:'access',refreshToken:'never-copy'};
   target.dispatch(message,{origin:'https://evil.test'});target.dispatch(message,{source:{}});target.dispatch({...message,nonce:owner});target.dispatch({...message,owner:'local'});assert.equal(calls.length,0);
   target.dispatch(message);target.dispatch({...message,accessToken:null});await tick();assert.equal(calls.length,2);assert.equal(calls[0].type,'RECALL_WEBSITE_SESSION');assert.ok(!JSON.stringify(calls).includes('never-copy'));
@@ -110,7 +111,7 @@ test('worker grants the bridge only to the exact configured website top frame an
   let listener;const calls=[],opened=[],account={connectWebsite:async(...args)=>{calls.push(args);return {connected:true,scope:owner};},disconnectWebsite:async()=>({signedOut:true})};
   const chrome={runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onMessage:{addListener(fn){listener=fn;}}},tabs:{async query(){return [];},async create(value){opened.push(value);}}};
   const source=readFileSync(new URL('../apps/extension/src/account-worker.js',import.meta.url),'utf8').replace(/^import .*;\r?$/gm,'').replace(/^export /gm,'');
-  vm.runInNewContext(source,{chrome,URL,connectionAction,openRecallWebsite,createImportController,recallRuntime:{websiteOrigin:'http://127.0.0.1:5173'},createAccountClient:()=>account});
+  vm.runInNewContext(source,{chrome,URL,connectionAction,openRecallWebsite,createImportController,notifyPracticeChanged,recallRuntime:{websiteOrigin:'http://127.0.0.1:5173'},createAccountClient:()=>account});
   const sender={id:'test',frameId:0,tab:{id:1},url:'http://127.0.0.1:5173/#/dashboard'},message={type:'RECALL_WEBSITE_SESSION',accessToken:'access',owner};
   const send=(message,sender)=>new Promise(resolve=>listener(message,sender,resolve));
   for(const bad of [{...sender,url:'https://leetcode.com/'},{...sender,url:'http://127.0.0.1:3001/'},{...sender,url:'http://127.0.0.1:5173.evil.test/'},{...sender,frameId:1},{...sender,id:'foreign'},{...sender,tab:undefined}])assert.match((await send(message,bad)).error,/configured/);
@@ -135,7 +136,8 @@ test('connection acknowledgement ignores stale renewal results and reports old e
   const stop=connectWebsiteExtension({auth:{onAuthStateChange(fn){change=fn;return {data:{subscription:{unsubscribe(){}}}};},async getSession(){return {data:{session}};}}},target,value=>states.push(value));
   target.dispatch({channel,type:'HELLO',nonce:other});await tick();assert.equal(states.at(-1).outdated,true);
   target.dispatch({channel,type:'HELLO',nonce:other,protocol:2});await tick();assert.equal(states.at(-1).outdated,true);
-  target.dispatch({channel,type:'HELLO',nonce:other,protocol:3});await tick();assert.equal(states.at(-1).outdated,false);
+  target.dispatch({channel,type:'HELLO',nonce:other,protocol:3});await tick();assert.equal(states.at(-1).outdated,true);
+  target.dispatch({channel,type:'HELLO',nonce:other,protocol:4});await tick();assert.equal(states.at(-1).outdated,false);
   const old=target.messages.at(-1).data.sessionRevision;change('TOKEN_REFRESHED',{...session,access_token:'renewed'});const current=target.messages.at(-1).data.sessionRevision;
   target.dispatch({channel,type:'CONNECTED',nonce:other,owner,sessionRevision:current,connected:true});assert.equal(states.at(-1).connected,true);
   target.dispatch({channel,type:'CONNECTED',nonce:other,owner,sessionRevision:old,error:'stale'});assert.equal(states.at(-1).connected,true);
@@ -145,7 +147,7 @@ test('connection acknowledgement ignores stale renewal results and reports old e
 test('connection requests require matching nonce, request ID and origin; teardown cancels outstanding work',async()=>{
   const target=fakeWindow();const stop=connectWebsiteExtension(null,target);
   await assert.rejects(stop.request('STATUS'),/not detected/);
-  target.dispatch({channel,type:'HELLO',nonce:other,protocol:3});
+  target.dispatch({channel,type:'HELLO',nonce:other,protocol:4});
   const pending=stop.request('STATUS'),message=target.messages.at(-1).data;
   assert.equal(message.owner,'local');let resolved=false;pending.then(()=>{resolved=true;});
   const response={channel,type:'RESULT',nonce:other,requestId:message.requestId,data:{connected:true}};
@@ -156,7 +158,7 @@ test('connection requests require matching nonce, request ID and origin; teardow
 
 test('website import and pause commands retain origin, nonce and workspace guards',async()=>{
   const target=fakeWindow(),calls=[];
-  vm.runInNewContext(readFileSync(new URL('../apps/extension/src/website-bridge.js',import.meta.url),'utf8'),{window:target,location:target.location,crypto:{randomUUID:()=>other},chrome:{runtime:{sendMessage:async message=>{calls.push(message);return {data:{started:true}};}}}});
+  vm.runInNewContext(readFileSync(new URL('../apps/extension/src/website-bridge.js',import.meta.url),'utf8'),{window:target,location:target.location,crypto:{randomUUID:()=>other},chrome:{runtime:{onMessage:{addListener(){}},sendMessage:async message=>{calls.push(message);return {data:{started:true}};}}}});
   for(const action of ['START_IMPORT','PAUSE_IMPORT']){
     const message={channel,type:'REQUEST',nonce:other,requestId:'fixture-'+action,action,owner,accessToken:'never-forward',url:'https://evil.test'};
     target.dispatch(message,{origin:'https://evil.test'});target.dispatch({...message,nonce:owner});target.dispatch(message,{source:{}});assert.equal(calls.length,action==='START_IMPORT'?0:1);

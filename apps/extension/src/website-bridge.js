@@ -3,7 +3,11 @@
 (() => {
   if(window!==window.top)return;
   const nonce=crypto.randomUUID(),channel='recall-website-auth-v1';
-  const hello=()=>window.postMessage({channel,type:'HELLO',nonce,protocol:3},location.origin);
+  const hello=()=>window.postMessage({channel,type:'HELLO',nonce,protocol:4},location.origin);
+  chrome.runtime.onMessage.addListener((message,sender)=>{
+    if(sender.id!==chrome.runtime.id||message?.type!=='RECALL_PRACTICE_CHANGED'||!(message.owner==='local'||/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(message.owner||''))||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(message.changeId||''))return;
+    window.postMessage({channel,type:'PRACTICE_CHANGED',nonce,owner:message.owner,changeId:message.changeId},location.origin);
+  });
   window.addEventListener('message',event=>{
     if(event.source!==window||event.origin!==location.origin||event.data?.channel!==channel)return;
     if(event.data.type==='READY'){hello();return;}

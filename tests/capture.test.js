@@ -5,20 +5,38 @@ import vm from 'node:vm';
 import { captureInput } from '../apps/api/src/domain.js';
 import { readRecallResponse } from '../apps/extension/src/import-request.js';
 import { recallRuntime } from '../apps/extension/src/runtime-config.js';
+import {notifyPracticeChanged} from '../apps/extension/src/practice-notifications.js';
 const read = path => readFileSync(new URL('../apps/extension/src/'+path,import.meta.url),'utf8');
 const problem={url:'https://leetcode.com/problems/two-sum/',platform:'leetcode',problemId:'two-sum'};
 const payload={requestId:'00000000-0000-4000-8000-000000000001',url:problem.url,title:'Two Sum',difficulty:'easy',topics:['Array','Hash Table'],selectedTopics:[],assistance:'hint',attemptedAt:'2025-01-01T00:00:00.000Z'};
 function worker(fetcher,storage={},account) {
   let listener;
-  const context=vm.createContext({URL,AbortSignal,readRecallResponse,recallRuntime,fetch:fetcher,trustedPage:sender=>sender.id==='test',recallAccount:account||{scope:async()=>'local',assertScope:async()=>'local',key:(_scope,key)=>key,request:(path,options)=>fetcher('http://127.0.0.1:3001/api'+path,options)},chrome:{
+  const notifications=[];
+  const context=vm.createContext({URL,AbortSignal,readRecallResponse,recallRuntime,notifyPracticeChanged,fetch:fetcher,trustedPage:sender=>sender.id==='test',recallAccount:account||{scope:async()=>'local',assertScope:async()=>'local',key:(_scope,key)=>key,request:(path,options)=>fetcher('http://127.0.0.1:3001/api'+path,options)},chrome:{
+    tabs:{async query(){return [{id:3,url:recallRuntime.websiteOrigin+'/#/dashboard'}];},async sendMessage(id,message){notifications.push({id,message});}},
     storage:{local:{async get(key){return key===null?{...storage}:Object.fromEntries((Array.isArray(key)?key:[key]).map(k=>[k,storage[k]]));},async set(data){Object.assign(storage,data);},async remove(key){delete storage[key];}}},
     runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onMessage:{addListener(fn){listener=fn;}}},
   }});
   context.recallAccount.localScope=async expected=>expected===undefined?context.recallAccount.scope():context.recallAccount.assertScope(expected);
   vm.runInContext(read('adapters/leetcode.js'),context);
   vm.runInContext(read('service-worker.js').replace(/^import .*;\r?$/gm,''),context);
-  return {context,storage,send(message,sender={id:'test',frameId:0,tab:{id:1},url:problem.url}) {return new Promise(resolve=>listener(message,sender,resolve));}};
+  return {context,storage,notifications,send(message,sender={id:'test',frameId:0,tab:{id:1},url:problem.url}) {return new Promise(resolve=>listener(message,sender,resolve));}};
 }
+
+test('only confirmed capture saves and reconciliations notify Recall tabs',async()=>{
+  const failed=worker(async()=>{throw new Error('offline');});
+  assert.equal((await failed.send({type:'SAVE_CAPTURE',problem,payload})).saved,false);
+  assert.deepEqual(failed.notifications,[]);
+  const saved=worker(async()=>Response.json({attempt:{id:payload.requestId}}));
+  assert.equal((await saved.send({type:'SAVE_CAPTURE',problem,payload})).saved,true);
+  assert.deepEqual(saved.notifications,[{id:3,message:{type:'RECALL_PRACTICE_CHANGED',owner:'local',changeId:payload.requestId}}]);
+  const reconciled=worker(async()=>Response.json({status:'saved'}),{['recall-pending:'+problem.url]:payload});
+  assert.equal((await reconciled.send({type:'RECONCILE_CAPTURE',problem})).status,'saved');
+  assert.equal(reconciled.notifications.length,1);
+  const missing=worker(async()=>Response.json({status:'missing'}),{['recall-pending:'+problem.url]:payload});
+  assert.equal((await missing.send({type:'RECONCILE_CAPTURE',problem})).status,'missing');
+  assert.deepEqual(missing.notifications,[]);
+});
 test('worker isolates pending recordings and rejects stale account captures',async()=>{
   let scope='a';let requests=0;const storage={['recall-pending:'+problem.url]:payload};
   const account={scope:async()=>scope,assertScope:async expected=>{if(expected!==scope)throw new Error('Account changed');return scope;},key:(owner,key)=>`recall-user:${owner}:${key}`,request:async()=>{requests++;throw new Error('offline');}};

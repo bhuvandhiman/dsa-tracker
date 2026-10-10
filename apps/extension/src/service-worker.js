@@ -3,6 +3,7 @@ import './legacy-setup.js';
 import './adapters/leetcode.js';
 import { recallRuntime } from './runtime-config.js';
 import { readRecallResponse } from './import-request.js';
+import { notifyPracticeChanged } from './practice-notifications.js';
 
 const pendingKey = (url,scope) => recallAccount.key(scope,`recall-pending:${url}`);
 const draftKey = (url,scope) => recallAccount.key(scope,`recall-draft:${url}`);
@@ -37,6 +38,7 @@ async function save(message, problem, scope) {
   if (data.attempt?.id !== payload.requestId) throw new Error('Save was not confirmed. Retry with the same choices.');
   await chrome.storage.local.remove(key);
   await chrome.storage.local.remove(draftKey(problem.url,scope));
+  await notifyPracticeChanged(chrome,scope,payload.requestId);
   return { saved: true, practiceUnit:data.attempt.practiceUnit, websiteOrigin:recallRuntime.websiteOrigin };
 }
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -96,7 +98,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           await chrome.storage.local.set({[recallAccount.key(scope,'recall-conflict:'+payload.requestId)]:payload});
           await chrome.storage.local.remove(key);return {released:true};
         }
-        if(data.status==='saved'){await chrome.storage.local.remove(key);await chrome.storage.local.remove(draftKey(problem.url,scope));}
+        if(data.status==='saved'){await chrome.storage.local.remove(key);await chrome.storage.local.remove(draftKey(problem.url,scope));await notifyPracticeChanged(chrome,scope,payload.requestId);}
         return data;
       }
       return save(message,problem,scope);

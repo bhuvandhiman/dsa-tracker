@@ -13,16 +13,16 @@ const connect=async()=>async(type,extra)=>{
   if(type==='READ_LEGACY_TOPICS')return extra.slugs.map(slug=>({url:`https://leetcode.com/problems/${slug}/`,title:slug,difficulty:'easy',topics:['Array']}));
   return {username:'fixture-account',submissions:[]};
 };
-const importer=createImportController({account,chromeApi,connect,retry:operation=>operation()});
+const importer=createImportController({account,chromeApi,connect,retry:operation=>operation(),onChanged:owner=>post({type:'PRACTICE_CHANGED',owner,changeId:crypto.randomUUID()})});
 function post(value){window.postMessage({channel,nonce,...value},location.origin);}
 window.addEventListener('message',async event=>{
   const message=event.data;
   if(event.source!==window||event.origin!==location.origin||message?.channel!==channel||variant==='missing')return;
-  if(message.type==='READY'){post({type:'HELLO',protocol:variant==='outdated'?2:3});return;}
+  if(message.type==='READY'){post({type:'HELLO',protocol:variant==='outdated'?2:4});return;}
   if(message.type!=='REQUEST'||message.nonce!==nonce)return;
   try{
     const data=message.action==='CHECK_LEETCODE'?{username:'fixture-account'}:await connectionAction({action:message.action,owner:message.owner,account,chromeApi,importer});
     post({type:'RESULT',requestId:message.requestId,data});
   }catch(error){post({type:'RESULT',requestId:message.requestId,error:error.message});}
 });
-if(variant!=='missing')post({type:'HELLO',protocol:variant==='outdated'?2:3});
+if(variant!=='missing')post({type:'HELLO',protocol:variant==='outdated'?2:4});

@@ -1,6 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {useWorkspaceRequest} from './workspace-context.js';
 import {safeProblemUrl} from './workflow-model.js';
+import {practiceCache} from './practice-cache.js';
 
 const pageSize=25;
 const dateFormat=new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Calcutta'});
@@ -13,10 +14,7 @@ export default function History({visible}){
   useEffect(()=>{
     if(!visible)return;
     const controller=new AbortController();
-    let pending=false;
     async function refresh(){
-      if(pending||document.visibilityState==='hidden')return;
-      pending=true;
       try{
         const data=await request(`/history?limit=${pageSize}&offset=${offset}`,{signal:controller.signal});
         if(!Array.isArray(data.problems)||typeof data.more!=='boolean')throw new Error('Could not read your history. Please try again.');
@@ -25,13 +23,11 @@ export default function History({visible}){
           else setState({offset,data,error:''});
         }
       }catch(error){if(!controller.signal.aborted)setState(value=>({offset,data:value.offset===offset?value.data:null,error:error.message}));}
-      finally{pending=false;}
     }
-    refresh();
-    const timer=setInterval(refresh,15000);
-    window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);
-    return ()=>{controller.abort();clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};
+    void refresh();
+    return ()=>controller.abort();
   },[request,visible,offset,revision]);
+  useEffect(()=>practiceCache.subscribe(()=>{setOffset(0);setRevision(value=>value+1);}),[]);
   const data=state.offset===offset?state.data:null,error=state.offset===offset?state.error:'';
   function changePage(next){
     setOffset(next);

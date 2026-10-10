@@ -3,9 +3,10 @@ const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 
 // Transfer short-lived access only, never passwords or refresh credentials.
 // The extension validates the token with Supabase before trusting its owner.
-export function connectWebsiteExtension(client,target=window,onState=()=>{}){
+export function connectWebsiteExtension(client,target=window,onState=()=>{},onPracticeChanged=()=>{}){
   let active=true,nonce=null,lastOwner=null,signedOutOwner=null,revision=0;
   const pending=new Map();
+  const changes=new Set();
   let sessionRevision=null;
   const report=value=>{if(active)onState(value);};
   function publish(session){
@@ -22,6 +23,12 @@ export function connectWebsiteExtension(client,target=window,onState=()=>{}){
   }).data.subscription;
   function receive(event){
     if(event.source!==target||event.origin!==target.location.origin||event.data?.channel!==channel)return;
+    if(event.data.type==='PRACTICE_CHANGED'){
+      const {owner,changeId}=event.data;
+      if(!active||!nonce||event.data.nonce!==nonce||owner!==(client?lastOwner:'local')||!uuid.test(changeId||'')||changes.has(changeId))return;
+      changes.add(changeId);if(changes.size>100)changes.delete(changes.values().next().value);
+      onPracticeChanged();return;
+    }
     if(event.data.type==='RESULT'&&nonce&&event.data.nonce===nonce){
       const entry=pending.get(event.data.requestId);
       if(entry){pending.delete(event.data.requestId);clearTimeout(entry.timer);event.data.error?entry.reject(new Error(event.data.error)):entry.resolve(event.data.data);}
@@ -30,7 +37,7 @@ export function connectWebsiteExtension(client,target=window,onState=()=>{}){
     if(event.data.type==='CONNECTED'&&nonce&&event.data.nonce===nonce&&event.data.owner===lastOwner&&event.data.sessionRevision===sessionRevision){report({detected:true,connected:!event.data.error&&event.data.connected===true,error:event.data.error||''});return;}
     if(event.data.type!=='HELLO'||!uuid.test(event.data.nonce||''))return;
     nonce=event.data.nonce;
-    report({detected:true,connected:false,outdated:event.data.protocol!==3});
+    report({detected:true,connected:false,outdated:event.data.protocol!==4});
     if(signedOutOwner)target.postMessage({channel,type:'SESSION',nonce,owner:signedOutOwner,accessToken:null},target.location.origin);
     const current=++revision;
     if(!client)return;

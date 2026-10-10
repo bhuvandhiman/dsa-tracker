@@ -3,8 +3,9 @@ import { recallRuntime } from './runtime-config.js';
 import { connectionAction, openRecallWebsite } from './connection-flow.js';
 import { readRecallResponse } from './import-request.js';
 import { createImportController } from './import-controller.js';
+import { notifyPracticeChanged } from './practice-notifications.js';
 export const recallAccount=createAccountClient(chrome);
-const importer=createImportController({account:recallAccount,chromeApi:chrome});
+const importer=createImportController({account:recallAccount,chromeApi:chrome,onChanged:scope=>notifyPracticeChanged(chrome,scope)});
 const stateNames=['legacySetup','retentionSetup','importProgress'];
 export function trustedPage(sender){return sender.id===chrome.runtime.id&&['setup.html','popup.html'].some(page=>sender.url?.split('#')[0]===chrome.runtime.getURL(page));}
 export function trustedWebsite(sender){
