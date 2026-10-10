@@ -244,6 +244,11 @@
       "date": "2026-10-10",
       "direction": "Account profile dropdown and simple recent solve history",
       "reason": "User requested Profile for real account details, Settings in an account dropdown, and History beside Dashboard and Patterns. Reuse native disclosure, existing tokens and compact rows. History lists each dated problem once by its latest solve date, with automatic refresh; unknown import dates stay in Patterns. This supersedes the earlier History removal. The 21st CLI remains unavailable."
+    },
+    {
+      "date": "2026-10-10",
+      "direction": "Personal profile before practice setup",
+      "reason": "User requested profile creation at the start so their name appears throughout their account. Add a name and live initials preview before the existing focus/target step; request only the missing name from established accounts. Reuse the same editable profile form, native controls and tokens. Persist the name on the existing Supabase account; preserve goals and practice data."
     }
   ],
   "evidence": [

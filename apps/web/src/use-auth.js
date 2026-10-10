@@ -48,7 +48,9 @@ export default function useAuth(){
     }
     void load();return()=>{active=false;epoch.current++;controller.abort();unsubscribe();};
   },[reload,readAccount]);
-  return {...state,retry:()=>setReload(value=>value+1),refresh:async()=>{
+  return {...state,retry:()=>setReload(value=>value+1),applyProfile:user=>{
+    setState(value=>value.user?.id===user.id?{...value,user,setup:{...value.setup,profileConfigured:true}}:value);
+  },refresh:async()=>{
     const current=++generation.current;
     try{
       const {data,error}=await abortable(state.client.auth.getSession(),AbortSignal.timeout(15000));if(error)throw error;

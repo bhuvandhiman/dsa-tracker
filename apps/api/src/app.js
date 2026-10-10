@@ -6,8 +6,9 @@ import { goalInput } from './domain.js';
 import { createExtensionAuth } from './extension-auth.js';
 import { deletionInput } from './account-lifecycle.js';
 import { databaseFailure, reportDatabaseFailure } from './database-diagnostics.js';
+import {createProfileUpdater,profileInput,profileSetup} from './account-profile.js';
 
-export function createApp({ repository = null, auth = {mode:'local',configured:false}, repositoryForUser = null, authenticate = createAuthenticator(auth), extensionAuth = createExtensionAuth(auth), accountLifecycle=null, installation = {},deployment={mode:'local',origin:null},webRoot=null, reportDatabaseError=reportDatabaseFailure } = {}) {
+export function createApp({ repository = null, auth = {mode:'local',configured:false}, repositoryForUser = null, authenticate = createAuthenticator(auth), extensionAuth = createExtensionAuth(auth), updateProfile=createProfileUpdater(auth), accountLifecycle=null, installation = {},deployment={mode:'local',origin:null},webRoot=null, reportDatabaseError=reportDatabaseFailure } = {}) {
   if(deployment.mode==='hosted'&&(auth.mode!=='supabase'||!auth.configured))throw new Error('Hosted Recall requires configured Supabase authentication.');
   const app = express();
   app.disable('x-powered-by');
@@ -51,6 +52,7 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
       if(request.get('X-Recall-Workspace')&&request.get('X-Recall-Workspace')!==user.id)throw new DomainError(409,'Recall account changed. Sign in again in extension Settings.');
       if(!repositoryForUser)throw new DomainError(503,'Private workspace storage is not configured.');
       const privateRepository=await repositoryForUser(user);
+      if(request.path==='/account/profile'&&request.method==='PUT')return response.json({user:await updateProfile(request,user,profileInput(request.body))});
       if(request.path==='/account'&&request.method==='GET')return response.json({user,deletionAvailable:Boolean(accountLifecycle?.enabled)});
       if(request.path==='/account/export'&&request.method==='GET')return response.json({format:'recall-account-export',version:1,exportedAt:new Date().toISOString(),account:user,...await privateRepository.exportAccount()});
       if(request.path==='/account'&&request.method==='DELETE'){
@@ -60,15 +62,16 @@ export function createApp({ repository = null, auth = {mode:'local',configured:f
         if(verified.user.id!==user.id)throw new DomainError(403,'Confirm the password for your signed-in Recall account.');
         const result=await accountLifecycle.remove(user);return response.status(result.pending?202:200).json(result);
       }
-      if(request.path==='/session'&&request.method==='GET')return response.json({user,setup:await privateRepository.setup()});
+      if(request.path==='/session'&&request.method==='GET')return response.json({user,setup:profileSetup(await privateRepository.setup(),user)});
       if(request.path==='/setup'){
-        if(request.method==='GET')return response.json(await privateRepository.setup());
+        if(request.method==='GET')return response.json(profileSetup(await privateRepository.setup(),user));
         if(request.method==='PUT'){
           const body=request.body;
           if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['profile','target','extensionAcknowledged','completed'].includes(k)))throw new DomainError(400,'Invalid setup choices.');
           for(const key of ['extensionAcknowledged','completed'])if(body[key]!==undefined&&typeof body[key]!=='boolean')throw new DomainError(400,'Invalid setup choices.');
           if(body.profile!==undefined||body.target!==undefined)goalInput({profile:body.profile,target:body.target});
-          return response.json(await privateRepository.saveSetup(body));
+          if(body.completed&&!profileSetup({},user).profileConfigured)throw new DomainError(400,'Create your profile before opening your workspace.');
+          return response.json(profileSetup(await privateRepository.saveSetup(body),user));
         }
         return next();
       }

@@ -1,4 +1,5 @@
 import { DomainError } from './domain.js';
+import {normalizeProfileName,hasProfileName} from '../../shared/profile.js';
 
 export function authSettings(env=process.env){
   const mode=env.AUTH_MODE || (env.SUPABASE_URL || env.SUPABASE_PUBLISHABLE_KEY?'supabase':'local');
@@ -21,8 +22,13 @@ export function createAuthenticator(settings,fetchImpl=fetch){
     try{response=await fetchImpl(`${settings.url}/auth/v1/user`,{headers:{Authorization:authorization,apikey:settings.key},signal:AbortSignal.timeout(8000),redirect:'error'});}catch{throw new DomainError(503,'Sign-in verification is unavailable. Please retry.');}
     if(!response.ok)throw new DomainError(response.status===429?429:response.status>=500?503:401,response.status===429?'Sign-in verification is busy. Wait briefly, then retry.':response.status>=500?'Sign-in verification is unavailable. Please retry.':'Your session expired. Please sign in again.');
     let user;try{user=await response.json();}catch{throw new DomainError(503,'Sign-in verification is unavailable. Please retry.');}
-    if(!user||typeof user!=='object'||Array.isArray(user)||typeof user.id!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(user.id))throw new DomainError(503,'Sign-in verification returned an invalid account. Please retry.');
-    if(!user.email_confirmed_at)throw new DomainError(401,'Verify your email before opening your workspace.');
-    return {id:user.id.toLowerCase(),email:typeof user.email==='string'?user.email.slice(0,320):'',name:typeof user.user_metadata?.full_name==='string'?user.user_metadata.full_name.slice(0,100):'',emailVerified:true,createdAt:typeof user.created_at==='string'&&Number.isFinite(Date.parse(user.created_at))?new Date(user.created_at).toISOString():null};
+    return verifiedUser(user);
   };
+}
+
+export function verifiedUser(user){
+  if(!user||typeof user!=='object'||Array.isArray(user)||typeof user.id!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(user.id))throw new DomainError(503,'Sign-in verification returned an invalid account. Please retry.');
+  if(!user.email_confirmed_at)throw new DomainError(401,'Verify your email before opening your workspace.');
+  const name=typeof user.user_metadata?.full_name==='string'?normalizeProfileName(user.user_metadata.full_name.slice(0,100)):'';
+  return {id:user.id.toLowerCase(),email:typeof user.email==='string'?user.email.slice(0,320):'',name:hasProfileName(name)?name:'',emailVerified:true,createdAt:typeof user.created_at==='string'&&Number.isFinite(Date.parse(user.created_at))?new Date(user.created_at).toISOString():null};
 }

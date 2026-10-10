@@ -11,7 +11,7 @@ import useAuth from './use-auth.js';
 import { WorkspaceContext } from './workspace-context.js';
 import useExtension from './use-extension.js';
 import Connection from './Connection.jsx';
-import { accountDestination, rememberDestination, needsGoalSetup } from './auth-navigation.js';
+import { accountDestination, rememberDestination, needsWorkspaceSetup } from './auth-navigation.js';
 import AccountMenu from './AccountMenu.jsx';
 import Profile from './Profile.jsx';
 import History from './History.jsx';
@@ -53,7 +53,7 @@ export default function App() {
   const publicPage = ['home','about','privacy'].includes(route.page);
   const accountShell=authPage||setupPage||callbackPage;
   const accountsEnabled=auth.config?.mode==='supabase';
-  const goalSetupPending=accountsEnabled&&Boolean(auth.user)&&needsGoalSetup(auth.setup);
+  const goalSetupPending=accountsEnabled&&Boolean(auth.user)&&needsWorkspaceSetup(auth.setup);
   const goalPage=['dashboard','patterns','history','connect'].includes(route.page);
   const canReadWorkspace=!auth.loading&&auth.config&&(accountsEnabled?Boolean(auth.user):true)&&!(goalPage&&goalSetupPending);
   useEffect(()=>{

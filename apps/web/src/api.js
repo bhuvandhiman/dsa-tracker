@@ -36,7 +36,7 @@ export async function request(path, { signal, timeoutMs, workspaceScope:expected
     if(!body||typeof body!=='object'||Array.isArray(body))throw new Error('Recall returned an unreadable response. Reload and try again.');
     if (!response.ok) throw Object.assign(new Error(typeof body.error==='string'?body.error:`Request failed (${response.status}).`),{status:response.status});
     if(path!=='/auth/config'&&revision!==accountRevision)throw changed();
-    if(options.method&&!['GET','HEAD'].includes(options.method.toUpperCase()))practiceCache.invalidate();
+    if(options.method&&!['GET','HEAD'].includes(options.method.toUpperCase())&&path!=='/account/profile')practiceCache.invalidate();
     return body;
   } catch (error) {
     if(signal?.aborted)throw signal.reason;

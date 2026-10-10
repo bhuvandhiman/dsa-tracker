@@ -58,13 +58,13 @@ test('installation routes accept safe video/download URLs and restrict store lin
 });
 test('private API uses only verified owner, including backup/import routes and setup validation',async t=>{
   const routes=[];
-  const server=createApp({auth:settings,authenticate:async req=>{if(req.get('Authorization')!=='Bearer good')throw new DomainError(401,'Sign in');return {id:user.id,email:user.email};},repositoryForUser:async verified=>{assert.equal(verified.id,user.id);return {setup:async()=>({completed:false}),saveSetup:async body=>body,backup:async()=>({owner:verified.id}),legacyStatus:async()=>({owner:verified.id})};}}).listen(0,'127.0.0.1');
+  const server=createApp({auth:settings,authenticate:async req=>{if(req.get('Authorization')!=='Bearer good')throw new DomainError(401,'Sign in');return {id:user.id,email:user.email,name:'Ada'};},repositoryForUser:async verified=>{assert.equal(verified.id,user.id);return {setup:async()=>({completed:false}),saveSetup:async body=>body,backup:async()=>({owner:verified.id}),legacyStatus:async()=>({owner:verified.id})};}}).listen(0,'127.0.0.1');
   await new Promise(resolve=>server.once('listening',resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
   const origin=`http://127.0.0.1:${server.address().port}`;
   for(const path of ['/api/goal','/api/workspace/backup','/api/imports/legacy/32654ad6-8299-4ed1-a472-77ab7e26b275','/api/session','/api/setup','/api/history']){const response=await fetch(origin+path);assert.equal(response.status,401);routes.push(path);}
   assert.equal(routes.length,6);
   assert.equal((await (await fetch(`${origin}/api/workspace/backup`,{headers:{Authorization:'Bearer good'}})).json()).owner,user.id);
-  const deferred=await fetch(`${origin}/api/setup`,{method:'PUT',headers:{Authorization:'Bearer good','Content-Type':'application/json'},body:JSON.stringify({completed:true})});assert.equal(deferred.status,200);assert.deepEqual(await deferred.json(),{completed:true});
+  const deferred=await fetch(`${origin}/api/setup`,{method:'PUT',headers:{Authorization:'Bearer good','Content-Type':'application/json'},body:JSON.stringify({completed:true})});assert.equal(deferred.status,200);assert.deepEqual(await deferred.json(),{completed:true,profileConfigured:true});
   const invalid=await fetch(`${origin}/api/setup`,{method:'PUT',headers:{Authorization:'Bearer good','Content-Type':'application/json'},body:JSON.stringify({completed:'yes'})});assert.equal(invalid.status,400);
   const foreign=await fetch(`${origin}/api/setup`,{method:'PUT',headers:{Authorization:'Bearer good','Content-Type':'application/json'},body:JSON.stringify({userId:'someone-else',profile:'interview',target:300})});assert.equal(foreign.status,400);
   const config=await (await fetch(`${origin}/api/auth/config`)).json();assert.equal(config.key,settings.key);

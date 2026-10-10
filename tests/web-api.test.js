@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { request,requestStartup,setTokenProvider,setWorkspaceScope } from '../apps/web/src/api.js';
 import {authFetch} from '../apps/web/src/auth-client.js';
+import {practiceCache} from '../apps/web/src/practice-cache.js';
 
 test('dashboard client surfaces actionable API errors', async t => {
   t.mock.method(globalThis,'fetch',async () => ({ok:false,status:503,json:async () => ({error:'Apply database migrations first.'})}));
@@ -73,6 +74,19 @@ test('cancelling a request interrupts a pending token lookup before any API writ
   setTokenProvider(()=>{started();return new Promise(()=>{});});
   t.mock.method(globalThis,'fetch',()=>assert.fail('Cancelled request must not fetch'));
   const operation=request('/goal',{method:'PUT',signal:controller.signal});await began;controller.abort();await assert.rejects(operation,{name:'AbortError'});
+});
+
+test('saving a profile preserves fresh practice data while goal changes still invalidate it',async t=>{
+  t.after(()=>{setTokenProvider(null);setWorkspaceScope(null);practiceCache.clear();});
+  setWorkspaceScope('alice');setTokenProvider(async()=>({token:'alice-token',scope:'alice'}));
+  let reads=0;
+  const read=()=>{reads++;return {categories:[]};};
+  await practiceCache.load(read);
+  t.mock.method(globalThis,'fetch',async()=>Response.json({saved:true}));
+  await request('/account/profile',{method:'PUT',body:JSON.stringify({name:'Alice'})});
+  await practiceCache.load(read);assert.equal(reads,1);
+  await request('/goal',{method:'PUT',body:JSON.stringify({profile:'deep',target:500})});
+  await practiceCache.load(read);assert.equal(reads,2);
 });
 test('SDK fetch preserves cancellation and malformed API bodies fail safely',async t=>{
   const controller=new AbortController();
