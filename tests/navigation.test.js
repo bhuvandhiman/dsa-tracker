@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { patternLink, readRoute, readLocation } from '../apps/web/src/navigation.js';
-import {safeDestination,rememberDestination,accountDestination} from '../apps/web/src/auth-navigation.js';
+import {safeDestination,rememberDestination,accountDestination,needsWorkspaceSetup,onboardingStep} from '../apps/web/src/auth-navigation.js';
 
 test('public entry and About stay separate from workspace and legacy links',()=>{
   for(const hash of ['', '#', '#/', '#/home'])assert.equal(readRoute(hash).page,'home');
@@ -44,4 +44,19 @@ test('profile and history reload directly and survive the login/setup return pat
     assert.equal(accountDestination({goal:{configured:false}},storage),'/setup');
     assert.equal(accountDestination({goal:{configured:true}},storage),`/${page}`);
   }
+});
+
+test('unfinished onboarding resumes installation after a saved goal without losing the intended destination',()=>{
+  const data=new Map(),storage={getItem:key=>data.get(key),setItem:(key,value)=>data.set(key,value),removeItem:key=>data.delete(key)};
+  const user={name:'Ada Lovelace'},setup={profileConfigured:true,completed:false,extensionAcknowledged:false,goal:{configured:true,profile:'deep',target:500}};
+  assert.equal(onboardingStep({},setup),'profile');
+  assert.equal(onboardingStep(user,{...setup,goal:{configured:false}}),'goal');
+  assert.equal(onboardingStep(user,setup),'extension');
+  assert.equal(needsWorkspaceSetup(setup),true);
+  rememberDestination('/patterns/graphs',storage);
+  assert.equal(accountDestination(setup,storage),'/setup');
+  assert.equal(accountDestination({...setup,completed:true},storage),'/patterns/graphs');
+  assert.equal(needsWorkspaceSetup({...setup,completed:true}),false);
+  // Existing accounts without a new completion flag keep workspace access.
+  assert.equal(needsWorkspaceSetup({profileConfigured:true,goal:{configured:true}}),false);
 });

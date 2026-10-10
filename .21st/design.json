@@ -249,6 +249,11 @@
       "date": "2026-10-10",
       "direction": "Personal profile before practice setup",
       "reason": "User requested profile creation at the start so their name appears throughout their account. Add a name and live initials preview before the existing focus/target step; request only the missing name from established accounts. Reuse the same editable profile form, native controls and tokens. Persist the name on the existing Supabase account; preserve goals and practice data."
+    },
+    {
+      "date": "2026-10-10",
+      "direction": "Extension installation as the third onboarding step",
+      "reason": "User requires an installation guide during onboarding because the extension powers LeetCode imports and automatic recording, while allowing Skip for now. Reuse the existing installation page and verified website connection state. Save the goal before installation and resume this step after refresh; explicitly complete setup only after connecting or skipping. Preserve existing account access and use the established native controls and tokens. The 21st CLI remains unavailable."
     }
   ],
   "evidence": [

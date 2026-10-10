@@ -61,6 +61,7 @@ app.post('/fixture/performance',(req,res)=>{
   res.json({fixture:true});
 });
 app.get('/fixture/metrics',(_req,res)=>res.json(metrics));
+app.get('/fixture/setup',(_req,res)=>res.json({fixture:true,setup}));
 app.post('/fixture/profile',(req,res)=>{
   performanceMode=true;startupFailures=0;sessionDelay=0;retentionDelay=0;deleted=false;workspaceUnavailable=false;
   user.user_metadata.full_name=req.body.name??'';
