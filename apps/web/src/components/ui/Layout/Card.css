@@ -1,0 +1,101 @@
+/* Card Primitive - uses design tokens from tokens.css */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Padding */
+.card--padded {
+  padding: var(--spacing-6);
+}
+
+.card--padded .card__header,
+.card--padded .card__content,
+.card--padded .card__footer {
+  padding: 0;
+}
+
+/* Border */
+.card--bordered {
+  border: 1px solid var(--color-line);
+}
+
+/* Radius */
+.card--radius-none { border-radius: 0; }
+.card--radius-sm { border-radius: var(--radius-sm); }
+.card--radius-md { border-radius: var(--radius-md); }
+.card--radius-lg { border-radius: var(--radius-lg); }
+.card--radius-card { border-radius: var(--radius-card); }
+.card--radius-xl { border-radius: var(--radius-xl); }
+.card--radius-2xl { border-radius: var(--radius-2xl); }
+.card--radius-full { border-radius: var(--radius-full); }
+
+/* Hover */
+.card--hover {
+  transition: background-color var(--duration-normal) var(--easing-ease-out),
+              border-color var(--duration-normal) var(--easing-ease-out),
+              box-shadow var(--duration-normal) var(--easing-ease-out);
+}
+
+.card--hover:hover {
+  background: var(--color-surface-raised);
+  border-color: var(--color-accent-ink);
+}
+
+/* Elevated */
+.card--elevated {
+  box-shadow: var(--shadow-dropdown);
+}
+
+/* Header */
+.card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  padding: var(--spacing-6) var(--spacing-6) var(--spacing-4);
+  border-bottom: 1px solid var(--color-line);
+  flex-wrap: wrap;
+}
+
+.card__header-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.card__header-action {
+  flex-shrink: 0;
+}
+
+/* Content */
+.card__content {
+  flex: 1;
+  padding: var(--spacing-4) var(--spacing-6);
+  min-width: 0;
+}
+
+/* Footer */
+.card__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-6) var(--spacing-6);
+  border-top: 1px solid var(--color-line);
+  flex-wrap: wrap;
+}
+
+.card__footer--start { justify-content: flex-start; }
+.card__footer--center { justify-content: center; }
+.card__footer--end { justify-content: flex-end; }
+.card__footer--between { justify-content: space-between; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .card--hover {
+    transition: none;
+  }
+}

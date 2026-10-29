@@ -1,0 +1,121 @@
+/* Badge Primitive - uses design tokens from tokens.css */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Sizes */
+.badge--sm {
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--font-size-xs);
+  min-height: 20px;
+}
+
+.badge--md {
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  min-height: 24px;
+}
+
+.badge--lg {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-base);
+  min-height: 28px;
+}
+
+/* Variants - Neutral/Default */
+.badge--neutral {
+  color: var(--color-muted);
+  border-color: var(--color-line);
+  background: var(--color-surface);
+}
+
+/* Variants - Focus Emphasis */
+.badge--focus-high {
+  color: var(--color-nav-ink);
+  border-color: var(--color-nav-ink);
+  background: var(--color-coral-soft);
+}
+
+.badge--focus-medium {
+  color: #202720;
+  border-color: var(--color-mustard);
+  background: var(--color-mustard);
+}
+
+.badge--focus-lower {
+  color: var(--color-accent-ink);
+  border-color: var(--color-track);
+  background: var(--color-track);
+}
+
+/* Variants - Difficulty */
+.badge--difficulty-easy {
+  color: var(--color-difficulty-easy);
+  border-color: var(--color-difficulty-easy);
+  background: transparent;
+}
+
+.badge--difficulty-medium {
+  color: var(--color-difficulty-medium-ink);
+  border-color: var(--color-difficulty-medium);
+  background: transparent;
+}
+
+.badge--difficulty-hard {
+  color: var(--color-difficulty-hard-ink);
+  border-color: var(--color-difficulty-hard);
+  background: transparent;
+}
+
+.badge--difficulty-unknown {
+  color: var(--color-muted);
+  border-color: var(--color-line);
+  background: var(--color-surface);
+}
+
+/* Variants - Status */
+.badge--status-good {
+  color: var(--color-accent-ink);
+  border-color: var(--color-accent-ink);
+  background: var(--color-tile-dated);
+}
+
+.badge--status-warning {
+  color: var(--color-nav-ink);
+  border-color: var(--color-nav-ink);
+  background: var(--color-coral-soft);
+}
+
+.badge--status-error {
+  color: var(--color-difficulty-hard-ink);
+  border-color: var(--color-difficulty-hard);
+  background: var(--color-coral-soft);
+}
+
+.badge--status-info {
+  color: var(--color-teal);
+  border-color: var(--color-teal);
+  background: var(--color-tile-dated);
+}
+
+.badge--status-neutral {
+  color: var(--color-muted);
+  border-color: var(--color-line);
+  background: var(--color-surface);
+}
+
+/* Reduced motion - badges don't animate but for consistency */
+@media (prefers-reduced-motion: reduce) {
+  .badge {
+    transition: none;
+  }
+}
