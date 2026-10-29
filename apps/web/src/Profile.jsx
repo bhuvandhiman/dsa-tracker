@@ -3,6 +3,7 @@ import {useWorkspaceRequest} from './workspace-context.js';
 import {accountInitials} from './profile-model.js';
 import ProfileForm from './ProfileForm.jsx';
 import {hasProfileName} from '../../shared/profile.js';
+import {formatPracticeDate} from './date-format.js';
 
 export default function Profile({auth}){
   const request=useWorkspaceRequest();
@@ -16,7 +17,7 @@ export default function Profile({auth}){
     return ()=>controller.abort();
   },[request,revision]);
   const user=auth.user,goal=connection.data?.goal||auth.setup?.goal;
-  const joined=user?.createdAt&&Number.isFinite(Date.parse(user.createdAt))?new Intl.DateTimeFormat('en-IN',{dateStyle:'long',timeZone:'Asia/Calcutta'}).format(new Date(user.createdAt)):null;
+  const joined=user?.createdAt?formatPracticeDate(user.createdAt,{dateStyle:'long',fallback:null}):null;
   function finishEditing(){setEditing(false);requestAnimationFrame(()=>editButton.current?.focus());}
   async function saveProfile(name){
     const result=await request('/account/profile',{method:'PUT',body:JSON.stringify({name})});
@@ -33,7 +34,7 @@ export default function Profile({auth}){
       <section className="workspace-panel" aria-labelledby="profile-practice-title"><h2 id="profile-practice-title">Your practice</h2>
         <dl><dt>Focus</dt><dd>{goal?.configured?(goal.profile==='deep'?'Deep Focus':'Interview Focused'):'Choose your focus'}</dd><dt>Target</dt><dd>{goal?.configured?`${goal.target} problems`:'Choose your target'}</dd><dt>LeetCode account</dt><dd>{connection.loading?'Checking connection…':connection.error?'Connection unavailable':connection.data?.account||'No account connected'}</dd></dl>
         {connection.error&&<p className="form-message" role="alert">{connection.error} <button type="button" className="text-button inline-link" onClick={()=>{setConnection({loading:true,data:null,error:''});setRevision(value=>value+1);}}>Try again</button></p>}
-        <div className="row-actions"><a className="inline-link" href={goal?.configured?'#/dashboard':'#/setup'}>{goal?.configured?'Adjust goal':'Choose focus and target'} →</a><a className="inline-link" href="#/connect">Manage connection →</a></div>
+        <div className="row-actions"><a className="inline-link" href={goal?.configured?'#/dashboard?section=goal':'#/setup'}>{goal?.configured?'Adjust goal':'Choose focus and target'} →</a><a className="inline-link" href="#/connect">Manage connection →</a></div>
       </section>
     </div>
   </section>;

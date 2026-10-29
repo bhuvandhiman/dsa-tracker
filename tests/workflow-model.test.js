@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validPageOffset, undatedPracticeLabel, backupSummary, subpatternQuery, nextProblemSort, safeProblemUrl } from '../apps/web/src/workflow-model.js';
+import { validPageOffset, undatedPracticeLabel, backupSummary, subpatternQuery, nextProblemSort, safeProblemUrl, readRemovedRecordings } from '../apps/web/src/workflow-model.js';
 import { readRoute } from '../apps/web/src/navigation.js';
 import { historyInput, libraryInput, placementChangeInput } from '../apps/api/src/domain.js';
 test('problem links refuse credentials, custom ports and missing slugs',()=>{
@@ -65,6 +65,22 @@ test('moving the final item off a page returns to the last available page',()=>{
   assert.equal(validPageOffset(25,26),25);
   assert.equal(validPageOffset(0,0),0);
   assert.equal(validPageOffset(75,0),0);
+});
+test('removed recordings recover an empty later page and detect the actual next page',async()=>{
+  const calls=[];
+  const page=await readRemovedRecordings(async path=>{
+    calls.push(path);
+    return {attempts:path.endsWith('offset=0')?Array.from({length:25},(_,id)=>({id})):[]};
+  },'/attempts/removed?limit=25&offset=50');
+  assert.deepEqual(calls,['/attempts/removed?limit=26&offset=50','/attempts/removed?limit=26&offset=25','/attempts/removed?limit=26&offset=0']);
+  assert.equal(page.offset,0);assert.equal(page.attempts.length,25);assert.equal(page.hasMore,false);
+  const next=await readRemovedRecordings(async()=>({attempts:Array.from({length:26},(_,id)=>({id}))}),'/attempts/removed?offset=25');
+  assert.equal(next.offset,25);assert.equal(next.attempts.length,25);assert.equal(next.hasMore,true);
+});
+test('cancelled removed-recording pagination never starts another request',async()=>{
+  const controller=new AbortController();let calls=0;
+  await assert.rejects(readRemovedRecordings(async()=>{calls++;controller.abort();return {attempts:[]};},'/attempts/removed?offset=25',{signal:controller.signal}),{name:'AbortError'});
+  assert.equal(calls,1);
 });
 test('missing practice dates do not label imported or recorded solves as unpracticed',()=>{
   assert.equal(undatedPracticeLabel({historical:true}),'Dates unknown');

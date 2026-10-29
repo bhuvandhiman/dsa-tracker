@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { connectAuth,initializedSession } from './auth-client.js';
+import { connectAuth,initializedSession,resetAuthConnection } from './auth-client.js';
 import { abortable,requestStartup,setWorkspaceScope } from './api.js';
 import {createSessionLoader} from './session-loader.js';
 
@@ -48,7 +48,7 @@ export default function useAuth(){
     }
     void load();return()=>{active=false;epoch.current++;controller.abort();unsubscribe();};
   },[reload,readAccount]);
-  return {...state,retry:()=>setReload(value=>value+1),applyProfile:user=>{
+  return {...state,retry:()=>{generation.current++;verifiedOwner.current=null;resetAuthConnection();setState(value=>({...value,loading:true,user:null,sessionUser:null,setup:null,error:''}));setReload(value=>value+1);},applyProfile:user=>{
     setState(value=>value.user?.id===user.id?{...value,user,setup:{...value.setup,profileConfigured:true}}:value);
   },refresh:async()=>{
     const current=++generation.current;
@@ -59,5 +59,5 @@ export default function useAuth(){
       if(current===generation.current){verifiedOwner.current=account.user?.id;setState(value=>({...value,loading:false,...account,sessionUser,error:''}));}
       return account;
     }catch(error){if(current===generation.current){verifiedOwner.current=null;setState(value=>({...value,loading:false,user:null,setup:null,error:error.message}));}throw error;}
-  },async signOut({scope='global',destination='/home'}={}){generation.current++;verifiedOwner.current=null;setWorkspaceScope(null);setState(value=>({...value,loading:true,user:null,sessionUser:null,setup:null,error:''}));try{const {error}=await abortable(state.client.auth.signOut({scope}),AbortSignal.timeout(15000));if(error)throw error;setState(value=>({...value,loading:false,error:''}));window.location.hash=destination;}catch(error){setState(value=>({...value,loading:false,error:error.message}));throw error;}}};
+  },async signOut({scope='local',destination='/home'}={}){generation.current++;verifiedOwner.current=null;setWorkspaceScope(null);setState(value=>({...value,loading:true,user:null,sessionUser:null,setup:null,error:''}));try{const {error}=await abortable(state.client.auth.signOut({scope}),AbortSignal.timeout(15000));if(error)throw error;setState(value=>({...value,loading:false,error:''}));window.location.hash=destination;}catch(error){setState(value=>({...value,loading:false,error:error.message}));throw error;}}};
 }

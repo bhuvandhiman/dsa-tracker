@@ -95,3 +95,11 @@ test('strength bar uses current evidence and authoritative practice progress acr
   assert.equal(strengthBarModel({slug:'other',experienceScore:50}),null);
   assert.equal(strengthBarModel({...item.summary,slug:'graphs',practiceBlock:{earned:2,required:4}}).recentWidth,10);
 });
+test('queue review copy preserves weighted credits AND the different-problem requirement',async()=>{
+  const {practiceReviewProgress}=await import('../apps/web/src/dashboard-model.js');
+  assert.equal(practiceReviewProgress({earned:2.5,required:4,distinct:3,minimumDistinct:4}),'Next queue review: 1.5 more practice credits · 1 more different problem');
+  assert.equal(practiceReviewProgress({earned:4,required:4,distinct:3,minimumDistinct:4}),'Next queue review: 1 more different problem');
+  assert.equal(practiceReviewProgress({earned:2,required:4,distinct:4,minimumDistinct:4}),'Next queue review: 2 more practice credits');
+  assert.equal(practiceReviewProgress({earned:4,required:4,distinct:4,minimumDistinct:4}),'Practice complete · queue can be reviewed');
+  assert.equal(practiceReviewProgress(null),null);
+});

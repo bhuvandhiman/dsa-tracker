@@ -1,0 +1,392 @@
+/*
+ * Recall Design Tokens - CSS Custom Properties
+ * Generated from apps/shared/design-tokens.json
+ * Do not edit directly - edit the JSON source and regenerate
+ */
+
+:root {
+  /* ========================================
+   * COLOR - Core
+   * ======================================== */
+  --color-canvas: #fafbe9;
+  --color-ink: #202720;
+  --color-muted: #606756;
+
+  /* ========================================
+   * COLOR - Brand
+   * ======================================== */
+  --color-coral: #e96586;
+  --color-mustard: #f2b632;
+  --color-teal: #2c8075;
+
+  /* ========================================
+   * COLOR - Semantic
+   * ======================================== */
+  --color-on-accent: #fffdec;
+  --color-accent-ink: #24695f;
+  --color-track: #d8deca;
+  --color-surface: #f2f3e2;
+  --color-surface-raised: #fffef4;
+  --color-coral-soft: #f9e0e5;
+  --color-nav-ink: #9a2948;
+  --color-line: #e0e3cf;
+
+  /* ========================================
+   * COLOR - Tiles
+   * ======================================== */
+  --color-tile-goal: #f2c44d;
+  --color-tile-dated: #2c8075;
+  --color-tile-undated: #f4b2c5;
+
+  /* ========================================
+   * COLOR - Difficulty
+   * ======================================== */
+  --color-difficulty-easy: #2c8075;
+  --color-difficulty-medium: #e5ad23;
+  --color-difficulty-hard: #e96586;
+  --color-difficulty-medium-ink: #886100;
+  --color-difficulty-hard-ink: #b52d53;
+
+  /* ========================================
+   * COLOR - Focus Emphasis (computed from semantic)
+   * ======================================== */
+  --color-focus-high-bg: var(--color-coral-soft);
+  --color-focus-high-color: var(--color-nav-ink);
+  --color-focus-high-border: currentColor;
+  --color-focus-medium-bg: var(--color-mustard);
+  --color-focus-medium-color: #202720;
+  --color-focus-medium-border: currentColor;
+  --color-focus-lower-bg: var(--color-track);
+  --color-focus-lower-color: var(--color-accent-ink);
+  --color-focus-lower-border: currentColor;
+
+  /* ========================================
+   * COLOR - Status
+   * ======================================== */
+  --color-status-good: var(--color-accent-ink);
+  --color-status-warning-color: var(--color-nav-ink);
+  --color-status-warning-bg: var(--color-coral-soft);
+  --color-status-error-color: var(--color-nav-ink);
+  --color-status-error-border: var(--color-coral);
+
+  /* ========================================
+   * COLOR - Shadow
+   * ======================================== */
+  --color-shadow-dialog: 0 18px 60px #0003;
+  --color-shadow-dropdown: 0 8px 24px #0002;
+
+  /* ========================================
+   * COLOR - Illustration
+   * ======================================== */
+  --color-illustration-disc-bg: #e4e9ca;
+  --color-illustration-disc-shadow: inset 0 0 0 12px #f0f1dd;
+  --color-illustration-orbit-border: #c7cbb5;
+  --color-illustration-topic-one: #f5b5c6;
+  --color-illustration-topic-two: #f1c855;
+  --color-illustration-topic-three: #bcdccd;
+  --color-illustration-brand-mark-bg: #f6acc0;
+  --color-illustration-brand-mark-color: #3a5e47;
+
+  /* ========================================
+   * SPACING
+   * ======================================== */
+  --spacing-base: 4px;
+  --spacing-0: 0;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-7: 28px;
+  --spacing-8: 32px;
+  --spacing-9: 36px;
+  --spacing-10: 40px;
+  --spacing-11: 44px;
+  --spacing-12: 48px;
+  --spacing-13: 52px;
+  --spacing-14: 56px;
+  --spacing-15: 60px;
+  --spacing-16: 64px;
+  --spacing-20: 80px;
+  --spacing-24: 96px;
+  --spacing-32: 128px;
+
+  /* Semantic spacing */
+  --spacing-inline-gap: 8px;
+  --spacing-inline-gap-sm: 4px;
+  --spacing-inline-gap-lg: 12px;
+  --spacing-component-gap: 16px;
+  --spacing-component-gap-lg: 24px;
+  --spacing-section-gap: 32px;
+  --spacing-section-gap-lg: 48px;
+  --spacing-page-padding-inline: clamp(28px, 4vw, 64px);
+  --spacing-page-padding-inline-sm: clamp(22px, 5vw, 84px);
+
+  /* ========================================
+   * TYPOGRAPHY
+   * ======================================== */
+  --font-family-base: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  --font-family-mono: monospace;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Fluid type scale */
+  --font-size-display-xl: clamp(52px, 5.8vw, 86px);
+  --font-size-display-lg: clamp(45px, 5.2vw, 73px);
+  --font-size-display-md: clamp(40px, 4.4vw, 61px);
+  --font-size-display-sm: clamp(34px, 4vw, 52px);
+  --font-size-heading-xl: clamp(38px, 4.2vw, 58px);
+  --font-size-heading-lg: clamp(34px, 3.6vw, 48px);
+  --font-size-heading-md: clamp(32px, 3.2vw, 46px);
+  --font-size-heading-sm: clamp(28px, 3vw, 42px);
+  --font-size-title-xl: clamp(26px, 2.7vw, 38px);
+  --font-size-title-lg: clamp(25px, 2.6vw, 34px);
+  --font-size-title-md: clamp(24px, 2.4vw, 34px);
+  --font-size-title-sm: clamp(23px, 2.3vw, 32px);
+  --font-size-body-lg: clamp(17px, 1.8vw, 20px);
+  --font-size-body-md: clamp(15px, 1.5vw, 17px);
+  --font-size-body-sm: clamp(13px, 1.3vw, 15px);
+  --font-size-caption: clamp(11px, 1.1vw, 12px);
+  --font-size-overline: clamp(10px, 1vw, 11px);
+
+  /* Static type scale */
+  --font-size-xs: 10px;
+  --font-size-sm: 11px;
+  --font-size-base: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+  --font-size-xl: 15px;
+  --font-size-2xl: 16px;
+  --font-size-3xl: 17px;
+  --font-size-4xl: 18px;
+  --font-size-5xl: 19px;
+  --font-size-6xl: 20px;
+  --font-size-7xl: 22px;
+  --font-size-8xl: 24px;
+  --font-size-9xl: 25px;
+  --font-size-10xl: 26px;
+  --font-size-11xl: 28px;
+  --font-size-12xl: 29px;
+  --font-size-13xl: 33px;
+  --font-size-14xl: 34px;
+  --font-size-15xl: 35px;
+  --font-size-16xl: 36px;
+  --font-size-17xl: 37px;
+  --font-size-18xl: 42px;
+  --font-size-19xl: 48px;
+  --font-size-20xl: 62px;
+  --font-size-21xl: 64px;
+
+  --line-height-tight: 1.06;
+  --line-height-snug: 1.1;
+  --line-height-normal: 1.2;
+  --line-height-relaxed: 1.35;
+  --line-height-loose: 1.5;
+  --line-height-body: 1.6;
+  --line-height-body-lg: 1.7;
+  --line-height-body-xl: 1.8;
+
+  --letter-spacing-tightest: -3.5px;
+  --letter-spacing-tighter: -2.7px;
+  --letter-spacing-tight: -1.6px;
+  --letter-spacing-normal: -0.9px;
+  --letter-spacing-wide: -0.5px;
+  --letter-spacing-wider: 0;
+  --letter-spacing-widest: 1.6px;
+
+  /* ========================================
+   * BORDER RADIUS
+   * ======================================== */
+  --radius-base: 4px;
+  --radius-none: 0;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 20px;
+  --radius-4xl: 22px;
+  --radius-5xl: 24px;
+  --radius-6xl: 26px;
+  --radius-full: 999px;
+  --radius-circle: 50%;
+
+  /* Semantic radii */
+  --radius-button: 14px;
+  --radius-button-primary: 18px;
+  --radius-card: 18px;
+  --radius-card-lg: 20px;
+  --radius-card-xl: 22px;
+  --radius-dialog: 24px;
+  --radius-input: 10px;
+  --radius-select: 12px;
+  --radius-badge: 999px;
+  --radius-icon: 50%;
+  --radius-progress: 8px;
+  --radius-progress-bar: 6px;
+  --radius-tooltip: 12px;
+
+  /* ========================================
+   * SHADOW
+   * ======================================== */
+  --shadow-dialog: var(--color-shadow-dialog);
+  --shadow-dropdown: var(--color-shadow-dropdown);
+
+  /* ========================================
+   * MOTION
+   * ======================================== */
+  --duration-instant: 0ms;
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+  --duration-slow: 250ms;
+  --duration-slower: 350ms;
+
+  --easing-linear: linear;
+  --easing-ease: ease;
+  --easing-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --easing-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --easing-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --transition-color: color var(--duration-fast) var(--easing-ease-out);
+  --transition-background: background-color var(--duration-normal) var(--easing-ease-out);
+  --transition-border: border-color var(--duration-fast) var(--easing-ease-out);
+  --transition-transform: transform var(--duration-normal) var(--easing-ease-out);
+  --transition-opacity: opacity var(--duration-fast) var(--easing-ease-out);
+  --transition-width: width var(--duration-normal) var(--easing-ease-out);
+  --transition-height: height var(--duration-normal) var(--easing-ease-out);
+  --transition-all: all var(--duration-normal) var(--easing-ease-out);
+
+  /* ========================================
+   * BREAKPOINTS (for reference in JS/media queries)
+   * ======================================== */
+  --bp-xs: 380px;
+  --bp-sm: 480px;
+  --bp-md: 600px;
+  --bp-lg: 720px;
+  --bp-xl: 900px;
+  --bp-2xl: 1000px;
+  --bp-3xl: 1050px;
+  --bp-4xl: 1200px;
+  --bp-5xl: 1600px;
+
+  /* ========================================
+   * Z-INDEX
+   * ======================================== */
+  --z-base: 0;
+  --z-dropdown: 5;
+  --z-modal: 30;
+  --z-toast: 50;
+  --z-tooltip: 100;
+  --z-skip-link: 10;
+  --z-extension-panel: 2147483647;
+
+  /* ========================================
+   * SIZING
+   * ======================================== */
+  --size-icon-xs: 16px;
+  --size-icon-sm: 20px;
+  --size-icon-md: 24px;
+  --size-icon-lg: 32px;
+  --size-icon-xl: 44px;
+
+  --size-touch-min: 44px;
+  --size-touch-comfortable: 48px;
+
+  --size-avatar-sm: 34px;
+  --size-avatar-md: 43px;
+  --size-avatar-lg: 64px;
+
+  --size-progress-thin: 7px;
+  --size-progress-medium: 8px;
+  --size-progress-thick: 10px;
+  --size-progress-bar: 22px;
+  --size-progress-bar-lg: 32px;
+  --size-progress-bar-xl: 42px;
+  --size-progress-bar-2xl: 50px;
+
+  --size-pattern-icon-sm: 34px;
+  --size-pattern-icon-md: 43px;
+  --size-pattern-icon-lg: 36px;
+
+  /* ========================================
+   * OPACITY
+   * ======================================== */
+  --opacity-disabled: 0.65;
+  --opacity-overlay: 0.6;
+  --opacity-subtle: 0.15;
+  --opacity-hover: 0.08;
+}
+
+/* ========================================
+ * DARK MODE OVERRIDES
+ * ======================================== */
+:root[data-theme='dark'] {
+  /* Core */
+  --color-canvas: #181f1c;
+  --color-ink: #f3f2df;
+  --color-muted: #b9c2b5;
+
+  /* Semantic */
+  --color-accent-ink: #8bd4c5;
+  --color-track: #48574b;
+  --color-surface-raised: #29362d;
+  --color-coral-soft: #402d34;
+  --color-nav-ink: #f5aec2;
+  --color-surface: #232d26;
+  --color-line: #3b483c;
+
+  /* Tiles */
+  --color-tile-goal: #514528;
+  --color-tile-dated: #285e56;
+  --color-tile-undated: #54323e;
+
+  /* Difficulty */
+  --color-difficulty-easy: #57c2aa;
+  --color-difficulty-medium: #f2bc42;
+  --color-difficulty-hard: #ef829d;
+  --color-difficulty-medium-ink: var(--color-difficulty-medium);
+  --color-difficulty-hard-ink: var(--color-difficulty-hard);
+
+  /* Illustration */
+  --color-illustration-disc-bg: #354333;
+  --color-illustration-disc-shadow: inset 0 0 0 12px #29342b;
+  --color-illustration-orbit-border: #53634e;
+}
+
+/* ========================================
+ * LEGACY ALIASES (for gradual migration)
+ * ======================================== */
+:root {
+  /* Legacy names - map to new semantic tokens */
+  --canvas: var(--color-canvas);
+  --ink: var(--color-ink);
+  --muted: var(--color-muted);
+  --coral: var(--color-coral);
+  --mustard: var(--color-mustard);
+  --teal: var(--color-teal);
+  --on-accent: var(--color-on-accent);
+  --accent-ink: var(--color-accent-ink);
+  --track: var(--color-track);
+  --surface: var(--color-surface);
+  --surface-raised: var(--color-surface-raised);
+  --coral-soft: var(--color-coral-soft);
+  --tile-goal: var(--color-tile-goal);
+  --tile-dated: var(--color-tile-dated);
+  --tile-undated: var(--color-tile-undated);
+  --nav-ink: var(--color-nav-ink);
+  --line: var(--color-line);
+  --dialog-shadow: var(--shadow-dialog);
+  --radius: var(--radius-6xl);
+  --difficulty-easy: var(--color-difficulty-easy);
+  --difficulty-medium: var(--color-difficulty-medium);
+  --difficulty-hard: var(--color-difficulty-hard);
+  --difficulty-medium-ink: var(--color-difficulty-medium-ink);
+  --difficulty-hard-ink: var(--color-difficulty-hard-ink);
+}

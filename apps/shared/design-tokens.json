@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "description": "Recall Design Tokens - Single source of truth for colors, spacing, typography, shadows, radii, and motion",
+  "color": {
+    "core": {
+      "canvas": { "light": "#fafbe9", "dark": "#181f1c", "description": "Page background" },
+      "ink": { "light": "#202720", "dark": "#f3f2df", "description": "Primary text color" },
+      "muted": { "light": "#606756", "dark": "#b9c2b5", "description": "Secondary/de-emphasized text" }
+    },
+    "brand": {
+      "coral": { "light": "#e96586", "dark": "#e96586", "description": "Primary brand color - high emphasis, primary actions" },
+      "mustard": { "light": "#f2b632", "dark": "#f2b632", "description": "Secondary brand color - medium emphasis, recent practice" },
+      "teal": { "light": "#2c8075", "dark": "#2c8075", "description": "Tertiary brand color - lower emphasis, retention, success" }
+    },
+    "semantic": {
+      "onAccent": { "light": "#fffdec", "dark": "#fffdec", "description": "Text on brand colors" },
+      "accentInk": { "light": "#24695f", "dark": "#8bd4c5", "description": "Accent text on brand backgrounds" },
+      "track": { "light": "#d8deca", "dark": "#48574b", "description": "Track/background for progress bars, sliders" },
+      "surface": { "light": "#f2f3e2", "dark": "#232d26", "description": "Card/panel backgrounds" },
+      "surfaceRaised": { "light": "#fffef4", "dark": "#29362d", "description": "Elevated surfaces (hover, dropdowns, modals)" },
+      "line": { "light": "#e0e3cf", "dark": "#3b483c", "description": "Borders, dividers" },
+      "coralSoft": { "light": "#f9e0e5", "dark": "#402d34", "description": "Coral tint for active/selected states" },
+      "navInk": { "light": "#9a2948", "dark": "#f5aec2", "description": "Navigation active text" }
+    },
+    "tiles": {
+      "goal": { "light": "#f2c44d", "dark": "#514528", "description": "Goal coverage tile background" },
+      "dated": { "light": "#2c8075", "dark": "#285e56", "description": "Dated practice tile background" },
+      "undated": { "light": "#f4b2c5", "dark": "#54323e", "description": "Undated practice tile background" }
+    },
+    "difficulty": {
+      "easy": { "light": "#2c8075", "dark": "#57c2aa", "description": "Easy difficulty" },
+      "medium": { "light": "#e5ad23", "dark": "#f2bc42", "description": "Medium difficulty" },
+      "hard": { "light": "#e96586", "dark": "#ef829d", "description": "Hard difficulty" },
+      "mediumInk": { "light": "#886100", "dark": "#f2bc42", "description": "Medium difficulty text on light" },
+      "hardInk": { "light": "#b52d53", "dark": "#ef829d", "description": "Hard difficulty text on light" }
+    },
+    "focusEmphasis": {
+      "high": { "bg": "var(--coral-soft)", "color": "var(--nav-ink)", "border": "currentColor" },
+      "medium": { "bg": "var(--mustard)", "color": "#202720", "border": "currentColor" },
+      "lower": { "bg": "var(--track)", "color": "var(--accent-ink)", "border": "currentColor" }
+    },
+    "status": {
+      "good": { "color": "var(--accent-ink)" },
+      "warning": { "color": "var(--nav-ink)", "bg": "var(--coral-soft)" },
+      "error": { "color": "var(--nav-ink)", "border": "var(--coral)" }
+    },
+    "shadow": {
+      "dialog": { "light": "0 18px 60px #0003", "dark": "0 18px 60px #0003", "description": "Modal/dialog shadow" },
+      "dropdown": { "light": "0 8px 24px #0002", "dark": "0 8px 24px #0002", "description": "Dropdown/menu shadow" }
+    },
+    "illustration": {
+      "discBg": { "light": "#e4e9ca", "dark": "#354333" },
+      "discShadow": { "light": "inset 0 0 0 12px #f0f1dd", "dark": "inset 0 0 0 12px #29342b" },
+      "orbitBorder": { "light": "#c7cbb5", "dark": "#53634e" },
+      "topicOne": { "light": "#f5b5c6", "dark": "#f5b5c6" },
+      "topicTwo": { "light": "#f1c855", "dark": "#f1c855" },
+      "topicThree": { "light": "#bcdccd", "dark": "#bcdccd" },
+      "brandMarkBg": { "light": "#f6acc0", "dark": "#f6acc0" },
+      "brandMarkColor": { "light": "#3a5e47", "dark": "#3a5e47" }
+    }
+  },
+  "spacing": {
+    "base": "4px",
+    "scale": {
+      "0": "0",
+      "1": "4px",
+      "2": "8px",
+      "3": "12px",
+      "4": "16px",
+      "5": "20px",
+      "6": "24px",
+      "7": "28px",
+      "8": "32px",
+      "9": "36px",
+      "10": "40px",
+      "11": "44px",
+      "12": "48px",
+      "13": "52px",
+      "14": "56px",
+      "15": "60px",
+      "16": "64px",
+      "20": "80px",
+      "24": "96px",
+      "32": "128px"
+    },
+    "semantic": {
+      "inlineGap": "8px",
+      "inlineGapSm": "4px",
+      "inlineGapLg": "12px",
+      "componentGap": "16px",
+      "componentGapLg": "24px",
+      "sectionGap": "32px",
+      "sectionGapLg": "48px",
+      "pagePaddingInline": "clamp(28px, 4vw, 64px)",
+      "pagePaddingInlineSm": "clamp(22px, 5vw, 84px)"
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "base": "'Trebuchet MS', 'Segoe UI', sans-serif",
+      "mono": "monospace"
+    },
+    "fontWeight": {
+      "normal": "400",
+      "medium": "500",
+      "semibold": "600",
+      "bold": "700",
+      "extrabold": "800"
+    },
+    "fontSize": {
+      "fluid": {
+        "displayXl": "clamp(52px, 5.8vw, 86px)",
+        "displayLg": "clamp(45px, 5.2vw, 73px)",
+        "displayMd": "clamp(40px, 4.4vw, 61px)",
+        "displaySm": "clamp(34px, 4vw, 52px)",
+        "headingXl": "clamp(38px, 4.2vw, 58px)",
+        "headingLg": "clamp(34px, 3.6vw, 48px)",
+        "headingMd": "clamp(32px, 3.2vw, 46px)",
+        "headingSm": "clamp(28px, 3vw, 42px)",
+        "titleXl": "clamp(26px, 2.7vw, 38px)",
+        "titleLg": "clamp(25px, 2.6vw, 34px)",
+        "titleMd": "clamp(24px, 2.4vw, 34px)",
+        "titleSm": "clamp(23px, 2.3vw, 32px)",
+        "bodyLg": "clamp(17px, 1.8vw, 20px)",
+        "bodyMd": "clamp(15px, 1.5vw, 17px)",
+        "bodySm": "clamp(13px, 1.3vw, 15px)",
+        "caption": "clamp(11px, 1.1vw, 12px)",
+        "overline": "clamp(10px, 1vw, 11px)"
+      },
+      "static": {
+        "xs": "10px",
+        "sm": "11px",
+        "base": "12px",
+        "md": "13px",
+        "lg": "14px",
+        "xl": "15px",
+        "2xl": "16px",
+        "3xl": "17px",
+        "4xl": "18px",
+        "5xl": "19px",
+        "6xl": "20px",
+        "7xl": "22px",
+        "8xl": "24px",
+        "9xl": "25px",
+        "10xl": "26px",
+        "11xl": "28px",
+        "12xl": "29px",
+        "13xl": "33px",
+        "14xl": "34px",
+        "15xl": "35px",
+        "16xl": "36px",
+        "17xl": "37px",
+        "18xl": "42px",
+        "19xl": "48px",
+        "20xl": "62px",
+        "21xl": "64px"
+      }
+    },
+    "lineHeight": {
+      "tight": "1.06",
+      "snug": "1.1",
+      "normal": "1.2",
+      "relaxed": "1.35",
+      "loose": "1.5",
+      "body": "1.6",
+      "bodyLg": "1.7",
+      "bodyXl": "1.8"
+    },
+    "letterSpacing": {
+      "tightest": "-3.5px",
+      "tighter": "-2.7px",
+      "tight": "-1.6px",
+      "normal": "-0.9px",
+      "wide": "-0.5px",
+      "wider": "0",
+      "widest": "1.6px"
+    }
+  },
+  "borderRadius": {
+    "base": "4px",
+    "scale": {
+      "none": "0",
+      "xs": "4px",
+      "sm": "8px",
+      "md": "10px",
+      "lg": "12px",
+      "xl": "14px",
+      "2xl": "18px",
+      "3xl": "20px",
+      "4xl": "22px",
+      "5xl": "24px",
+      "6xl": "26px",
+      "full": "999px",
+      "circle": "50%"
+    },
+    "semantic": {
+      "button": "14px",
+      "buttonPrimary": "18px",
+      "card": "18px",
+      "cardLg": "20px",
+      "cardXl": "22px",
+      "dialog": "24px",
+      "input": "10px",
+      "select": "12px",
+      "badge": "999px",
+      "icon": "50%",
+      "progress": "8px",
+      "progressBar": "6px",
+      "tooltip": "12px"
+    }
+  },
+  "shadow": {
+    "dialog": "var(--dialog-shadow)",
+    "dropdown": "var(--dropdown-shadow)"
+  },
+  "motion": {
+    "duration": {
+      "instant": "0ms",
+      "fast": "120ms",
+      "normal": "180ms",
+      "slow": "250ms",
+      "slower": "350ms"
+    },
+    "easing": {
+      "linear": "linear",
+      "ease": "ease",
+      "easeIn": "cubic-bezier(0.4, 0, 1, 1)",
+      "easeOut": "cubic-bezier(0, 0, 0.2, 1)",
+      "easeInOut": "cubic-bezier(0.4, 0, 0.2, 1)",
+      "spring": "cubic-bezier(0.34, 1.56, 0.64, 1)"
+    },
+    "transition": {
+      "color": "color var(--motion-duration-fast) var(--motion-easing-easeOut)",
+      "background": "background-color var(--motion-duration-normal) var(--motion-easing-easeOut)",
+      "border": "border-color var(--motion-duration-fast) var(--motion-easing-easeOut)",
+      "transform": "transform var(--motion-duration-normal) var(--motion-easing-easeOut)",
+      "opacity": "opacity var(--motion-duration-fast) var(--motion-easing-easeOut)",
+      "width": "width var(--motion-duration-normal) var(--motion-easing-easeOut)",
+      "height": "height var(--motion-duration-normal) var(--motion-easing-easeOut)",
+      "all": "all var(--motion-duration-normal) var(--motion-easing-easeOut)"
+    }
+  },
+  "breakpoints": {
+    "xs": "380px",
+    "sm": "480px",
+    "md": "600px",
+    "lg": "720px",
+    "xl": "900px",
+    "2xl": "1000px",
+    "3xl": "1050px",
+    "4xl": "1200px",
+    "5xl": "1600px"
+  },
+  "zIndex": {
+    "base": "0",
+    "dropdown": "5",
+    "modal": "30",
+    "toast": "50",
+    "tooltip": "100",
+    "skipLink": "10",
+    "extensionPanel": "2147483647"
+  },
+  "sizing": {
+    "icon": {
+      "xs": "16px",
+      "sm": "20px",
+      "md": "24px",
+      "lg": "32px",
+      "xl": "44px"
+    },
+    "touchTarget": {
+      "min": "44px",
+      "comfortable": "48px"
+    },
+    "avatar": {
+      "sm": "34px",
+      "md": "43px",
+      "lg": "64px"
+    },
+    "progress": {
+      "thin": "7px",
+      "medium": "8px",
+      "thick": "10px",
+      "bar": "22px",
+      "barLg": "32px",
+      "barXl": "42px",
+      "bar2xl": "50px"
+    },
+    "patternIcon": {
+      "sm": "34px",
+      "md": "43px",
+      "lg": "36px"
+    }
+  },
+  "opacity": {
+    "disabled": "0.65",
+    "overlay": "0.6",
+    "subtle": "0.15",
+    "hover": "0.08"
+  }
+}

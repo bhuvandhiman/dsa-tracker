@@ -44,6 +44,13 @@ test('provider password requirements are retained and same-password errors are c
   assert.equal(authFeedback(error).message,error.message);assert.match(authFeedback({code:'same_password'}).message,/different password/);
 });
 
+test('only errors with a known invalid field mark that field, while ambiguous credentials stay associated',()=>{
+  for(const code of ['weak_password','same_password'])assert.equal(authFeedback({code}).field,'password');
+  assert.equal(authFeedback({code:'email_address_invalid'}).field,'email');
+  assert.equal(authFeedback({code:'invalid_credentials'}).credentials,true);
+  for(const error of [{code:'invalid_credentials'},{code:'email_not_confirmed'},{code:'email_address_not_authorized'},{status:429},{status:503},new TypeError('Failed to fetch')])assert.equal(authFeedback(error).field,undefined);
+});
+
 test('form switching retains only the email in memory and reads are safe for StrictMode',()=>{
   clearAuthEmail();assert.equal(readAuthEmail(),'');rememberAuthEmail('  existing@example.test  ');
   assert.equal(readAuthEmail(),'existing@example.test');assert.equal(readAuthEmail(),'existing@example.test');clearAuthEmail();assert.equal(readAuthEmail(),'');

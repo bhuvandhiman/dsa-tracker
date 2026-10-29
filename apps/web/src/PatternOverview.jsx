@@ -5,17 +5,26 @@ import { patternLink } from './navigation.js';
 
 export function DifficultyBar({ goal, bucket }) {
   const coverage = difficultyCoverage(goal, bucket);
-  const [active, setActive] = useState(null);
+  const [activeSlug, setActive] = useState(null);
+  const active=coverage.patterns.find(pattern=>pattern.slug===activeSlug)||null;
+  const [focusedSlug,setFocusedSlug]=useState(null);
   const tooltipId = useId();
   const label = bucket[0].toUpperCase() + bucket.slice(1);
   return <div className={`difficulty-coverage difficulty-coverage-${bucket}`} onKeyDown={event => { if (event.key === 'Escape') setActive(null); }}>
     <div className="difficulty-coverage-label"><strong>{label}</strong><span>{coverage.actual} <span className="data-note">/ {coverage.target} target</span></span></div>
-    <div className="pattern-segments" aria-label={`${label} coverage by pattern`} onMouseLeave={event => { if (!event.currentTarget.contains(document.activeElement)) setActive(null); }}>
-      {coverage.patterns.map(pattern => <button type="button" key={pattern.slug} className="pattern-segment" style={{ flexGrow:pattern.target }} aria-label={`${pattern.name}: ${pattern.actual} ${bucket} problems solved, target ${pattern.target}; ${pattern.credited} goal credits, ${Math.round(pattern.fill)}% goal coverage`} aria-describedby={active?.slug === pattern.slug ? tooltipId : undefined} onMouseEnter={() => setActive(pattern)} onFocus={() => setActive(pattern)} onBlur={() => setActive(null)} onClick={() => setActive(pattern)}>
+    <div className="pattern-segments" role="group" aria-label={`${label} coverage by pattern. Use Left and Right arrows to move between patterns.`} onKeyDown={event=>{
+      const buttons=[...event.currentTarget.querySelectorAll('button')],index=buttons.indexOf(document.activeElement);
+      if(index<0||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+      event.preventDefault();
+      const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(event.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;
+      buttons[next]?.focus();
+    }} onMouseLeave={event => { if (!event.currentTarget.contains(document.activeElement)) setActive(null); }}>
+      {coverage.patterns.map((pattern,index) => <button type="button" key={pattern.slug} className="pattern-segment" tabIndex={coverage.patterns.some(item=>item.slug===focusedSlug)?focusedSlug===pattern.slug?0:-1:index===0?0:-1} style={{ flexGrow:pattern.target }} aria-label={`${pattern.name}: ${pattern.actual} ${bucket} problems solved, target ${pattern.target}; ${pattern.credited} goal credits, ${Math.round(pattern.fill)}% goal coverage`} aria-describedby={active?.slug === pattern.slug ? tooltipId : undefined} onMouseEnter={() => setActive(pattern.slug)} onFocus={() => {setFocusedSlug(pattern.slug);setActive(pattern.slug);}} onBlur={() => setActive(null)} onClick={() => {setFocusedSlug(pattern.slug);setActive(pattern.slug);}}>
         <span style={{ width:`${pattern.fill}%` }} />
       </button>)}
     </div>
     {active && <div className="coverage-tooltip" id={tooltipId} role="tooltip"><strong>{active.name} · {label}</strong><span>{active.actual} solved / {active.target} target{active.actual!==active.credited?` · ${active.credited} credited`:''} · {Math.round(active.fill)}% goal coverage</span></div>}
+    {coverage.patterns.length>0&&<details className="coverage-breakdown"><summary>View {label.toLowerCase()} breakdown</summary><ul>{coverage.patterns.map(pattern=><li key={pattern.slug}><strong>{pattern.name}</strong><span>{pattern.actual} solved / {pattern.target} target · {pattern.credited} credits</span></li>)}</ul></details>}
   </div>;
 }
 
@@ -32,7 +41,7 @@ export default function PatternOverview({ data }) {
     </section>
     <div className="pattern-dashboard-grid">
       <section className="priority-patterns" aria-labelledby="priority-title"><div className="section-heading"><div><p className="eyebrow">Your next moves</p><h2 id="priority-title">Patterns to focus on.</h2></div><a className="inline-link" href={patternLink(null)}>All patterns ↗</a></div><p className="data-note">{data.goal.configured ? 'Your queue follows your selected focus. Fill shows estimated practice strength.' : 'Your practice priorities. Choose a goal to reveal coverage gaps.'}</p><div className="priority-pattern-list">{priorities.map((category,index) => <a className={`priority-pattern priority-pattern-${index}`} key={category.slug} href={patternLink(category.slug)}><span className="priority-number">#{index+1}</span><div className="priority-pattern-content"><div><h3>{category.name} <FocusBadge item={category} /></h3></div><StrengthBar item={category} name={category.name} /><p>{recommendationReason(category)}</p></div><span aria-hidden="true">↗</span></a>)}</div></section>
-      <section className="pattern-coverage" aria-labelledby="coverage-title"><p className="eyebrow">Build balanced coverage</p><h2 id="coverage-title">Coverage by difficulty.</h2>{data.goal.configured ? <><p className="data-note">{data.goal.credited} / {data.goal.target} goal credits · {data.goal.profileName}</p><div className="difficulty-coverage-list">{['easy','medium','hard'].map(bucket => <DifficultyBar key={bucket} goal={data.goal} bucket={bucket} />)}</div><p className="coverage-help">Each segment is a pattern, sized by its target. Counts show actual solves / target, including extras. Fill uses capped goal credits. Hover, tap, or focus a segment for the pattern breakdown.</p></> : <p className="data-note">Choose a goal below to see Easy, Medium, and Hard coverage across your patterns.</p>}</section>
+      <section className="pattern-coverage" aria-labelledby="coverage-title"><p className="eyebrow">Build balanced coverage</p><h2 id="coverage-title">Coverage by difficulty.</h2>{data.goal.configured ? <><p className="data-note">{data.goal.credited} / {data.goal.target} goal credits · {data.goal.profileName}</p><div className="difficulty-coverage-list">{['easy','medium','hard'].map(bucket => <DifficultyBar key={bucket} goal={data.goal} bucket={bucket} />)}</div><p className="coverage-help">Use arrow keys to explore segments, or open a breakdown. Fill counts credits within each pattern’s target.</p></> : <p className="data-note">Choose a goal below to see Easy, Medium, and Hard coverage across your patterns.</p>}</section>
     </div>
   </>;
 }

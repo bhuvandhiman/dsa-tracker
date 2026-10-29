@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readLocation,confirmedLocation} from '../apps/web/src/navigation.js';
 import {authRedirect,initializedSession} from '../apps/web/src/auth-client.js';
-import {accountDestination,needsGoalSetup,rememberDestination} from '../apps/web/src/auth-navigation.js';
+import {accountDestination,needsGoalSetup,rememberDestination,recoverAuthNavigation} from '../apps/web/src/auth-navigation.js';
 
 const location=value=>new URL(value,'https://recall.test');
 
@@ -31,6 +31,23 @@ test('successful confirmation removes callback credentials and lands on the dash
   assert.equal(cleaned,'/?campaign=welcome#/dashboard');
   assert.equal(readLocation(location(cleaned)).page,'dashboard');
   assert.equal(confirmedLocation(location('/?auth=callback#access_token=secret&refresh_token=secret')),'/#/dashboard');
+});
+
+test('requesting another reset link leaves an expired callback and retries auth on a clean URL',t=>{
+  const previousWindow=globalThis.window,previousPopStateEvent=globalThis.PopStateEvent;
+  let current=location('/?auth=recovery&code=expired&error=access_denied&campaign=welcome#/reset-password'),prevented=0,retries=0;
+  const events=[];
+  globalThis.PopStateEvent=class {constructor(type){this.type=type;}};
+  globalThis.window={get location(){return current;},history:{replaceState(_state,_title,url){current=location(url);}},dispatchEvent:event=>events.push(event.type)};
+  t.after(()=>{if(previousWindow===undefined)delete globalThis.window;else globalThis.window=previousWindow;if(previousPopStateEvent===undefined)delete globalThis.PopStateEvent;else globalThis.PopStateEvent=previousPopStateEvent;});
+  assert.equal(readLocation(current).page,'reset-password');
+  recoverAuthNavigation({button:0,preventDefault(){prevented++;}},'/forgot-password',()=>{assert.equal(readLocation(current).page,'forgot-password');retries++;});
+  assert.equal(current.pathname+current.search+current.hash,'/?campaign=welcome#/forgot-password');
+  assert.equal(prevented,1);assert.equal(retries,1);assert.deepEqual(events,['popstate']);
+});
+
+test('auth recovery navigation keeps modified link clicks native',()=>{
+  for(const event of [{button:1},{ctrlKey:true},{metaKey:true},{shiftKey:true},{altKey:true}])recoverAuthNavigation({...event,preventDefault(){throw new Error('Modified link click was intercepted');}},'/login',()=>{throw new Error('Modified link click restarted auth');});
 });
 
 test('confirmation takes unconfigured accounts through goal setup before the saved destination',()=>{

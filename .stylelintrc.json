@@ -1,0 +1,54 @@
+{
+  "extends": [
+    "stylelint-config-standard",
+    "stylelint-config-recess-order"
+  ],
+  "plugins": [
+    "stylelint-no-unsupported-browser-features"
+  ],
+  "rules": {
+    "selector-class-pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(__[a-z0-9]+(-[a-z0-9]+)*)?(--[a-z0-9]+(-[a-z0-9]+)*)?$",
+    "custom-property-pattern": "^(color|spacing|font|radius|shadow|duration|easing|transition|size|opacity|bp|z|canvas|ink|muted|coral|mustard|teal|on-accent|accent-ink|track|surface|surface-raised|coral-soft|tile-goal|tile-dated|tile-undated|nav-ink|line|dialog-shadow|radius|difficulty-easy|difficulty-medium|difficulty-hard|difficulty-medium-ink|difficulty-hard-ink|row-accent|difficulty-color|coverage|priority-color)-|(canvas|ink|muted|coral|mustard|teal|on-accent|accent-ink|track|surface|surface-raised|coral-soft|tile-goal|tile-dated|tile-undated|nav-ink|line|dialog-shadow|radius|difficulty-easy|difficulty-medium|difficulty-hard|difficulty-medium-ink|difficulty-hard-ink|row-accent|difficulty-color|coverage|priority-color)$",
+    "declaration-empty-line-before": "never",
+    "rule-empty-line-before": "never",
+    "selector-pseudo-class-no-unknown": [true, {
+      "ignorePseudoClasses": ["global", "local", "deep"]
+    }],
+    "at-rule-no-unknown": [true, {
+      "ignoreAtRules": ["tailwind", "apply", "layer", "variants", "responsive", "screen"]
+    }],
+    "property-no-unknown": [true, {
+      "ignoreProperties": ["-webkit-tap-highlight-color", "scroll-padding-top", "scroll-behavior", "font-synthesis"]
+    }],
+    "value-keyword-case": "lower",
+    "function-name-case": "lower",
+    "selector-max-id": 0,
+    "max-nesting-depth": 3,
+    "selector-max-compound-selectors": 4,
+    "declaration-block-no-redundant-longhand-properties": true,
+    "shorthand-property-no-redundant-values": true,
+    "font-family-no-missing-generic-family-keyword": true,
+    "font-weight-notation": "numeric",
+    "no-descending-specificity": null,
+    "no-empty-source": null,
+    "no-invalid-position-at-import-rule": true,
+    "custom-media-pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+    "selector-anb-no-unmatchable": true,
+    "declaration-block-single-line-max-declarations": null,
+    "order/properties-order": null,
+    "at-rule-empty-line-before": null,
+    "media-feature-range-notation": null,
+    "no-duplicate-selectors": null,
+    "custom-property-empty-line-before": null,
+    "rule-empty-line-before": null,
+    "comment-empty-line-before": null
+  },
+  "ignoreFiles": [
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    "*.min.css",
+    "apps/web/src/tokens.css"
+  ],
+  "customSyntax": "postcss-scss"
+}

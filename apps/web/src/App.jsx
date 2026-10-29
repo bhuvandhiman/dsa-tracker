@@ -1,7 +1,6 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import './styles.css';
 import LiveDashboard from './LiveDashboard.jsx';
-import Workflows from './Workflows.jsx';
 import { confirmedLocation,readLocation } from './navigation.js';
 import Privacy from './Privacy.jsx';
 import PublicPages from './PublicPages.jsx';
@@ -11,11 +10,15 @@ import useAuth from './use-auth.js';
 import { WorkspaceContext } from './workspace-context.js';
 import useExtension from './use-extension.js';
 import Connection from './Connection.jsx';
-import { accountDestination, rememberDestination, needsWorkspaceSetup } from './auth-navigation.js';
+import { accountDestination, rememberDestination, needsWorkspaceSetup,recoverAuthNavigation } from './auth-navigation.js';
 import AccountMenu from './AccountMenu.jsx';
-import Profile from './Profile.jsx';
 import History from './History.jsx';
-const OwnerDashboard=lazy(()=>import('./OwnerDashboard.jsx'));
+import LazyPage from './LazyPage.jsx';
+import ErrorBoundary from './ErrorBoundary.jsx';
+import SupportLink from './SupportLink.jsx';
+const loadOwner=()=>import('./OwnerDashboard.jsx');
+const loadProfile=()=>import('./Profile.jsx');
+const loadSettings=()=>import('./Workflows.jsx');
 
 function Icon({ name, ...props }) {
   const paths = {
@@ -74,6 +77,8 @@ export default function App() {
     if(route.page==='owner')document.title='Owner dashboard · Recall';
     const frame=requestAnimationFrame(()=>{
       const section=route.page==='home'&&['how-it-works','questions'].includes(route.section)?document.getElementById(route.section):null;
+      const goalEditor=route.page==='dashboard'&&route.section==='goal'?document.getElementById('practice-goal'):null;
+      if(goalEditor){goalEditor.open=true;goalEditor.querySelector('select')?.focus({preventScroll:true});goalEditor.scrollIntoView({block:'center'});return;}
       const target=section || document.getElementById('main');
       target?.focus({preventScroll:true});
       if(section)section.scrollIntoView({block:'start'});else window.scrollTo(0,0);
@@ -90,7 +95,12 @@ export default function App() {
     catch { /* Theme switching still works when browser storage is unavailable. */ }
   }, [theme]);
   const themeAction = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-  return <div className={`workspace ${publicPage||installationPage||accountShell?'public-site':''} ${accountShell?'account-shell':''}`}>
+  function navigateAwayFromAuthResult(event){
+    if(event.defaultPrevented||!(callbackPage||route.page==='reset-password'))return;
+    const destination=event.target.closest('a')?.getAttribute('href');
+    if(destination?.startsWith('#/'))recoverAuthNavigation(event,destination.slice(1),auth.retry);
+  }
+  return <div className={`workspace ${publicPage||installationPage||accountShell?'public-site':''} ${accountShell?'account-shell':''}`} onClick={navigateAwayFromAuthResult}>
     <a className="skip-link" href="#main" onClick={event => {event.preventDefault(); document.getElementById('main')?.focus();}}>Skip to content</a>
     <header className="topbar">
       <a className="brand" href="#/home" aria-label="Recall home"><span className="brand-mark"><Icon name="book" /></span><span>recall<span className="brand-dot">.</span></span></a>
@@ -98,7 +108,7 @@ export default function App() {
         {publicPage||installationPage||accountShell?<>
         <a className={`nav-link ${route.page==='home'&&!route.section?'active':''}`} aria-current={route.page==='home'&&!route.section?'page':undefined} href="#/home">Home</a>
         <a className={`nav-link ${route.section==='how-it-works'?'active':''}`} aria-current={route.section==='how-it-works'?'location':undefined} href="#/home?section=how-it-works">How it works</a>
-        <a className={`nav-link ${route.page==='about'?'active':''}`} aria-current={route.page==='about'?'page':undefined} href="/about">About</a>
+        <a className={`nav-link ${route.page==='about'?'active':''}`} aria-current={route.page==='about'?'page':undefined} href="#/about">About</a>
         </>:<>
         <a className={`nav-link ${route.page === 'dashboard' ? 'active' : ''}`} aria-current={route.page === 'dashboard' ? 'page' : undefined} href="#/dashboard"><Icon name="home" />Dashboard</a>
         <a className={`nav-link ${route.page === 'patterns' ? 'active' : ''}`} aria-current={route.page === 'patterns' ? 'page' : undefined} href="#/patterns"><Icon name="grid" />Patterns</a>
@@ -116,13 +126,14 @@ export default function App() {
 
     <main id="main" tabIndex={-1}>
       <WorkspaceContext.Provider value={accountsEnabled?auth.user?.id||null:'local'}>
+      <ErrorBoundary resetKey={`${route.page}:${route.slug||''}:${route.section||''}:${auth.user?.id||'local'}`}>
       {accountError&&<p className="account-error" role="alert">{accountError}</p>}
       {publicPage&&route.page!=='privacy'&&<PublicPages page={route.page} signedIn={Boolean(auth.user)} localMode={auth.config?.mode==='local'} hosted={auth.config?.deployment?.mode==='hosted'} />}
       {route.page==='privacy'&&<Privacy />}
       {route.page==='login'&&route.account&&<p role="status" className="account-notice">{route.account==='deleted'?'Your Recall account and workspace were deleted.':route.account==='deletion-pending'?'Your deletion request is queued. Workspace access is blocked while cleanup retries.':''}</p>}
       {callbackPage&&<div className="account-loading" role={callbackPending?'status':'alert'}>
         <h1>{callbackPending?'Opening your workspace…':'Could not finish signing you in.'}</h1>
-        {callbackPending?<p>Confirming your email and preparing your workspace.</p>:<><p>{route.error||auth.error||'Open the confirmation link in the browser where you signed up. If the link has expired, request a new one.'}</p>{auth.error&&!route.error&&<button className="secondary-button" onClick={auth.retry}>Try again</button>}<a className="primary-button" href="/#/login">Log in</a><a className="inline-link" href="/#/signup">Back to signup</a></>}
+        {callbackPending?<p>Confirming your email and preparing your workspace.</p>:<><p>{route.error||auth.error||'Open the confirmation link in the browser where you signed up. If the link has expired, request a new one.'}</p>{auth.error&&!route.error&&<button className="secondary-button" onClick={auth.retry}>Try again</button>}<a className="primary-button" href={confirmedLocation(window.location,'/login')} onClick={event=>recoverAuthNavigation(event,'/login',auth.retry)}>Log in</a><a className="inline-link" href={confirmedLocation(window.location,'/signup')} onClick={event=>recoverAuthNavigation(event,'/signup',auth.retry)}>Back to signup</a></>}
       </div>}
       {authPage&&(auth.loading||auth.user&&['signup','login'].includes(route.page)?<div className="account-loading" role="status"><h1>Opening your workspace…</h1><p>Checking your session.</p></div>:<AuthPages key={route.page} page={route.page} auth={auth} />)}
       {setupPage&&(auth.user?<Onboarding key={auth.user.id} auth={auth} extension={extension} />:<div className="account-loading"><h1>Start with your account.</h1><p>{auth.loading?'Checking your session…':'Sign in to save your setup and open your private workspace.'}</p><a className="primary-button" href="#/login">Log in</a><a className="inline-link" href="#/signup">Create account</a></div>)}
@@ -130,12 +141,13 @@ export default function App() {
       {canReadWorkspace&&route.page==='connect'&&<Connection key={auth.user?.id||'local'} auth={auth} extension={extension} />}
       {privatePage&&!canReadWorkspace&&<div className="account-loading" role="status"><h2>{auth.error?'Could not open your workspace.':'Opening your workspace…'}</h2>{auth.error&&<><p>{auth.error}</p><button className="secondary-button" onClick={auth.retry}>Retry connection</button><a className="inline-link" href="#/login">Go to login</a></>}</div>}
       {canReadWorkspace&&['dashboard','patterns'].includes(route.page) && <LiveDashboard key={auth.user?.id||'local'} route={route} />}
-      {canReadWorkspace&&['dashboard','patterns','history'].includes(route.page)&&<History key={`history-${auth.user?.id||'local'}`} visible={route.page==='history'} />}
-      {canReadWorkspace&&route.page==='profile'&&<Profile key={auth.user?.id||'local'} auth={auth} />}
-      {canReadWorkspace&&route.page==='owner'&&<Suspense fallback={<p className="account-loading" role="status">Opening owner dashboard…</p>}><OwnerDashboard key={auth.user?.id||'local'} auth={auth} section={route.section} /></Suspense>}
-      {canReadWorkspace&&route.page === 'settings' && <Workflows key={auth.user?.id||'local'} auth={auth} />}
+      {canReadWorkspace&&route.page==='history'&&<History key={`history-${auth.user?.id||'local'}`} visible />}
+      {canReadWorkspace&&route.page==='profile'&&<LazyPage key={`profile-${auth.user?.id||'local'}`} load={loadProfile} name="your profile" auth={auth} />}
+      {canReadWorkspace&&route.page==='owner'&&<LazyPage key={`owner-${auth.user?.id||'local'}`} load={loadOwner} name="owner dashboard" auth={auth} section={route.section} />}
+      {canReadWorkspace&&route.page==='settings'&&<LazyPage key={`settings-${auth.user?.id||'local'}`} load={loadSettings} name="settings" auth={auth} />}
+      </ErrorBoundary>
       </WorkspaceContext.Provider>
-      <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><nav className="footer-links" aria-label="Footer"><a href="/">Home</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/install-extension">Extension</a><a href="#/home?section=questions">FAQ</a></nav><span className="footer-flower" aria-hidden="true">✳</span></footer>
+      <footer className="footer"><span className="footer-brand">recall.</span><span>Built around your practice, at your pace.</span><nav className="footer-links" aria-label="Footer"><a href="#/home">Home</a><a href="#/about">About</a><a href="#/privacy">Privacy</a><a href="#/install-extension">Extension</a><a href="#/home?section=questions">FAQ</a><SupportLink className="">Support</SupportLink></nav><span className="footer-flower" aria-hidden="true">✳</span></footer>
     </main>
   </div>;
 }

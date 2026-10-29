@@ -32,6 +32,11 @@ test('detail links retain search context across reload and return navigation', (
 test('malformed detail URLs resolve safely to a missing pattern', () => {
   assert.equal(readRoute('#/patterns/%E0%A4%A').slug,'__invalid__');
 });
+test('profile goal links resolve to the dashboard editor across hash and direct URLs',()=>{
+  assert.deepEqual(readRoute('#/dashboard?section=goal'),{page:'dashboard',slug:null,query:'',section:'goal'});
+  assert.equal(readLocation({pathname:'/dashboard',hash:'',search:'?section=goal'}).section,'goal');
+  assert.equal(safeDestination('/dashboard?section=goal'),'/dashboard?section=goal');
+});
 
 test('profile and history reload directly and survive the login/setup return path',()=>{
   const data=new Map(),storage={getItem:key=>data.get(key),setItem:(key,value)=>data.set(key,value),removeItem:key=>data.delete(key)};

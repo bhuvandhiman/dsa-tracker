@@ -5,6 +5,7 @@ import { accountDestination, onboardingStep } from './auth-navigation.js';
 import { practiceCache } from './practice-cache.js';
 import './accounts.css';
 import ProfileForm from './ProfileForm.jsx';
+import SupportLink from './SupportLink.jsx';
 
 export function Installation({auth,embedded=false}){
   const config=auth.config?.installation||{},store=installationLink(config.storeUrl,{store:true}),video=installationLink(config.videoUrl),download=installationLink(config.downloadUrl)||'/downloads/recall-extension.zip';
@@ -12,6 +13,7 @@ export function Installation({auth,embedded=false}){
   return <section className="installation-page" aria-labelledby="install-title">
     <div className="installation-heading"><div><p className="eyebrow">Desktop Chrome · Same profile as LeetCode</p>{embedded?<h2 id="install-title">Install Recall.</h2>:<h1 id="install-title">Bring Recall<br /><span>to your browser.</span></h1>}<p className="page-description">Record practice after an accepted submission. On mobile? Return here on your computer when ready.</p></div><a className="primary-button" href={store||download} {...(store?{target:'_blank',rel:'noopener noreferrer'}:{download:'recall-extension.zip'})}>{store?'Add to Chrome':'Download extension'} ↗</a></div>
     <div className={'installation-body '+(video?'':'installation-without-video')}>{video&&<div className="installation-video"><video controls preload="metadata" src={video}><a href={video}>Watch the installation walkthrough</a></video></div>}<div className="installation-instructions"><ol>{steps.map(([title,description],index)=><li key={title}><span>{index+1}</span><div><h3>{title}</h3><p>{description}</p></div></li>)}</ol><p className="installation-note">{store?'Chrome updates the extension automatically.':'Keep the extracted folder. To update, replace its files and click Reload in Chrome Extensions.'} Refresh Recall and LeetCode after an update.</p></div></div>
+    <SupportLink>Need help installing Recall?</SupportLink>
     {!embedded&&<div className="installation-footer"><p>Connection and import progress are available together on Recall.</p><a className="primary-button" href="#/connect">Check connection →</a><a className="inline-link" href={auth.user?'#/dashboard':'#/signup'}>{auth.user?'Set up later':'Create account'}</a></div>}
   </section>;
 }

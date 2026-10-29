@@ -3,10 +3,12 @@ import {Installation} from './Onboarding.jsx';
 import {importView} from '../../extension/src/import-view.js';
 import './accounts.css';
 import {practiceCache} from './practice-cache.js';
+import SupportLink from './SupportLink.jsx';
 
 export default function Connection({auth,extension}){
   const [status,setStatus]=useState(null),[error,setError]=useState(''),[statusError,setStatusError]=useState(''),[busy,setBusy]=useState(false),[username,setUsername]=useState(''),[showInstall,setShowInstall]=useState(false);
   const {state,request}=extension,version=useRef(0);
+  const [verification,setVerification]=useState('idle');
   // Extension imports bypass the website API client. Refresh practice when
   // returning from this screen, retaining the previous snapshot while loading.
   useEffect(()=>{practiceCache.invalidate();},[]);
@@ -27,8 +29,9 @@ export default function Connection({auth,extension}){
   },[state.detected,state.connected,state.outdated,refresh,auth.config?.mode]);
   async function act(action){
     if(busy)return;setBusy(true);setError('');
-    try{const result=await request(action);if(action==='CHECK_LEETCODE')setUsername(result.username);else await refresh();}
-    catch(failure){setError(failure.message);}finally{setBusy(false);}
+    if(action==='CHECK_LEETCODE'){setUsername('');setVerification('checking');}
+    try{const result=await request(action);if(action==='CHECK_LEETCODE'){if(!result.username)throw new Error('Could not verify LeetCode. Open LeetCode and sign in, then retry.');setUsername(result.username);setVerification('verified');}else await refresh();}
+    catch(failure){if(action==='CHECK_LEETCODE')setVerification('unavailable');setError(failure.message);}finally{setBusy(false);}
   }
   const connected=!state.outdated&&(state.connected||auth.config?.mode==='local')&&status?.connected;
   const view=importView(connected?status.import:undefined);
@@ -41,7 +44,7 @@ export default function Connection({auth,extension}){
       </div></li>
       <li><span className={`connection-check ${connected?'is-complete':''}`} aria-hidden="true">{connected?'✓':'2'}</span><div><h2>Connect your Recall account</h2><p>{connected?'Connected. Your practice will go to this workspace.':state.outdated?'Update the extension to continue here.':state.detected?'Connecting your website login…':'Your website login connects automatically after installation and a page refresh.'}</p>{state.error&&<p role="alert">{state.error}</p>}{state.detected&&!connected&&<button className="secondary-button" onClick={()=>window.location.reload()}>Retry connection</button>}</div></li>
       <li><span className={`connection-check ${view.ready?'is-complete':''}`} aria-hidden="true">{view.ready?'✓':'3'}</span><div><h2>{view.ready?'Your patterns are ready':'Bring your previous solves'}</h2><p>Keep a signed-in LeetCode tab open in this Chrome profile. Start your import and follow its progress right here.</p><div className="row-actions"><a className="inline-link" href="https://leetcode.com/problemset/" target="_blank" rel="noopener noreferrer">Open LeetCode ↗</a><button className="text-button" disabled={!connected||busy||view.running} onClick={()=>act('CHECK_LEETCODE')}>Check LeetCode connection</button></div>
-        {username&&<p role="status">LeetCode verified as {username}.</p>}
+        {connected&&verification!=='idle'&&<p role="status">{verification==='checking'?'Checking your LeetCode account…':verification==='unavailable'?'LeetCode could not be verified.':`LeetCode verified as ${username}.`}</p>}
         <div className="connection-import-status" role="status" aria-live="polite"><p>{view.summary}</p>{view.phaseText&&<p>{view.phaseText}</p>}</div>
         {view.total>0&&<progress aria-label="Accepted problems saved" value={view.saved} max={view.total} />}
         {(error||statusError||view.error)&&<p className="account-error" role="alert">{error||statusError||view.error}</p>}
@@ -51,6 +54,7 @@ export default function Connection({auth,extension}){
         </div><p className="data-note">Your progress is saved as problems are imported. Resume here if interrupted. Solves with unknown dates count toward experience and coverage; they do not establish retention.</p>
       </div></li>
     </ol>
+    <SupportLink>Need help with installation or import?</SupportLink>
     <a className="public-text-link" href="#/dashboard">{view.ready?'Return to dashboard':'Continue to my workspace; set up later'}</a>
   </section>;
 }

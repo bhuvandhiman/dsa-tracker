@@ -1,18 +1,21 @@
 import { abortable,setTokenProvider,setWorkspaceScope } from './api.js';
 
-let connecting=null,project=null,client=null;
+let connecting=null,project=null,client=null,connectionGeneration=0;
+function resetConnection(scope){connectionGeneration++;client?.auth.stopAutoRefresh();client=null;project=null;connecting=null;setTokenProvider(null);setWorkspaceScope(scope);}
+export function resetAuthConnection(){resetConnection(null);}
 export async function connectAuth(config){
-  if(!config.configured){client?.auth.stopAutoRefresh();client=null;project=null;connecting=null;setTokenProvider(null);setWorkspaceScope('local');return null;}
+  if(!config.configured){resetConnection('local');return null;}
   const identity=config.url+'\0'+config.key;
-  if(identity!==project){client?.auth.stopAutoRefresh();client=null;project=identity;connecting=null;setTokenProvider(null);setWorkspaceScope(null);}
+  if(identity!==project){resetConnection(null);project=identity;}
   if(!connecting){
+    const generation=connectionGeneration;
     connecting=abortable(import('@supabase/supabase-js'),AbortSignal.timeout(15000)).then(({createClient})=>{
-      if(project!==identity)throw new Error('Recall account connection changed. Retry connection.');
+      if(project!==identity||generation!==connectionGeneration)throw new Error('Recall account connection changed. Retry connection.');
       client=createClient(config.url,config.key,{auth:{flowType:'pkce',detectSessionInUrl:true,persistSession:true,autoRefreshToken:true},global:{fetch:authFetch}});
       const current=client;
       setTokenProvider(async()=>{const {data,error}=await current.auth.getSession();if(error)throw error;return data.session?{token:data.session.access_token,scope:data.session.user.id}:null;});
       return client;
-    }).catch(error=>{if(project===identity)connecting=null;throw error;});
+    }).catch(error=>{if(project===identity&&generation===connectionGeneration)connecting=null;throw error;});
   }
   return connecting;
 }

@@ -10,6 +10,7 @@ export function readRoute(hash) {
   if (parts[0] === 'settings') {
     return {page:parts[0],id:parts[1] || null,params:new URLSearchParams(query)};
   }
+  if(parts[0]==='dashboard'&&new URLSearchParams(query).get('section')==='goal')return {page:'dashboard',slug:null,query:'',section:'goal'};
   if (path === 'patterns' || parts[0] === 'patterns') {
     let slug;
     try { slug = parts[1] ? decodeURIComponent(parts[1]) : null; }

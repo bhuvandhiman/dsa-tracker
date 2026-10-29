@@ -101,3 +101,13 @@ export function practiceEvidenceLabel(item) {
   if(!Number.isFinite(item.datedDistinctSolved)||!Number.isFinite(item.legacyDistinctSolved))return label;
   return `${label} · ${item.datedDistinctSolved} dated · ${item.legacyDistinctSolved} dates unknown`;
 }
+
+export function practiceReviewProgress(practice){
+  if(!Number.isFinite(practice?.required)||practice.required<=0)return null;
+  const remaining=Math.round(Math.max(0,practice.required-Math.max(0,Number(practice.earned)||0))*100)/100;
+  const different=Math.max(0,(practice.minimumDistinct||4)-(practice.distinct||0));
+  const requirements=[];
+  if(remaining>0)requirements.push(`${remaining} more practice ${remaining===1?'credit':'credits'}`);
+  if(different>0)requirements.push(`${different} more different ${different===1?'problem':'problems'}`);
+  return requirements.length?`Next queue review: ${requirements.join(' · ')}`:'Practice complete · queue can be reviewed';
+}

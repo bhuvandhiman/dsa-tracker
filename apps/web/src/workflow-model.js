@@ -30,6 +30,19 @@ export function validPageOffset(offset,total,limit=25) {
   return Math.min(offset,Math.max(0,Math.ceil(total/limit)-1)*limit);
 }
 
+export async function readRemovedRecordings(request,path,{signal}={}) {
+  const query = new URLSearchParams(path.split('?')[1]);
+  let offset = Number(query.get('offset')) || 0;
+  // One extra row tells us whether another page exists, including exact multiples.
+  const limit = 25;
+  while (true) {
+    if(signal?.aborted)throw new DOMException('The request was cancelled.','AbortError');
+    const data = await request(`/attempts/removed?limit=${limit+1}&offset=${offset}`,{signal});
+    if (data.attempts.length || offset === 0) return {...data,attempts:data.attempts.slice(0,limit),offset,hasMore:data.attempts.length > limit};
+    offset = Math.max(0,offset-limit);
+  }
+}
+
 export function undatedPracticeLabel(problem) {
   return problem.historical||problem.practiced?'Dates unknown':'Not yet';
 }

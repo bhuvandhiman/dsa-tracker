@@ -50,14 +50,14 @@ export default function PatternMenu({problem,onSaved}) {
     document.addEventListener('pointerdown',outside);
     return ()=>document.removeEventListener('pointerdown',outside);
   },[menu]);
-  function close() {
+  function close({restoreFocus=true}={}) {
     root.current?.querySelector('dialog')?.close();
     setMenu(false);setEditing(false);
-    trigger.current?.focus();
+    if(restoreFocus)trigger.current?.focus();
   }
-  return <div className="pattern-menu" ref={root} onKeyDown={event=>{if(event.key === 'Escape' && menu) {event.stopPropagation();close();}}}>
+  return <div className="pattern-menu" ref={root} onBlur={event=>{if(menu&&!event.currentTarget.contains(event.relatedTarget))setMenu(false);}} onKeyDown={event=>{if(event.key === 'Escape' && menu) {event.stopPropagation();close();}}}>
     <button ref={trigger} className="problem-more" aria-label={`Options for ${problem.title}`} aria-expanded={menu} onClick={()=>{if(editing)close();else setMenu(value=>!value);}}>⋯</button>
     {menu && <div className="pattern-menu-options"><button className="text-button" ref={menuItem} onClick={()=>{setMenu(false);setEditing(true);}}>Edit pattern</button></div>}
-    {editing && <PatternEditor problem={problem} onCancel={close} onSaved={()=>{close();onSaved();}} />}
+    {editing && <PatternEditor problem={problem} onCancel={close} onSaved={()=>{close({restoreFocus:false});onSaved(problem);}} />}
   </div>;
 }

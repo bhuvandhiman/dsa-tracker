@@ -1,10 +1,12 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {request} from './api.js';
+import {formatPracticeDate,PRACTICE_TIME_ZONE_LABEL} from './date-format.js';
+import {ownerMfaError} from './owner-feedback.js';
 import './owner.css';
 
 const sections=[['overview','Overview'],['users','Users'],['extension','Extension & imports'],['health','System health'],['activity','Owner activity']];
 const count=value=>value===null||value===undefined?'—':Number(value).toLocaleString();
-const date=value=>value?new Date(value).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}):'Not recorded';
+const date=value=>formatPracticeDate(value,{fallback:'Not recorded'});
 const short=value=>value?value.slice(0,8)+'…':'Server CLI';
 function Status({children,tone=''}){return <span className={`owner-status ${tone}`}>{children}</span>;}
 function Empty({children}){return <p className="owner-empty">{children}</p>;}
@@ -34,9 +36,9 @@ function Mfa({auth,onVerified}){
     finally{if(active.current)setBusy(false);}
   }
   async function verify(event){
-    event.preventDefault();setBusy(true);setError('');
+    event.preventDefault();if(busy)return;setBusy(true);setError('');
     try{const {error}=await auth.client.auth.mfa.challengeAndVerify({factorId:selected,code});if(error)throw error;if(active.current){setCode('');setEnrollment(null);onVerified();}}
-    catch{if(active.current)setError('That code could not be verified. Enter a fresh six-digit code and retry.');}
+    catch(error){if(active.current)setError(ownerMfaError(error));}
     finally{if(active.current)setBusy(false);}
   }
   const qr=enrollment?.totp?.qr_code;
@@ -63,17 +65,34 @@ function Overview({data}){
 }
 
 function UserDetail({id,read,canReveal,onClose}){
-  const [data,setData]=useState(null),[error,setError]=useState(''),[email,setEmail]=useState(''),[reason,setReason]=useState(''),[busy,setBusy]=useState(false);
-  const panel=useRef(null);
+  const [data,setData]=useState(null),[error,setError]=useState(''),[email,setEmail]=useState(''),[reason,setReason]=useState(''),[busy,setBusy]=useState(false),[revision,setRevision]=useState(0);
+  const panel=useRef(null),contactRequest=useRef(null);
   useEffect(()=>{panel.current?.focus();},[]);
-  useEffect(()=>{const controller=new AbortController();read(`/owner/users/${id}`,{signal:controller.signal}).then(setData,error=>{if(!controller.signal.aborted)setError(error.message);});return ()=>controller.abort();},[id,read]);
-  async function reveal(event){event.preventDefault();setBusy(true);setError('');try{const result=await read(`/owner/users/${id}/contact`,{method:'POST',body:JSON.stringify({reason})});setEmail(result.email);setReason('');}catch(error){setError(error.message);}finally{setBusy(false);}}
-  return <section ref={panel} tabIndex={-1} className="owner-card owner-user-detail" aria-label="Account summary"><div className="owner-section-heading"><h2>{data?.user.name||'Account summary'}</h2><button className="secondary-button" onClick={onClose}>Back to accounts</button></div>{error&&<p role="alert" className="account-error">{error}</p>}{!data&&!error&&<p role="status">Loading account summary…</p>}{data&&<><p className="owner-id">{data.user.id}</p><Stats items={[["Saved problems",data.user.problems],['Practice recordings',data.user.attempts],['Imported solves',data.user.imported]]} /><dl className="owner-definition"><div><dt>Contact</dt><dd>{email||data.user.email}</dd></div><div><dt>Joined</dt><dd>{date(data.user.createdAt)}</dd></div><div><dt>Last activity</dt><dd>{date(data.user.lastActive)}</dd></div><div><dt>Extension last reported</dt><dd>{date(data.user.extensionSeen)}</dd></div><div><dt>Reported extension version</dt><dd>{data.user.extensionVersion||'Unknown'}</dd></div><div><dt>Summary updated</dt><dd>{date(data.user.summaryAt)}</dd></div></dl>{canReveal&&!email&&<form className="owner-contact-form" onSubmit={reveal}><label htmlFor="contact-reason">Support reason to reveal email</label><input id="contact-reason" value={reason} onChange={e=>setReason(e.target.value)} minLength={10} maxLength={300} required placeholder="e.g. Responding to their account support request" /><button className="secondary-button" disabled={busy||reason.trim().length<10}>{busy?'Recording access…':'Reveal contact email'}</button><p className="owner-note">This action records your account ID, the target account and the reason in the owner activity log.</p></form>}</>}</section>;
+  useEffect(()=>{
+    const controller=new AbortController();
+    read(`/owner/users/${id}`,{signal:controller.signal}).then(value=>{if(!controller.signal.aborted)setData(value);},error=>{if(!controller.signal.aborted)setError(error.message);});
+    return ()=>controller.abort();
+  },[id,read,revision]);
+  useEffect(()=>()=>contactRequest.current?.abort(),[]);
+  function retry(){setError('');setRevision(value=>value+1);}
+  async function reveal(event){
+    event.preventDefault();if(busy)return;
+    const controller=new AbortController();contactRequest.current=controller;setBusy(true);setError('');
+    try{const result=await read(`/owner/users/${id}/contact`,{method:'POST',body:JSON.stringify({reason}),signal:controller.signal});if(!controller.signal.aborted){setEmail(result.email);setReason('');}}
+    catch(error){if(!controller.signal.aborted)setError(error.message);}
+    finally{if(!controller.signal.aborted){setBusy(false);contactRequest.current=null;}}
+  }
+  return <section ref={panel} tabIndex={-1} className="owner-card owner-user-detail" aria-label="Account summary"><div className="owner-section-heading"><h2>{data?.user.name||'Account summary'}</h2><button className="secondary-button" onClick={onClose}>Back to accounts</button></div>{error&&<p role="alert" className="account-error">{error}</p>}{!data&&error&&<button className="secondary-button" onClick={retry}>Try again</button>}{!data&&!error&&<p role="status">Loading account summary…</p>}{data&&<><p className="owner-id">{data.user.id}</p><Stats items={[["Saved problems",data.user.problems],['Practice recordings',data.user.attempts],['Imported solves',data.user.imported]]} /><dl className="owner-definition"><div><dt>Contact</dt><dd>{email||data.user.email}</dd></div><div><dt>Joined</dt><dd>{date(data.user.createdAt)}</dd></div><div><dt>Last activity</dt><dd>{date(data.user.lastActive)}</dd></div><div><dt>Extension last reported</dt><dd>{date(data.user.extensionSeen)}</dd></div><div><dt>Reported extension version</dt><dd>{data.user.extensionVersion||'Unknown'}</dd></div><div><dt>Summary updated</dt><dd>{date(data.user.summaryAt)}</dd></div></dl>{canReveal&&!email&&<form className="owner-contact-form" onSubmit={reveal}><label htmlFor="contact-reason">Support reason to reveal email</label><input id="contact-reason" value={reason} onChange={e=>setReason(e.target.value)} minLength={10} maxLength={300} required disabled={busy} placeholder="e.g. Responding to their account support request" /><button className="secondary-button" disabled={busy||reason.trim().length<10}>{busy?'Recording access…':'Reveal contact email'}</button><p className="owner-note">This action records your account ID, the target account and the reason in the owner activity log.</p></form>}</>}</section>;
 }
 function Users({data,query,setQuery,filter,setFilter,onSearch,busy,read,canReveal,selected,setSelected,detailRevision}){
-  if(selected)return <UserDetail key={selected+detailRevision} id={selected} read={read} canReveal={canReveal} onClose={()=>setSelected(null)} />;
-  return <><section className="owner-card"><div className="owner-section-heading"><div><h2>Account directory</h2><p className="owner-note">Contact emails are masked. Open an account for counts and connection details.</p></div><Status>{count(data.total)} accounts</Status></div><form className="owner-filters" onSubmit={onSearch}><label>Find an account<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Name, email or account ID" maxLength={100} /></label><label>Show<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">All accounts</option><option value="setup-pending">Setup pending</option><option value="connected">Extension reported</option><option value="active">Active this week</option></select></label><button className="secondary-button" disabled={busy}>Apply filters</button></form>
-    {data.users.length?<Table label="Users" headings={['Account','Joined','Setup','Extension','Last activity','Details']}>{data.users.map(user=><tr key={user.id}><td><strong>{user.name||'Profile pending'}</strong><span>{user.email}</span><small>{user.id}</small></td><td>{date(user.createdAt)}</td><td><Status tone={user.onboarded?'good':''}>{user.onboarded?'Complete':!user.verified?'Email pending':!user.profileReady?'Profile pending':!user.goalReady?'Goal pending':'Install step pending'}</Status></td><td><span>{user.extensionVersion||'Not reported'}</span><small>{user.extensionSeen?date(user.extensionSeen):'No connection report'}</small></td><td>{date(user.lastActive)}</td><td><button className="owner-text-button" onClick={()=>setSelected(user.id)} aria-label={`Open summary for ${user.name||user.email}`}>View summary ↗</button></td></tr>)}</Table>:<Empty>No accounts match these filters.</Empty>}</section>{selected&&<UserDetail key={selected} id={selected} read={read} canReveal={canReveal} onClose={()=>setSelected(null)} />}</>;
+  const summaryButtons=useRef(new Map()),restoreFocus=useRef(null),searchInput=useRef(null);
+  useEffect(()=>{
+    if(!selected&&restoreFocus.current){const button=summaryButtons.current.get(restoreFocus.current);(button&&!button.disabled?button:searchInput.current)?.focus();restoreFocus.current=null;}
+  },[selected]);
+  function closeDetail(){restoreFocus.current=selected;setSelected(null);}
+  if(selected)return <UserDetail key={selected+detailRevision} id={selected} read={read} canReveal={canReveal} onClose={closeDetail} />;
+  return <section className="owner-card"><div className="owner-section-heading"><div><h2>Account directory</h2><p className="owner-note">Contact emails are masked. Open an account for counts and connection details.</p></div><Status>{count(data.total)} accounts</Status></div><form className="owner-filters" onSubmit={onSearch}><label>Find an account<input ref={searchInput} value={query} onChange={e=>setQuery(e.target.value)} placeholder="Name, email or account ID" maxLength={100} /></label><label>Show<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">All accounts</option><option value="setup-pending">Setup pending</option><option value="connected">Extension reported</option><option value="active">Active this week</option></select></label><button className="secondary-button" disabled={busy}>Apply filters</button></form>
+    {data.users.length?<Table label="Users" headings={['Account','Joined','Setup','Extension','Last activity','Details']}>{data.users.map(user=><tr key={user.id}><td><strong>{user.name||'Profile pending'}</strong><span>{user.email}</span><small>{user.id}</small></td><td>{date(user.createdAt)}</td><td><Status tone={user.onboarded?'good':''}>{user.onboarded?'Complete':!user.verified?'Email pending':!user.profileReady?'Profile pending':!user.goalReady?'Goal pending':'Install step pending'}</Status></td><td><span>{user.extensionVersion||'Not reported'}</span><small>{user.extensionSeen?date(user.extensionSeen):'No connection report'}</small></td><td>{date(user.lastActive)}</td><td><button ref={element=>{if(element)summaryButtons.current.set(user.id,element);else summaryButtons.current.delete(user.id);}} className="owner-text-button" disabled={busy} onClick={()=>setSelected(user.id)} aria-label={`Open summary for ${user.name||user.email}`}>View summary ↗</button></td></tr>)}</Table>:<Empty>No accounts match these filters.</Empty>}</section>;
 }
 function Extension({data}){
   const server=data.totals.filter(t=>t.source==='server'),client=data.totals.filter(t=>t.source==='client');
@@ -91,21 +110,23 @@ function Health({data}){
 function Activity({data}){return <section className="owner-card"><h2>Owner activity</h2><p className="owner-note">Reads, MFA challenges, contact reveals and server-side permission changes are recorded for 90 days. Contact reasons are cleared when their account is deleted.</p>{data.events.length?<Table label="Owner audit log" headings={['Time','Action','Actor','Target','Reason']}>{data.events.map(row=><tr key={row.id}><td>{date(row.createdAt)}</td><td><strong>{row.action}</strong></td><td title={row.actorId||''}>{short(row.actorId)}</td><td title={row.targetId||''}>{row.targetId?short(row.targetId):'—'}</td><td>{row.reason||'—'}</td></tr>)}</Table>:<Empty>No owner actions have been recorded yet.</Empty>}</section>;}
 
 function OwnerSection({auth,section,onMfa}){
-  const [data,setData]=useState(null),[busy,setBusy]=useState(true),[error,setError]=useState(''),[offset,setOffset]=useState(0),[query,setQuery]=useState(''),[filter,setFilter]=useState('all'),[applied,setApplied]=useState({q:'',status:'all'}),[revision,setRevision]=useState(0),[updated,setUpdated]=useState(null),[selected,setSelected]=useState(null);
+  const [snapshot,setSnapshot]=useState(null),[busy,setBusy]=useState(true),[error,setError]=useState(''),[offset,setOffset]=useState(0),[query,setQuery]=useState(''),[filter,setFilter]=useState('all'),[applied,setApplied]=useState({q:'',status:'all'}),[revision,setRevision]=useState(0),[updated,setUpdated]=useState(null),[selected,setSelected]=useState(null);
+  const data=snapshot?.value;
   const read=useCallback(async(path,options)=>{try{return await request(path,options);}catch(error){if(error.code==='OWNER_MFA_REQUIRED')onMfa();throw error;}},[onMfa]);
   useEffect(()=>{
     const controller=new AbortController();
     const params=new URLSearchParams({offset:String(offset),limit:'25',...(section==='users'?applied:{})});
-    read(`/owner/${section}${['users','extension','activity'].includes(section)?'?'+params:''}`,{signal:controller.signal}).then(value=>{setData(value);setUpdated(new Date().toISOString());},error=>{if(!controller.signal.aborted){setError(error.message);setData(null);}}).finally(()=>{if(!controller.signal.aborted)setBusy(false);});
+    read(`/owner/${section}${['users','extension','activity'].includes(section)?'?'+params:''}`,{signal:controller.signal}).then(value=>{if(!controller.signal.aborted){setSnapshot({value,offset});setUpdated(new Date().toISOString());}},error=>{if(!controller.signal.aborted){setError(error.message);setSnapshot(null);}}).finally(()=>{if(!controller.signal.aborted)setBusy(false);});
     return ()=>controller.abort();
   },[read,section,offset,applied,revision]);
-  function refresh(){setBusy(true);setError('');setRevision(value=>value+1);}
-  function changePage(value){setBusy(true);setError('');setOffset(value);}
-  function search(event){event.preventDefault();setBusy(true);setError('');setOffset(0);setApplied({q:query.trim(),status:filter});}
-  return <><div className="owner-section-heading owner-page-heading"><div><p className="eyebrow">Owner workspace</p><h1>{sections.find(([id])=>id===section)?.[1]}</h1><p>Understand how Recall is working for your users.</p></div><button className="secondary-button" disabled={busy} onClick={refresh}>{busy?'Loading…':'Refresh view'}</button></div>
+  function refresh(){if(busy)return;setBusy(true);setError('');setRevision(value=>value+1);}
+  function changePage(value){if(busy||value===offset)return;setBusy(true);setError('');setOffset(value);}
+  function search(event){event.preventDefault();if(busy)return;setBusy(true);setError('');setOffset(0);setApplied({q:query.trim(),status:filter});}
+  return <><div className="owner-section-heading owner-page-heading"><div><p className="eyebrow">Owner workspace</p><h1>{sections.find(([id])=>id===section)?.[1]}</h1><p>Times shown in {PRACTICE_TIME_ZONE_LABEL}.</p></div><button className="secondary-button" disabled={busy} onClick={refresh}>{busy?'Loading…':'Refresh view'}</button></div>
     {error&&<div className="owner-error" role="alert"><h2>Could not load this view.</h2><p>{error}</p><button className="secondary-button" onClick={refresh}>Try again</button></div>}
     {busy&&!data&&!error&&<div className="owner-card" role="status">Loading {sections.find(([id])=>id===section)?.[1].toLowerCase()}…</div>}
-    {data&&<div aria-busy={busy}>{section==='overview'&&<Overview data={data} />}{section==='users'&&<Users data={data} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onSearch={search} busy={busy} read={read} canReveal={auth.owner.permissions.includes('contact:read')} selected={selected} setSelected={setSelected} detailRevision={revision} />}{section==='extension'&&<Extension data={data} />}{section==='health'&&<Health data={data} />}{section==='activity'&&<Activity data={data} />}{['users','extension','activity'].includes(section)&&!selected&&<Pagination total={data.total} offset={offset} onChange={changePage} busy={busy} />}</div>}
+    {busy&&data&&<p className="owner-note" role="status">Updating this view…</p>}
+    {data&&<div aria-busy={busy}>{section==='overview'&&<Overview data={data} />}{section==='users'&&<Users data={data} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onSearch={search} busy={busy} read={read} canReveal={auth.owner.permissions.includes('contact:read')} selected={selected} setSelected={setSelected} detailRevision={revision} />}{section==='extension'&&<Extension data={data} />}{section==='health'&&<Health data={data} />}{section==='activity'&&<Activity data={data} />}{['users','extension','activity'].includes(section)&&!selected&&<Pagination total={data.total} offset={snapshot.offset} onChange={changePage} busy={busy} />}</div>}
     {updated&&<p className="owner-note owner-updated">Updated {date(updated)} · Refresh manually for new data.</p>}
   </>;
 }

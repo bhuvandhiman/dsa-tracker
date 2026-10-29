@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useWorkspaceRequest } from './workspace-context.js';
 import PatternMenu from './PatternMenu.jsx';
 import { NextAction } from './PatternMetrics.jsx';
 import { nextProblemSort, safeProblemUrl, subpatternQuery, validPageOffset, undatedPracticeLabel } from './workflow-model.js';
+import {formatPracticeDate,PRACTICE_TIME_ZONE_LABEL} from './date-format.js';
 
 function ProblemLink({problem}) {
   const url = safeProblemUrl(problem.url);
@@ -15,6 +16,7 @@ function ProblemList({slug,name,onChanged,refreshToken}) {
   const [offset,setOffset] = useState(0);
   const [revision,setRevision] = useState(0);
   const [state,setState] = useState({query:null,data:null,error:''});
+  const root=useRef(null),[message,setMessage]=useState('');
   const query = subpatternQuery(slug,sort,offset);
   useEffect(()=>{
     const controller = new AbortController();
@@ -35,8 +37,14 @@ function ProblemList({slug,name,onChanged,refreshToken}) {
     const next = !direction ? 'ascending' : direction === 'asc' ? 'descending' : 'normal';
     return <th className={`problem-${field}-column`} scope="col" aria-sort={!direction ? 'none' : direction === 'asc' ? 'ascending' : 'descending'}><button className="column-sort" aria-label={`${label}: ${!direction ? 'normal' : direction === 'asc' ? 'ascending' : 'descending'}. Sort ${next}`} onClick={()=>reorder(field)}>{label}<span aria-hidden="true">{direction === 'asc' ? '↑' : direction === 'desc' ? '↓' : '↕'}</span></button></th>;
   }
-  return <div className="inline-problems">
-    <table className="problem-table" aria-label="Subpattern problems"><thead><tr><th className="problem-name-column" scope="col">Problem</th>{heading('difficulty','Difficulty')}{heading('practiced','Last practiced')}<th className="problem-options-column" scope="col"><span className="visually-hidden">Options</span></th></tr></thead><tbody>{current.data?.problems.map(problem=><tr key={problem.id}><td className="problem-name-column"><ProblemLink problem={problem} /></td><td className={`problem-difficulty-column problem-difficulty difficulty-${problem.difficulty || 'unknown'}`}>{problem.difficulty || 'Unknown'}</td><td className="problem-practiced-column">{problem.lastPracticedAt ? new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeZone:'Asia/Calcutta'}).format(new Date(problem.lastPracticedAt)) : <span className="undated-label">{undatedPracticeLabel(problem)}</span>}</td><td className="problem-options-column"><PatternMenu problem={problem} onSaved={()=>{setRevision(value=>value+1);onChanged();}} /></td></tr>)}</tbody></table>
+  function saved(problem){
+    setMessage(`${problem.title}: primary pattern saved. Recorded practice stays with its original approach.`);
+    root.current?.closest('details')?.querySelector('summary')?.focus({preventScroll:true});
+    setRevision(value=>value+1);onChanged();
+  }
+  return <div className="inline-problems" ref={root}>
+    <p className="visually-hidden" role="status">{message}</p>
+    <table className="problem-table" aria-label={`Subpattern problems. Practice dates in ${PRACTICE_TIME_ZONE_LABEL}.`}><thead><tr><th className="problem-name-column" scope="col">Problem</th>{heading('difficulty','Difficulty')}{heading('practiced','Last practiced (IST)')}<th className="problem-options-column" scope="col"><span className="visually-hidden">Options</span></th></tr></thead><tbody>{current.data?.problems.map(problem=><tr key={problem.id}><td className="problem-name-column"><ProblemLink problem={problem} /></td><td className={`problem-difficulty-column problem-difficulty difficulty-${problem.difficulty || 'unknown'}`}>{problem.difficulty || 'Unknown'}</td><td className="problem-practiced-column">{problem.lastPracticedAt ? formatPracticeDate(problem.lastPracticedAt,{dateStyle:'medium'}) : <span className="undated-label">{undatedPracticeLabel(problem)}</span>}</td><td className="problem-options-column"><PatternMenu problem={problem} onSaved={saved} /></td></tr>)}</tbody></table>
     {current.error ? <div role="alert"><p>{current.error}</p><button className="secondary-button" onClick={()=>setRevision(value=>value+1)}>Try again</button></div> : !current.data ? <p role="status">Loading problems…</p> : <>
       {!current.data.problems.length && <div className="problem-empty"><h3>Build your practice in {name}.</h3><p>No saved problems in this subpattern yet. Choose a problem on LeetCode, then record the topics you used after solving it.</p><div className="row-actions"><a className="primary-button" href="https://leetcode.com/problemset/" target="_blank" rel="noopener noreferrer">Find problems on LeetCode ↗</a><a className="inline-link" href="#/connect">Import previous solves</a></div></div>}
       {(current.data.total > 25 || offset > 0) && <div className="pagination"><button className="secondary-button" disabled={!offset} onClick={()=>setOffset(value=>Math.max(0,value-25))}>← Previous</button><span>{current.data.problems.length ? `${offset+1}–${offset+current.data.problems.length}` : 'No records'}</span><button className="secondary-button" disabled={offset+25 >= current.data.total} onClick={()=>setOffset(value=>value+25)}>Next →</button></div>}
