@@ -1,6 +1,9 @@
 # Record on LeetCode
 
-Load apps/extension as an unpacked Chrome extension, reload version 0.8.0 after updates, restart the API, and refresh LeetCode. Start the local API first.
+Load `apps/extension` as an unpacked Chrome extension, reload it after updates,
+restart the API, and refresh LeetCode. Start the local API first. The current
+extension version is defined in `apps/extension/manifest.json`; version numbers
+in this document's historical verification notes refer to earlier builds.
 
 After a fresh submission transitions to Accepted, Recall opens a small on-page prompt. Choose On my own, With hints, or Read the solution. Choose at least one topic you actually used. These selections drive the classifier, with specialized topics taking precedence, and assign one primary pattern to both problem coverage and this practice record. Select Other to open a searchable list of all learning patterns and choose one directly. Selection is required; unrecognized topics must use Other. Provider tags stay intact, and additional checked tags do not refresh extra patterns. Save practice closes the prompt only after confirmed persistence.
 

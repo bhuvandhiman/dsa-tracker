@@ -1,73 +1,234 @@
-# Pattern progress, focus emphasis, and practice strength
+# Pattern progress, practice strength, and queue priority
 
-All learning scores are product heuristics, not measured recall probabilities. Research and its limitations are in retention-research.md. Defaults live in retention-policy.js, practice-policy.js, and goal-policy.js.
+This is the current contract for the pattern bars and recommendation order.
+All numeric scores are Recall policy estimates, not calibrated probabilities
+that someone will remember or solve an unseen problem. The main implementation
+is [`retention-policy.js`](../apps/api/src/retention-policy.js),
+[`practice-policy.js`](../apps/api/src/practice-policy.js), and
+[`goal-policy.js`](../apps/api/src/goal-policy.js); the browser presentation is
+in [`PatternMetrics.jsx`](../apps/web/src/PatternMetrics.jsx) and
+[`dashboard-model.js`](../apps/web/src/dashboard-model.js).
 
-## Three separate signals
+## The three signals
 
-Bar length shows progress within its own pattern: 65% of actual difficulty-balanced goal coverage plus 35% of current practice strength, bounded to 0–100. There is no shared maximum-target denominator. Without a configured goal, it shows practice strength alone. Unknown practice dates contribute an experience baseline while retention remains unassessed. Other has no scored progress bar. Public attention-point labels and hover explanations are removed.
+| Signal | Answers | Main inputs |
+| --- | --- | --- |
+| **Goal coverage** | How much of the selected problem plan has this pattern covered? | Unique primary placements, difficulty, profile, target, and per-pattern quotas. |
+| **Practice strength** | What experience, repeat work, and dated practice has Recall observed for this pattern? | Distinct solves, recorded attempts/topics, assistance, dates, and elapsed time. |
+| **Queue priority** | Which pattern should the learner consider next? | Remaining goal gap plus the pattern's committed practice weakness, weighted by the selected goal. |
 
-Bar color and a visible badge show focus emphasis: coral/high, mustard/medium, teal/lower. Category importance is its selected profile weight divided by that profile's largest category weight. Subpattern importance multiplies that ratio by its target divided by its parent's largest subpattern target. Ratios at least 0.5 are high, at least 0.25 medium, otherwise lower. These thresholds and profile weights are preparation policy, not empirical interview probabilities. Manual learning data never changes a pattern's importance color. Changing the profile can change it.
+These signals appear together because the learner needs to compare them, but
+they are not the same score. Focus badges communicate preparation emphasis;
+the strength bar does not become fuller because a pattern is important.
 
-Queue position combines actual coverage need and committed practice need, weighted by profile-specific targets. Raw attention = 0.65 * actual remaining goal credits + 0.35 * pattern target * committed practice weakness. Every accepted coverage credit is counted immediately; no per-subpattern rounding hides progress. Practice strength itself does not change when switching profiles.
+## What the visible strength bar means
 
-## Practice strength and holds
+The bar is one practice-strength estimate split into its two actual
+contributions:
 
-Breadth B = 1 - exp(-distinctProblems / patternBreadthTarget). Reinforcement D = 1 - exp(-weightedRevisits / 10). Independent revisits contribute 1, hints 0.5, solution-assisted 0.2, imported unknown 0. Separate local practice days are required for revisits.
+- **Experience** (coral) is the persistent baseline from solve breadth and
+  reinforced revisits.
+- **Recent practice** (mustard) is the added contribution from dated observed
+  events. It fades with elapsed time.
 
-Experience E = 100 * (0.5B + 0.3D) / 0.8. Dated strength = E + (100-E) * 0.2R. Practice adds (1-R) times 0.6 independent, 0.4 hint, 0.2 solution, or 0.3 imported unknown. Only recency R decays, with a default thirty-day half-life outside holds; breadth and reinforcement persist. Assistance is not inferred from an accepted submission. Imported unknown assistance cannot earn blocks.
+The colored segments sum to the current strength when dated evidence exists.
+Only the displayed label is rounded. When a pattern has experience but no
+valid dated events, the bar can show its experience fill while the percentage
+remains unassessed; it must not imply measured retention. With no experience,
+it prompts the learner to record practice. The `Other / needs classification`
+row has no scored bar.
 
-A block requires at least four distinct problems in one subpattern and four weighted credits: independent 1, hints 0.5, solution 0.2, unknown 0. Each pending identity contributes its strongest evidence once. Repeating one problem cannot complete a block. Later blocks can revisit the same set on later days.
+The dashboard-wide tracker is an unweighted average of the assessed category
+strengths. Categories with no dated assessment do not lower that average;
+the UI reports assessed and undated coverage separately. Each category's
+strength is calculated from its own category-level distinct evidence. This is
+a summary of the evidence Recall has, not a universal mastery score.
 
-The first block earns a three-day recency hold. Each later block completed on a different local date from the preceding block extends the duration by two days, capped at fourteen. Same-day blocks do not extend the duration. Partial work can grow the bar without extending the earned hold. After the hold, gradual decay resumes. These are adjustable defaults, not established DSA memory intervals. Asia/Calcutta defines local days.
+### Strength calculation
 
-## Stable downward movement
+Practice is grouped by the classified practice unit, which can differ from a
+problem's primary placement. For each unit, valid events are ordered by time.
+The model excludes missing, malformed, and future dates from dated evidence.
+For the same problem
+on the same `Asia/Calcutta` practice day, it keeps the strongest assistance
+evidence (and the latest event when evidence is tied). This prevents retries
+on one day from looking like several independent practice days.
 
-Committed practice weakness still uses evidence through the last completed weighted practice block, plus legacy solved identities. Visible progress uses all current evidence.
+Let `n` be distinct solved problem identities, `T` the pattern's configured
+breadth target, and `r` the weighted revisit evidence:
 
-Migration 011 adds derived queue_snapshot memory to workspace_goal. Categories and subpatterns have separate namespaced anchors. A falling attention score cannot lower its ranking anchor until four additional difficulty-balanced coverage credits accumulate, a new weighted practice block completes, or the remaining coverage target is completed. Increasing need can raise the anchor immediately. Two-point bands use catalog order for ties. Partial progress remains visible throughout.
+```text
+breadth B      = 1 - exp(-n / T)
+reinforcement D = 1 - exp(-r / 10)
+experience E   = 100 * (0.5 * B + 0.3 * D) / 0.8
+strength       = E + (100 - E) * 0.2 * recency R
+```
 
-The snapshot stores baseline credits, block count, remaining gap, and ranking anchor. Profile, target, or policy-version changes reset it. Credits or completed-block counts falling below their saved baseline replay the ranking after corrections. Optimistic updates prevent a concurrent refresh or goal edit from overwriting newer queue memory. Repository/process restarts reuse the persisted snapshot. It travels with workspace_goal in same-schema backups.
+The denominator normalizes the persistent breadth/reinforcement weights
+(0.5 + 0.3) to a 0–100 experience baseline. Breadth targets vary by pattern
+because broad families need more distinct examples than narrow specialist
+techniques; these targets are product defaults, not research-derived mastery
+thresholds.
 
-Original practice, notes, tags, assistance, dates, placements and selected goal settings are preserved. Recorded approaches determine practice evidence; primary classification determines coverage. Corrections recalculate the relevant signals. No scheduler, daily check-in, revision countdown, or fabricated practice date is required.
+For a dated event, recency is updated from earlier recency after exponential
+decay, then the event contributes a fraction of the remaining room. The
+default decay half-life is 30 days. Current recovery contributions are
+independent `0.6`, hint `0.4`, solution-assisted `0.2`, and unknown `0.3`.
+Unknown assistance can therefore contribute modestly to dated recency when a
+real date exists, but it does not count as independent work or earn a practice
+block. Missing dates never refresh recency. The experience baseline persists
+while only the recency contribution fades.
 
+For a revisit, reinforcement adds independent `1`, hint `0.5`,
+solution-assisted `0.2`, or unknown `0`. The first dated event for a problem
+does not count as a revisit. Accepted status by itself does not tell Recall
+whether the learner solved independently; the extension asks the learner.
 
-## Split priority presentation
+The 30-day half-life, weights, and per-pattern breadth targets are adjustable
+product assumptions. Research on retrieval and spacing motivates measuring
+delayed practice, but does not set these DSA-specific values. See
+[`retention-research.md`](retention-research.md) for evidence and limitations.
 
-The latest presentation replaces the single progress fill with two equal halves. Coral is the selected-focus coverage push (`gap / largest target at this level`); mustard is the target-weighted retention push (`target * committed practice need / largest target at this level`). Category rows share the maximum category target; subpatterns share the maximum sibling target. Multiplying the two percentages by their shared scale and the existing 65/35 ranking weights reconstructs the current raw attention score. Equal visual space does not change these weights. Larger fills indicate need, not mastery or recall probability. Unknown dates are labelled undated and hatched.
+### What imports can and cannot say
 
-The small dashed-end coverage threshold shows credits earned since the current queue anchor against the four-credit release requirement. Completed practice blocks and goal completion are separate release routes. Crossing a threshold permits recalculation; it cannot guarantee a rank change against other patterns. Persisted queue anchors still apply, and practice records, classification, goal quotas and ordering weights are unchanged.
+Imported accepted problems count once toward primary-placement coverage and
+experience breadth. A historical solve with no provider date does not create
+a dated event, recency, revisit, or practice block. When LeetCode supplies a
+real date in the limited recent-submission import, that dated event may inform
+recency, but its assistance remains unknown and cannot earn a block. Imported
+records do not overwrite a learner-confirmed attempt for the same
+problem/day/submission.
 
+## Goal coverage and extra solves
 
-Presentation correction: the user rejected separate half-tracks. Current UI stacks adjacent coral and mustard segments in one continuous track, with widths equal to 65% of focusPush and 35% of retentionPush. Total fill is exactly raw attention / shared scale. The internal dashed mark projects the remaining credits to the next four-credit coverage release (or coverage completion), holding retention constant. It is not a guaranteed rank boundary; practice-block release and recency changes remain independent. The separate threshold mini-track was removed.
+The selected profile is **Interview Focused** or **Deep Understanding**. The
+selected target is 300, 500, or 1000 distinct problems. `goal-policy.js`
+allocates each target across categories, subpatterns, and Easy/Medium/Hard
+according to versioned Recall weights. Its target matrix is product policy,
+not an industry standard.
 
+Each problem receives at most one coverage credit through its effective
+primary placement. Difficulty quotas are separate: extra Easy problems do not
+fill missing Medium coverage, and one subpattern's surplus does not fill a
+sibling's gap. The interface displays raw actual solves such as `20/16`, while
+bar fill uses credits capped at the quota. A surplus still contributes to
+experience; it simply cannot erase an unrelated gap or create extra goal
+credits. Unknown difficulty remains visible but is not guessed into a bucket.
 
-## Threshold audit (v8)
+Manual primary-placement corrections reattribute coverage. Recorded practice
+stays under the confirmed topic/unit used during that attempt, so a later
+classification correction does not rewrite the learner's practice history.
 
-A coverage gate is based on credited goal coverage since the last derived baseline. Its requirement is the smaller of four credits and the remaining baseline gap; complete goals have no coverage gate or dashed marker. Bulk gains retain the remainder after each group of four. Every credited solve changes the coral segment immediately, but the pattern's own committed rank score cannot fall before coverage completion or a full coverage/revision block. Other patterns can still rise past it.
+## How the queue ranks patterns
 
-Revision progress comes directly from pending weighted distinct problems in one subpattern. Independent=1, hint=0.5, solution=0.2 and unknown=0. Four weighted credits and at least four distinct problems are required. Category progress displays the most advanced individual subpattern; siblings never pool their pending credits. Revision blocks can release ranking even when no new coverage is earned. Same-problem/same-day duplicates and future or missing dates cannot advance a gate. On completion the counter starts the next block, labelled Next revision/Next coverage.
+For each goal-scored category or subpattern:
 
-The API owns the marker and counters; the browser no longer duplicates threshold arithmetic. The dashed marker projects the next coverage release, holding retention constant, and never pretends to predict a revision score or guarantee a new rank. Actual revision progress is shown alongside coverage. No phantom 0/4 coverage marker remains after completion.
+```text
+gap           = remaining credited goal problems
+target        = that category/subpattern's allocated goal
+practiceNeed  = committed weakness from 0 to 1
+raw attention = 0.65 * gap + 0.35 * target * practiceNeed
+```
 
-Committed evidence has a fingerprint so corrections to dates/assistance replay ranking even when the number of completed blocks stays the same. Removed/restored blocks replay their hold and gate. Derived memory also tracks the last observed credit count to detect partial-credit corrections, ignores malformed numeric baselines, and clears on actual goal-profile/target changes (including switching away and back before a refresh). Saving identical goal settings preserves the gate. The policy version is v8; old derived anchors are rebuilt once, while recorded evidence and selected settings remain unchanged.
+Practice weakness is the inverse of the API's committed practice-strength
+score, normalized to 0–1. If there is no practice evidence, the pattern starts
+with full practice need. The queue uses evidence committed through the last
+completed meaningful practice block, together with historical solve breadth;
+partial attempts still update the visible strength bar immediately. Therefore,
+one problem can improve visible evidence without forcing the learner to
+switch patterns after every solve.
 
-Unknown-assistance historical imports are excluded from the committed evidence fingerprint so a newly imported backdated date cannot masquerade as a correction and bypass the meaningful-practice gate. Such dates can inform displayed recency, but cannot earn revision credits or unlock a held rank.
+The profile shapes the category and subpattern quotas, so interview-relevant
+patterns receive more goal space. Coverage contributes 65% of raw attention;
+practice weakness contributes 35% and remains relevant after a goal is
+complete. These weights are Recall policy, not measured interview-frequency
+statistics. The API persists a queue snapshot so equal or tiny changes do not
+cause distracting movement. Scores are compared in two-point bands; catalog
+order breaks ties. A new score can raise a pattern's urgency immediately,
+while lowering its position waits for a release condition below.
 
+### Focus badges
 
-## Growing capability presentation
+Focus badges are a separate preparation-emphasis signal. A category's
+importance is its selected profile weight divided by the largest category
+weight in that profile. A subpattern multiplies its parent's ratio by its
+target relative to its largest sibling target. Current tiers are high at
+`0.5` or above, medium at `0.25` or above, and lower below `0.25`. The UI
+labels these **High focus**, **Medium focus**, and **Lower focus**. Practice
+history cannot change the badge; switching the selected goal profile can.
+These thresholds describe Recall's own allocations and do not claim an
+empirical probability of an interview question.
 
-The current continuous bar shows strength rather than urgency. Pink occupies 65% of the pattern's own goal coverage; yellow occupies 35% of its current dated practice strength. Partial practice updates yellow immediately, while the committed queue evidence still waits for a meaningful block. Foundation remains built as recency fades. Without dated evidence, retention is null/unassessed and contributes no colored fill; previous solves still fill foundation. Without a selected goal, existing normalized breadth supplies foundation. These are policy estimates, not measured recall.
+## Why and when the queue moves down
 
-Focus importance is a separate badge beside each pattern/subpattern name. It continues to influence ranking; it no longer makes a weak, rare pattern look full. Consequently fills need not be strictly increasing down a focus-weighted queue. The API's growing coverage marker is current combined fill plus the pink contribution of the remaining coverage-block credits, using the pattern's own target and holding current retention constant. It lies ahead of the fill and disappears when coverage is complete. Revision progress remains a separate truthful counter, not a fabricated future retention score. The gate policy, anchors, holds, goal settings and practice history are unchanged by this presentation change.
+The user explicitly wanted meaningful work before a pattern loses its place.
+Every coverage credit and partial practice update is still visible, but a
+small gain alone does not lower the pattern's own committed ranking score.
+Coverage and practice provide separate release routes:
 
-## Coherent strength display (2026-10-02)
+1. **Coverage route:** credits accumulate from the persisted baseline. Four
+   credited goal problems release the gate; if fewer than four credits remain,
+   completing the remaining goal releases it. Bulk gains carry any remainder
+   into the next block. Extra solves above a difficulty cap do not earn
+   additional credits.
+2. **Practice route:** one block completes with at least four weighted
+   practice credits from at least four different problems in one subpattern.
+   Independent work is `1`, hint-assisted work `0.5`, solution-assisted work
+   `0.2`, and unknown assistance `0`. Each problem identity contributes its
+   strongest pending evidence once. Repeating one problem cannot finish a
+   block; pending work from sibling subpatterns is not pooled.
 
-The current UI supersedes the 65/35 goal-coverage capability blend. One continuous bar now represents the existing practice-strength estimate, not measured recall. Pink is `experienceScore`, based on solve breadth and reinforcement. Yellow is `strength - experienceScore`, the additional recent-practice contribution. `strengthComponents` exposes both from the API; the frontend can also use the existing `experienceScore` on older API snapshots. The segments sum exactly to `strength`; only the displayed percentage is rounded. Changing goal size/profile or focus badges never changes the fill for unchanged practice evidence.
+Completing either route permits the API to recalculate the committed ranking;
+it does not guarantee that the row moves down because other patterns can also
+change. A pattern's own score can rise immediately when need increases.
+Correction, removal, restoration, profile/target change, or policy-version
+change rebuilds derived queue memory as appropriate. Recorded attempts,
+classification, notes, and selected goal settings are not rewritten by a
+policy-version change.
 
-Without valid practice dates, the experience baseline can still be visible, but the strength percentage is unassessed and yellow is zero. A single dated solve may add a small recent-practice contribution to a substantial imported baseline; it is never presented as demonstrating recall of every imported problem. The underlying product-default strength formula and queue policy v8 are unchanged.
+The database-backed snapshot is `workspace_goal.queue_snapshot`, introduced
+by migration 011. It is derived state, not source evidence. Its correction
+fingerprint catches changes to dates/assistance even when completed-block
+count stays the same. Invalid snapshot numbers are discarded rather than
+allowed to freeze or poison ordering. Details and regression outcomes from the
+point-in-time threshold audit are in [`threshold-audit.md`](threshold-audit.md).
 
-Four practice-block dots display weighted distinct evidence for the API's most-progressed subpattern. Fractional work fills part of a dot. New solves and revisits can both qualify, so the label is Practice block rather than Revision. Repeated attempts at one identity do not fill the block. Completion resets pending dots and the completed-block total remains visible. The projected coverage marker and both Next counters are removed. Coverage-based queue releases still operate and are explained in the shared disclosure, alongside practice-block releases and the fact that reassessment does not guarantee a lower rank.
+## Holds and the meaning of "retention"
 
-Primary solves count problems once by assigned placement. Distinct practice problems follow recorded approaches and can differ; dated and dates-unknown counts partition that evidence and do not count sessions. Difficulty bars are explicitly Goal coverage, capped by subpattern and difficulty. Extra solves still count as experience. Short recommendation reasons use the actual coverage/practice contributions or an active held gate; they do not imply that strength determines exact rank.
+A completed practice block pauses recency decay for three days. Each later
+block completed on a different local practice day extends the hold by two
+days, capped at fourteen. Same-day blocks do not extend it. The hold is a
+stability choice, not a research-backed revision schedule. After the hold,
+recency decays naturally; Recall does not claim to watch the learner daily,
+does not create a daily streak, and does not promise an exact next revision
+date. The queue is refreshed from stored evidence when the website loads or
+practice changes.
 
-Difficulty count display update (2026-10-02): goal coverage now displays actual primary solves / difficulty target, including over-target totals such as 20/16. Track fill and percent still use capped credited/target, preserving subpattern balance. A category can therefore show over-target raw totals without a full bar when another subpattern has a gap. Segmented summaries and tooltips use the same semantics. This is presentation only; strength, queue order, goal credit allocation and thresholds are unchanged.
+## Why the policy exists
+
+The product needs both interview preparation and personal retention. If
+interview importance alone controlled the order, practice evidence would not
+matter. If one recent solve alone controlled the order, a core interview
+pattern could disappear from view and the queue would feel erratic. The
+versioned goal quotas and 65/35 queue score preserve both signals; persisted
+release gates make progress visible while requiring a meaningful amount of
+work before a lower rank is committed.
+
+This is intentionally simpler than a trained memory model or a spaced-review
+scheduler. Recall does not yet collect enough explicit delayed, independent
+assessments to calibrate personal probabilities. It should not describe the
+bar as a literal percentage of knowledge retained. The detailed source review
+and proposed future measurements are in
+[`retention-research.md`](retention-research.md).
+
+## Change control
+
+Goal allocations are versioned as `2026-10-02.v8`. Practice-strength
+coefficients and hold defaults live in `retention-policy.js` and
+`practice-policy.js`. If any of these rules change, update this document,
+[`goal-policy-evidence.md`](goal-policy-evidence.md), the relevant policy
+version and regression tests, and the short UI explanation in
+[`LiveDashboard.jsx`](../apps/web/src/LiveDashboard.jsx). Historical practice
+must not be silently rewritten. The exact current scoring sources are linked
+at the top of this document; dated audits below this policy describe earlier
+states and must not override it.

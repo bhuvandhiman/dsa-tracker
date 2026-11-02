@@ -25,7 +25,10 @@ The LeetCode check verifies the currently selected LeetCode tab at that moment. 
 
 ## Update instructions
 
-Deploy the website/API together with extension version 0.12.0. The Render build should package the extension with the deployed origin before building the website, as documented in the deployment guide.
+Deploy the website/API together with the extension ZIP generated from the same
+checkout. The Render build packages the extension with the deployed origin
+before building the website, as documented in the deployment guide. Older
+version numbers in this feature note refer to the rollout when it was written.
 
 For an unpacked hosted extension, download the updated hosted ZIP, replace the files in its existing folder, click Reload in Chrome Extensions, and refresh Recall and LeetCode. Keep the same extension folder to preserve drafts/checkpoints. The project source folder continues to use local runtime origins; do not use that local configuration to connect to Render.
 

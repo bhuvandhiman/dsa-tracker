@@ -28,7 +28,11 @@ Tests use mocked Chrome messages/provider data and local HTTP fixtures; they do 
 
 ## Update the installed extension
 
-1. Use version 0.12.1 from the hosted ZIP built for `https://recall-nqmz.onrender.com`. The source `apps/extension` folder still defaults to local development endpoints.
+1. Use the latest hosted ZIP downloaded from Recall's installation page. It is
+   built for the deployed origin. The source `apps/extension` folder still
+   defaults to local development endpoints. Check
+   `apps/extension/manifest.json` for the current source version; older version
+   numbers below are historical.
 2. Close the import tab. Extract the new ZIP into the existing unpacked extension directory, replacing its files. Keep the same folder and installed extension; uninstalling clears local checkpoints and drafts.
 3. Reload Recall in `chrome://extensions`. Refresh the Recall website and sign in if needed so its session reconnects the extension. Refresh the signed-in LeetCode tab.
 4. Open Import & recordings and choose Resume import or Retry recent dates. Check for new solves is available once both phases are complete.

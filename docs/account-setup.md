@@ -1,5 +1,9 @@
 # Recall accounts and setup
 
+Counts and results in the validation section describe the feature milestone
+when they were recorded. They are not the current suite total; run `npm run
+check` and `npm run test:db` for this checkout.
+
 The account phase adds split signup/login screens with email/password
 authentication through Supabase, email confirmation/resend, password recovery,
 server-verified private workspaces and a three-step setup. Real sign-ins require
@@ -112,8 +116,8 @@ ZIP from the deployed site's installation page. Follow
 
 ## Validation and local fixtures
 
-`npm run check`: lint, 259 unit tests and production build.
-`npm run test:db`: 19 isolated PostgreSQL integration tests, including cross-account
+`npm run check`: lint, the current database-independent test suite and production build.
+`npm run test:db`: isolated PostgreSQL integration tests, including cross-account
 solve/goal/capture/backup isolation and rollback/pool reuse. Owned test schemas
 are cleaned up; existing practice data is not used as test data.
 

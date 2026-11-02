@@ -1,4 +1,12 @@
-# Recall visual foundation
+# Recall visual and implementation decision journal
+
+This file keeps the visual references and UI decisions recorded as Recall
+changed. It is chronological, so individual phase notes can describe states
+that were later revised. For the current product direction, use
+[`docs/product-brief.md`](../docs/product-brief.md); for current component
+behavior, use the relevant contract linked from [`docs/index.md`](../docs/index.md).
+
+# Original visual foundation
 
 The user selected the second reference image's warm palette and typography,
 with playful rounded cards and details inspired by both supplied images.

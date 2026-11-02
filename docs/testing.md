@@ -1,5 +1,12 @@
 # Verification
 
+This file preserves results from dated feature checks. Test totals, extension
+versions, and screenshots in those entries are historical snapshots, not a
+claim about today's checkout. The current entry points are `npm run check` for
+lint + the full database-independent test suite + production build, and
+`npm run test:db` for isolated PostgreSQL integration tests. Read each dated
+section for its scope and limits before reusing a result.
+
 ## Email confirmation navigation — 9 October 2026
 
 Email confirmation opens a progress screen while Supabase exchanges the link and

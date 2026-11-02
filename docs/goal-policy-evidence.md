@@ -1,8 +1,14 @@
 # Goal Coverage policy evidence
 
-Policy version: `2026-10-01.v4`
+Current goal policy version: `2026-10-02.v8`
 
-Evidence last checked against the linked official sources: `2026-09-26`
+External evidence last checked against the linked official sources: `2026-09-26`
+
+The source-review date is intentionally separate from the current policy
+version. The linked material supports the broad direction; it does not validate
+Recall's numeric quotas. The current implementation and presentation contract
+is in [`retention.md`](retention.md). Earlier policy/version notes below are
+historical unless they explicitly identify v8.
 
 This document separates external evidence from Recall's own product-policy choices. The sources below support the direction and relative emphasis of the goal system. They do **not** publish a universal 300, 500, or 1000-problem quota matrix, so Recall does not present its exact targets as industry facts.
 
@@ -94,6 +100,17 @@ The exact weights are intentionally stored in code rather than copied from a sou
 - Primary-placement corrections re-attribute Goal Coverage without rewriting confirmed attempt approaches.
 - A rare pattern with a small profile target cannot become the top dashboard attention item solely because its Practice Strength is very low; substantially larger core-topic deficits remain ahead.
 
-Progress and focus visualization (v7): length shows actual progress within each pattern (65% actual coverage, 35% current practice strength), color/badge shows selected-profile emphasis, and queue position combines actual coverage need with committed practice need. Every coverage credit is counted immediately. Derived persisted queue anchors gate downward movement until meaningful work, instead of rounding away coverage. Emphasis ratios and thresholds are documented in retention.md and are product policy, not measured interview frequency. Public attention points and hover explanations are removed.
+Historical visualization note (v7, superseded): an earlier bar blended 65% goal
+coverage and 35% practice strength. The current strength bar instead shows the
+experience baseline plus dated recent-practice contribution; goal coverage and
+focus remain separate signals. The 65/35 weighting still applies to queue
+attention, not to the current visible strength fill. Current UI semantics are
+documented in [`retention.md`](retention.md).
 
-Policy v8 audits threshold behavior without changing preparation weights or recency constants. Queue-release requirements, revision progress, overflow carry and correction replay are documented in threshold-audit.md and retention.md. The API supplies authoritative marker metadata.
+Goal policy v8 is the current allocation version. Its threshold audit did not
+change the preparation weights or recency constants. Queue-release
+requirements, block progress, overflow carry, and correction replay are
+described in [`threshold-audit.md`](threshold-audit.md) and
+[`retention.md`](retention.md). The API remains authoritative for queue
+metadata; older UI marker descriptions in audit notes are not current UI
+instructions.

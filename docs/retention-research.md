@@ -1,6 +1,13 @@
 # Retention research: what Recall should measure and recommend
 
-Research date: 2 October 2026. Prepared for the DSA Tracker / Recall project.
+Research snapshot prepared: 2 October 2026, for the DSA Tracker / Recall project.
+
+This literature review predates the current strength bar and queue thresholds.
+It records the evidence and proposals considered at the time; it is not the
+current product specification. Use [`retention.md`](retention.md) for adopted
+behavior and [`goal-policy-evidence.md`](goal-policy-evidence.md) for the
+current goal allocation rationale. Research links and conclusions below have
+not been rechecked since the date above.
 
 This is a research and design report, not an implementation of a new scoring algorithm. Research findings, extrapolations to DSA, and proposed product defaults are identified separately. This is a targeted literature review, not an exhaustive systematic review.
 
@@ -250,4 +257,8 @@ For Roediger/Karpicke 2006, Karpicke/Roediger 2008, Yang and colleagues 2021, an
 
 Most of this evidence concerns vocabulary, prose, classroom learning or mathematical procedures. The programming study concerns introductory programming. None establishes exact growth increments, decay rates, revision intervals, interview importance weights or an optimal number of solved DSA problems for our users. The report's schedules and interface proposals require validation; they are not hidden claims that those numbers came from papers.
 
-The scoring code and UI have not been changed as part of this research task.
+At the time this research snapshot was written, it did not change scoring code
+or UI. Subsequent product decisions adopted a heuristic strength bar and
+meaningful queue gates; those choices are documented separately and should
+not be mistaken for research-validated coefficients or a calibrated retention
+model.

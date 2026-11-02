@@ -1,6 +1,6 @@
 # Website login connection
 
-Recall extension 0.11.0 removes the separate account password form. Sign in on
+The extension removes the separate account password form. Sign in on
 the website in the same Chrome profile, then refresh its tab after installing
 or reloading the extension. **Connect through Recall** opens the configured
 website when needed. Settings reloads after connection or account changes;
@@ -40,7 +40,7 @@ of the password form and connection enabling imports; it simulates Chrome and
 does not prove a live Supabase/Chrome connection. Check that once after deploying
 the website/API and replacing the installed extension with the new hosted ZIP.
 
-## Imports on the Connect page (0.13.0)
+## Imports on the Connect page (added in extension 0.13.0)
 
 Installation instructions expand immediately under the Installation steps button.
 Import my solves starts a background job and keeps the website on Connect. The

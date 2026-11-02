@@ -1,58 +1,163 @@
-# API contracts
+# HTTP API reference
 
-All routes use /api, JSON, bounded pagination, and parameterized SQL. Errors return {error}. Missing schema/database returns 503. Incorrect input returns 400, missing records 404, and revision/idempotency conflicts 409.
+This documents the current Express API. Exact input validation lives in
+[`domain.js`](../apps/api/src/domain.js), route dispatch in
+[`app.js`](../apps/api/src/app.js) and [`data-routes.js`](../apps/api/src/data-routes.js),
+and database behavior in [`repository.js`](../apps/api/src/repository.js).
+Current runtime/security boundaries are described in
+[architecture](architecture.md); field meanings are in [data model](data-model.md).
 
-## Accounts and hosted mode
+The API is JSON over same-origin `/api` in hosted mode. Local Vite forwards
+`/api` to the API server. This is an internal product API, not a versioned
+public integration contract; coordinate website and extension releases when
+changing request/response shapes.
 
-`AUTH_MODE=supabase` verifies each private request against the configured Auth
-project. Account IDs supplied by a browser never select a workspace. Hosted mode
-requires an HTTPS origin and verified accounts; local mode remains loopback-only.
+## Authentication and workspace selection
 
-- `GET /account`: verified identity and whether deletion is configured.
-- `GET /account/export`: version 1 `recall-account-export`, containing account
-  details, saved setup and a nested restorable workspace backup from one database
-  snapshot. The outer export is not a direct restore payload.
-- `DELETE /account`: only `{password,confirmation:"DELETE"}`. Re-authenticate the
-  current email and verify the resulting owner matches the request's account.
-  Returns 200 `{deleted:true,pending:false}` or 202 `{deleted:false,pending:true}`.
-  A queued deletion blocks workspace access and resumes after failures. Server
-  secret keys are never included in public configuration or exports.
+- In `AUTH_MODE=local`, private data routes use the loopback-only local
+  workspace. Account/session endpoints that need hosted accounts report that
+  online accounts are not configured.
+- In `AUTH_MODE=supabase`, every matched private route requires
+  `Authorization: Bearer <Supabase access token>`. The API verifies the token
+  with Supabase and then resolves the private workspace from that verified
+  user.
+- `X-Recall-Workspace` is optional client state protection. When provided, it
+  must match the authenticated user ID (or `local` in local mode); it never
+  grants access.
+- Authenticated/private responses use `Cache-Control: no-store`.
+- `/api/health` is public liveness. `/api/ready` is a protected storage
+  readiness check and executes a database query.
 
-See [Render deployment](deploy-render.md) and [account setup](account-setup.md).
+## Public service and extension-auth routes
 
-## Current workflow
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/health` | Process liveness only; does not guarantee the database is ready. |
+| `GET /api/auth/config` | Public client configuration: auth mode, configured state, publishable Supabase URL/key when configured, deployment and extension-install settings. Never returns the secret key. |
+| `POST /api/auth/extension/login` | Exchange email/password for an extension session in hosted Supabase mode. Passwords are forwarded to Supabase and are not stored by Recall. |
+| `POST /api/auth/extension/refresh` | Refresh an extension-owned session for older/direct-login flows. The normal website bridge keeps website refresh ownership on the website. |
+| `POST /api/auth/extension/connect` | Verify a short-lived website-issued access token and return a verified extension connection. Does not accept website passwords or refresh tokens. |
 
-- GET /health: liveness only.
-- GET /ready: database/schema readiness, bound account, storage description and workspace timezone.
-- GET /workspace/backup and POST /workspace/restore: versioned JSON with identical migration checksums. Restore is atomic, adds missing rows, refuses conflicting rows, and preserves exact PostgreSQL timestamps. Restore limit is 20 MB / 200,000 rows; no existing data is overwritten.
-- GET /attempts/removed and POST /attempts/:id/restore with {revision}: paginated soft-removal recovery.
-- POST /capture/reconcile: capture payload returns saved, missing, removed or conflict without mutating practice.
-- PUT /problems/:id/difficulty with {difficulty}: repairs missing provider difficulty.
-- GET /retention: asOf, timeZone, ordered categories and children. Each category contains a summary used for its dashboard bar and total distinct-solved count. Children retain independent subpattern evidence. Summary and child strength objects contain assessed, strength (null when no dated evidence exists), displayStrength (always available for the bar), breadth, breadthTarget, reinforcement, recency, weightedRevisits, distinctSolved, lastPracticedAt and a concise reason. Ranking numbers are internal and not displayed. When a goal is configured, the response also contains a separate Goal Coverage summary plus category/subpattern coverage; Practice Strength ordering remains unchanged.
-- GET /goal: returns the current Interview Focused or Deep Understanding goal, or the available profiles and 300/500/1000 targets when no goal has been chosen yet.
-- PUT /goal: {profile,target}; profile is interview or deep and target is 300, 500 or 1000. Updating this row never rewrites attempts, classifications, notes, assistance or Practice Strength.
-- POST /practice-context: {url,title,topics}; returns units and suggested practiceUnit, honoring an existing manual placement.
-- GET /pattern-problems?category=slug&limit=10&offset=0: paginated problem details for a category/subpattern. Includes problems whose recorded approach matches even when primary browsing placement differs. Returns {total,problems}.
-- GET /problems/:id/history?limit=20&offset=0: {problem,attempts,more,legacy}. Undated legacy evidence is shown after dated history. Imported rows have unknown assistance and inferred approach.
-- POST /capture: {requestId,url,title,difficulty,topics,selectedTopics,assistance,attemptedAt,practiceUnit,approachSource,captureSource,submissionId}. difficulty is easy, medium, hard or null. requestId is a v4 UUID; timestamps are UTC ISO strings. Assistance is independent, hint or solution. approachSource is confirmed or inferred; captureSource is accepted or manual; submissionId is optional. Missing new fields on older pending captures use conservative defaults. Returns 201 for a new attempt or 200 for the same frozen retry.
-- PUT /attempts/:id: {revision,assistance,patternSlugs,notes,attemptedAt,practiceUnit}. Original topic tags remain separate from the single practiceUnit; the current editor preserves those tags. Editing practiceUnit explicitly confirms it.
-- DELETE /attempts/:id: {revision}; soft-deletes mistaken practice.
-- PUT /problems/:id/placement: {unit}; null restores automatic browsing classification. Stored attempts are unaffected.
+## Account and setup routes (hosted mode)
 
-## Import runs
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/account` | Return current verified account summary and whether deletion is enabled. |
+| `GET /api/account/export` | Export account/setup metadata and workspace records in a named account-export envelope; this is not necessarily the same shape as a restorable workspace backup. |
+| `DELETE /api/account` | Requires a valid current account password and configured deletion service. Starts durable account/workspace deletion; can return `202` while cleanup is pending. |
+| `PUT /api/account/profile` | Update allowlisted account profile fields through Supabase Auth. |
+| `GET /api/session` | Return verified user, normalized setup/profile state and owner permissions. |
+| `GET /api/setup` | Read onboarding profile, target and completion state. |
+| `PUT /api/setup` | Save allowed profile/target/installation acknowledgement/completion fields. Completion requires a configured profile. |
 
-POST /imports/legacy accepts {runId,username,problems,complete}; batches contain at most ten problems. Each problem supplies url, title, difficulty and topics. GET /imports/legacy/:runId reports resumable completion.
+## Workspace and learning-data routes
 
-POST /imports/recent accepts {runId,username,submissions}; at most twenty available provider submissions, each with submissionId, submittedAt and problem metadata. GET /imports/recent/:runId reports recent-date completion. Provider submission identities deduplicate across runs. The wire alias installationId remains accepted for older pending extension payloads, but new runs use fresh UUIDs.
+All routes in this section are mounted beneath `/api` and require the private
+workspace boundary above.
 
-The workspace account is bound on first verified recording or import. New extension captures include username; different usernames are rejected. Old immutable retries remain compatible. Reimports fill missing difficulty without replacing existing difficulty, assistance, notes, recorded dates, titles or manual classification. Import responses report added, alreadyPresent and excluded Database counts. An accepted-problem import remains committed if fetching recent dates fails.
+### Status, goals, and pattern catalog
 
-Scoped lists accept difficulty (easy/medium/hard/unknown), dates (all/dated/undated/older30) and sort (newest/title/oldest-practice/recent-practice), alongside q/status/category. History includes the approach inventory for editing.
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/ready` | Check workspace storage and return readiness details. |
+| `GET /api/retention` | Return categories/subpatterns, coverage, practice-strength evidence, focus, priority details, queue gates, ordering, exclusions and goal summary used by the dashboard. |
+| `GET /api/goal` | Read selected profile, target, and policy version. |
+| `PUT /api/goal` | Save a supported `profile` and target (`300`, `500`, or `1000`). Changing either resets the derived queue snapshot. |
+| `GET /api/patterns` | List persisted patterns. |
+| `GET /api/patterns/placements` | List valid primary-placement/retention units. |
+| `GET /api/pattern-problems` | Query the problem library by pattern/search/page filters; used by expanded subpattern details. |
 
-Local mode restricts Host to loopback and allows trusted ports 5173, 4173 and
-3001, plus Chrome extension origins. Hosted mode accepts the configured HTTPS
-site origin/host and extension origins, with a loopback exception for liveness
-checks. Hosted private data always requires server-verified Supabase identity;
-origin/host checks are an additional boundary, not authentication.
+### Problems and primary classification
 
-The obsolete /summary, /library and /retention/preferences routes are removed. Existing low-level problem, attempt, pattern and historical-evidence CRUD routes remain available for compatibility and integration fixtures; there is no dashboard form for creating practice.
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/problems` | Read a page of saved problems. |
+| `POST /api/problems` | Add or reuse a problem by platform identity. |
+| `PUT /api/problems/:id` | Update validated problem metadata. |
+| `PUT /api/problems/:id/difficulty` | Correct a problem's difficulty to Easy/Medium/Hard. |
+| `PUT /api/problems/:id/patterns` | Update its validated pattern associations. |
+| `PUT /api/problems/:id/placement` | Save/clear the manual primary placement override. A non-manual assignment must be a supported candidate; a manual assignment may select a valid catalog unit. |
+
+### Practice capture and history
+
+| Method and path | Purpose |
+| --- | --- |
+| `POST /api/practice-context` | Receive a problem plus provider topics and return the full selectable unit catalog and inferred current practice unit. Does not itself record practice. |
+| `POST /api/capture` | Save a confirmed extension recording transactionally using a stable request UUID; a matching retry returns the existing result. |
+| `POST /api/capture/reconcile` | Ask whether a possibly timed-out capture UUID is missing, saved, removed, or conflicts with another payload. |
+| `GET /api/attempts` | List/page active recordings with supported filters. |
+| `POST /api/attempts` | Create a manually supplied practice attempt through the validated domain input; repeated request identity remains idempotent. |
+| `PUT /api/attempts/:id` | Correct an attempt using its revision for optimistic concurrency. |
+| `DELETE /api/attempts/:id` | Soft-remove an attempt using its revision. |
+| `GET /api/attempts/removed` | Page soft-removed attempts. |
+| `POST /api/attempts/:id/restore` | Restore a soft-removed attempt if its revision still matches. |
+| `GET /api/problems/:id/history` | Return dated practice/import evidence for one problem, plus candidate classification and undated legacy indicator. |
+| `GET /api/history` | Return a page of latest dated solved problems. This endpoint currently backs the History route; it does not invent dates for old imports. |
+
+### Imports, backup, and restore
+
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/imports` / `POST /api/imports` | Read import-run state and import legacy accepted problems in bounded, idempotent batches (the exact body controls progress/completion). |
+| `GET /api/imports/legacy/:id` / `POST /api/imports/legacy` | Query/resume a durable accepted-problem import run. The POST validates username, run UUID, problem list and completion state. |
+| `GET /api/imports/recent/:id` / `POST /api/imports/recent` | Query/import available recent accepted submissions with actual provider dates and unknown assistance. |
+| `DELETE /api/imports/:id` | Remove the corresponding imported record/evidence through validated repository rules. |
+| `GET /api/workspace/backup` | Create a consistent, bounded restorable workspace backup. |
+| `POST /api/workspace/restore` | Validate and restore a backup atomically. The body limit is larger than the general 16 KiB JSON limit and bounded by shared backup limits. |
+
+Import semantics are not interchangeable: legacy accepted problems supply
+undated coverage; recent submissions provide only dates LeetCode makes
+available. See [legacy import behavior](legacy-import.md) and
+[bulk-write design](import-performance.md).
+
+### Diagnostics
+
+| Method and path | Purpose |
+| --- | --- |
+| `POST /api/diagnostics` | Accept a small, rate-limited client failure summary for owner diagnostics when configured. It does not accept arbitrary stack traces or secrets. |
+
+### Owner-only service routes
+
+All `/api/owner/*` routes require a Supabase-authenticated user with an
+explicit owner grant, configured owner storage, MFA proof, and the relevant
+permission. Reads are audited. The Chrome extension is explicitly denied.
+
+| Method and path | Permission | Purpose |
+| --- | --- | --- |
+| `GET /api/owner/overview` | `overview:read` | Aggregate service overview. |
+| `GET /api/owner/users` | `users:read` | Paged privacy-limited user directory. |
+| `GET /api/owner/users/:id` | `users:read` | One user's service summary, not access to their private problem/attempt data. |
+| `POST /api/owner/users/:id/contact` | `contact:read` | Retrieve an explicitly reasoned contact destination. |
+| `GET /api/owner/extension` | `diagnostics:read` | Paged sanitized extension diagnostics. |
+| `GET /api/owner/health` | `health:read` | Operational health and event-collection status. |
+| `GET /api/owner/activity` | `audit:read` | Paged owner audit history. |
+
+See [owner dashboard operations](owner-dashboard.md) for bootstrap, roles,
+permissions, MFA, and recovery.
+
+## Errors, limits, and retry expectations
+
+- Validation errors are returned as a JSON `{ "error": "..." }` response with
+  an appropriate 4xx status; unexpected storage failures become a generic 5xx
+  message while a safe diagnostic code is logged server-side.
+- Unknown API paths return JSON 404. The API does not silently route bad API
+  paths into the website shell.
+- Most JSON requests have a 16 KiB parser limit; restore uses the separate
+  compressed/uncompressed backup bound. Import batch sizes and paging limits
+  are validated before SQL work.
+- Capture and imports must reuse their stable request/run identities after an
+  uncertain response. Do not mint a new identity just because the client timed
+  out.
+- Attempt corrections use a revision. A stale revision returns a conflict so
+  the client refreshes instead of silently overwriting newer data.
+- The API emits request IDs and measures selected auth/database stages for
+  diagnostics. Do not log credentials, database URLs, raw SQL parameters, or
+  private notes.
+
+## Versioning and maintenance
+
+There is no external `/v1` prefix. The website and extension ship with this
+repository and are tested together. Keep compatibility for frozen extension
+drafts and previous import payloads when changing a contract. Update
+`data-routes.js`, client callers, fixture integrations, contract tests and this
+document in one feature.
