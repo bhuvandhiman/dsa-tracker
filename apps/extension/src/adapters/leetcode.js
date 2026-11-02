@@ -48,14 +48,16 @@ globalThis.DsaAdapters.push({
   },
   submissionResult(doc) {
     const verdict=/^(Pending|Judging|Running|Submitting|Accepted|Wrong Answer|Time Limit Exceeded|Runtime Error|Compile Error|Memory Limit Exceeded|Output Limit Exceeded|Internal Error)(\b|…|$)/i;
-    let node=doc.querySelector('[data-e2e-locator="submission-result"], [data-e2e-locator="submission-result-status"], [data-e2e-locator="console-result"]');
+    // Primary locators first; attribute substrings stay stable across layout generations.
+    let node=doc.querySelector('[data-e2e-locator="submission-result"], [data-e2e-locator="submission-result-status"], [data-e2e-locator="console-result"], [data-testid*="submission-result"], [data-testid*="verdict"], [class*="result-state"]');
     let text=node?.textContent?.trim()||'';
     if(!verdict.test(text)) {
       node=[...doc.querySelectorAll('span, div')].find(candidate=>{
         const value=candidate.textContent?.trim()||'';
         if(!value||value.length>40||!verdict.test(value))return false;
+        if(candidate.getAttribute?.('aria-label')&&verdict.test(candidate.getAttribute('aria-label')))return true;
         const className=typeof candidate.className==='string'?candidate.className:'';
-        return /(text-(green|red|yellow|orange)|font-(medium|semibold))/i.test(className);
+        return /(text-(green|red|yellow|orange)|font-(medium|semibold)|result-state|verdict)/i.test(className);
       })||null;
       text=node?.textContent?.trim()||'';
     }
@@ -64,16 +66,22 @@ globalThis.DsaAdapters.push({
     return {node,text,submissionId,pending:/^(Pending|Judging|Running|Submitting)(\b|…)/i.test(text),accepted:/^Accepted(\b|$)/.test(text),terminal:/^(Accepted|Wrong Answer|Time Limit Exceeded|Runtime Error|Compile Error|Memory Limit Exceeded|Output Limit Exceeded|Internal Error)(\b|$)/.test(text)};
   },
   isRun(target) {
-    const direct=target.closest?.('[data-e2e-locator="console-run-button"]');
-    if(direct)return !direct.disabled;
+    const direct=target.closest?.('[data-e2e-locator="console-run-button"], [data-cy="run-code-btn"], [data-testid*="run"]');
+    if(direct)return !direct.disabled&&this.labelled(direct,'run');
     const button=target.closest?.('button');
-    return Boolean(button&&!button.disabled&&button.textContent?.trim()==='Run');
+    return Boolean(button&&!button.disabled&&this.labelled(button,'run'));
   },
   isSubmit(target) {
-    const direct=target.closest?.('[data-e2e-locator="console-submit-button"]');
-    if(direct)return !direct.disabled;
+    const direct=target.closest?.('[data-e2e-locator="console-submit-button"], [data-cy="submit-code-btn"], [data-testid*="submit"]');
+    if(direct)return !direct.disabled&&this.labelled(direct,'submit');
     const button=target.closest?.('button');
-    return Boolean(button&&!button.disabled&&button.textContent?.trim()==='Submit');
+    return Boolean(button&&!button.disabled&&this.labelled(button,'submit'));
+  },
+  // Actions match the first word of the label or text. Strict equality broke when
+  // LeetCode added icons, counts or shortcut hints inside login-safe variants.
+  labelled(node,action) {
+    const text=`${node.getAttribute?.('aria-label')??''} ${typeof node.textContent==='string'?node.textContent:''}`;
+    return new RegExp(`^${action}\\b`,'i').test(text.replace(/\s+/g,' ').trim());
   },
   isSubmitShortcut(event) { return !event.repeat && !event.altKey && !event.shiftKey && (event.ctrlKey || event.metaKey) && event.key === 'Enter'; },
 });

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { webcrypto } from 'node:crypto';
 
 // A small DOM fixture exercises the real capture handlers and in-flight save.
-function panelFixture() {
+function panelFixture({recorded=false}={}) {
   let doc;
   class Element {
     constructor(tag) {this.tag=tag;this.children=[];this.attributes={};this.events={};this.style={};this.textContent='';this.value='';}
@@ -29,7 +29,7 @@ function panelFixture() {
   let finishSave,started;
   const saveStarted=new Promise(resolve=>{started=resolve;});
   const runtime={async sendMessage(message){
-    if(message.type==='GET_PENDING_CAPTURE')return {};
+    if(message.type==='GET_PENDING_CAPTURE')return {recorded};
     if(message.type==='GET_PRACTICE_CONTEXT')return {units:[{slug:'hashing',categoryName:'Arrays & hashing',name:'Hash maps & sets'}]};
     if(message.type==='SAVE_EDITABLE_DRAFT')return {kept:true};
     if(message.type==='SAVE_CAPTURE'){started();return new Promise(resolve=>{finishSave=resolve;});}
@@ -39,7 +39,7 @@ function panelFixture() {
   vm.runInContext(readFileSync(new URL('../apps/extension/src/capture.js',import.meta.url),'utf8'),context);
   const page={location:{href:problem.url},addEventListener(){},setTimeout(){},clearTimeout(){}};
   const controller=context.DsaCapture.start(doc,page,runtime);
-  return {doc,originalFocus,open:()=>controller.open(),saveStarted,finishSave:value=>finishSave(value)};
+  return {doc,originalFocus,open:evidence=>controller.open(evidence),saveStarted,finishSave:value=>finishSave(value)};
 }
 
 test('Escape keeps the recorder open while saving and closes it after a failed save',async()=>{
@@ -60,4 +60,16 @@ test('Escape keeps the recorder open while saving and closes it after a failed s
   assert.equal(close.disabled,false);assert.equal(root.querySelector('[role=status]').textContent,'API offline. Retry save.');
   root.events.keydown[0]({key:'Escape',preventDefault(){}});
   assert.equal(fixture.doc.getElementById('recall-practice-prompt'),null);assert.equal(fixture.doc.activeElement,fixture.originalFocus);
+});
+test('accepted evidence the worker already recorded opens silently without a panel',async()=>{
+  const fixture=panelFixture({recorded:true});
+  await fixture.open({captureSource:'accepted',submissionId:'777',attemptedAt:'2026-01-01T00:00:00.000Z'});
+  assert.equal(fixture.doc.getElementById('recall-practice-prompt'),null);
+});
+test('accepted evidence with an unrecorded id still restores into a panel',async()=>{
+  const fixture=panelFixture();
+  await fixture.open({captureSource:'accepted',submissionId:'777',attemptedAt:'2026-01-01T00:00:00.000Z'});
+  const panel=fixture.doc.getElementById('recall-practice-prompt');
+  assert.ok(panel);
+  panel.remove();
 });

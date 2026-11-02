@@ -8,6 +8,7 @@ import { notifyPracticeChanged } from './practice-notifications.js';
 const pendingKey = (url,scope) => recallAccount.key(scope,`recall-pending:${url}`);
 const draftKey = (url,scope) => recallAccount.key(scope,`recall-draft:${url}`);
 const queueKey = (url,scope) => recallAccount.key(scope,`recall-queue:${url}`);
+const seenKey = (url,scope) => recallAccount.key(scope,`recall-seen:${url}`);
 const active = new Map();
 function identity(message, sender) {
   const source = DsaAdapters[0].getProblem(sender.url);
@@ -38,6 +39,16 @@ async function save(message, problem, scope) {
   if (data.attempt?.id !== payload.requestId) throw new Error('Save was not confirmed. Retry with the same choices.');
   await chrome.storage.local.remove(key);
   await chrome.storage.local.remove(draftKey(problem.url,scope));
+  // Remember this submitted run so an already-saved Accepted never re-opens the panel.
+  if (typeof payload.submissionId==='string' && payload.submissionId) {
+    const marks=seenKey(problem.url,scope);
+    const seen=((await chrome.storage.local.get(marks))[marks]||[]).filter(item=>item!==payload.submissionId);
+    seen.push(payload.submissionId);
+    const queued=queueKey(problem.url,scope);
+    const queue=((await chrome.storage.local.get(queued))[queued]||[]).filter(item=>item?.eventId!==payload.submissionId&&item?.submissionId!==payload.submissionId);
+    if (queue.length) await chrome.storage.local.set({[queued]:queue}); else await chrome.storage.local.remove(queued);
+    await chrome.storage.local.set({[marks]:seen.slice(-50)});
+  }
   await notifyPracticeChanged(chrome,scope,payload.requestId);
   return { saved: true, practiceUnit:data.attempt.practiceUnit, websiteOrigin:recallRuntime.websiteOrigin };
 }
@@ -61,7 +72,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message.type === 'GET_PENDING_CAPTURE') {
       const read = async key => (await chrome.storage.local.get(key))[key];
-      return {workspaceScope:scope,pending:await read(pendingKey(problem.url,scope))||null,draft:await read(draftKey(problem.url,scope))||null,queue:await read(queueKey(problem.url,scope))||[]};
+      const [pending,draft,queue,seen]=await Promise.all([pendingKey(problem.url,scope),draftKey(problem.url,scope),queueKey(problem.url,scope),seenKey(problem.url,scope)].map(read));
+      const busy=[pending?.submissionId,draft?.submissionId,...(Array.isArray(queue)?queue:[]).flatMap(item=>[item?.eventId,item?.submissionId])].filter(Boolean);
+      return {workspaceScope:scope,pending:pending||null,draft:draft||null,queue:Array.isArray(queue)?queue:[],
+        recorded:Boolean(message.submissionId&&Array.isArray(seen)&&seen.includes(message.submissionId)&&!busy.includes(message.submissionId))};
     }
     // Serialize same-problem messages even when two LeetCode tabs save concurrently.
     const previous = active.get(pendingKey(problem.url,scope)) || Promise.resolve();

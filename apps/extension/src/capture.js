@@ -1,27 +1,45 @@
 // This panel lives in an isolated shadow root; page styles cannot break the form.
 globalThis.DsaCapture = {
   start(doc, page, runtime) {
-    let panel = null, currentUrl = null, timer = null, generation = 0, submission = null, keepDraft = null, returnFocus = null, disposeTheme = null, currentScope = null;
+    let panel = null, currentUrl = null, timer = null, generation = 0, submission = null, keepDraft = null, returnFocus = null, disposeTheme = null, currentScope = null, opening = null, trackedUrl = null;
+    const seenIds = new Set();
+    const info = message => { try { globalThis.console?.info?.('[Recall] ' + message); } catch { /* No console in test contexts. */ } };
     const context = () => {
       const adapter = DsaAdapters.find(item => item.getProblem(page.location.href));
       return adapter ? { adapter, problem: adapter.getDetails(doc,page.location.href), topics: adapter.getTopics(doc) } : null;
     };
     function close() { keepDraft?.(); keepDraft=null; disposeTheme?.(); disposeTheme=null; panel?.remove(); panel = null; currentUrl = null; generation++; returnFocus?.focus?.(); }
+    const noteProblem = () => {
+      const href = page.location?.href;
+      if (!href) return;
+      const url = context()?.problem.url;
+      if (!url || url === trackedUrl) return;
+      trackedUrl = url;
+      const id = context()?.adapter.submissionResult?.(doc)?.submissionId;
+      if (id) seenIds.add(id); // A submission present before this script ran is an old verdict, never a fresh one.
+    };
     async function open(evidence = {}) {
       const current = context();
       if (!current) return;
       if (panel && currentUrl === current.problem.url) {
         if(evidence.captureSource==='accepted') {
           let result;try{result=await runtime.sendMessage({type:'QUEUE_CAPTURE',problem:current.problem,workspaceScope:currentScope,evidence:{...evidence,eventId:evidence.submissionId||crypto.randomUUID(),attemptedAt:evidence.attemptedAt||new Date().toISOString()}});}catch{result={error:'Could not keep the next submission. Reload Recall and refresh LeetCode.'};}
+          if(!result?.error)info('Another Accepted submission is kept in the queue.');
           const status=panel.shadowRoot?.querySelector('[role=status]'); if(status)status.textContent=result?.error||'Another Accepted submission is kept in the queue. Save this recording to open it next.';
         }
         return;
       }
+      if (opening) { try { await opening; } catch { /* The previous build failed; retry this evidence. */ } return open(evidence); }
+      opening = create(current, evidence);
+      try { await opening; } finally { opening = null; }
+    }
+    async function create(current, evidence = {}) {
       close();
       const token = generation;
-      let pending = null, draft = null, queue = [], workspaceScope = null, connectionError;
-      try { const stored=await runtime.sendMessage({ type: 'GET_PENDING_CAPTURE', problem: current.problem }); connectionError=stored?.error||'';workspaceScope=stored?.workspaceScope;currentScope=workspaceScope;pending=stored?.pending;draft=stored?.draft;queue=stored?.queue||[]; } catch { connectionError='Reload Recall and connect through the Recall website.'; }
+      let pending = null, draft = null, queue = [], workspaceScope = null, connectionError, stored = null;
+      try { stored=await runtime.sendMessage({ type: 'GET_PENDING_CAPTURE', problem: current.problem, submissionId:evidence.submissionId||null }); connectionError=stored?.error||'';workspaceScope=stored?.workspaceScope;currentScope=workspaceScope;pending=stored?.pending;draft=stored?.draft;queue=stored?.queue||[]; } catch { connectionError='Reload Recall and connect through the Recall website.'; }
       if (token !== generation || context()?.problem.url !== current.problem.url) return;
+      if (evidence.captureSource==='accepted'&&evidence.submissionId&&stored?.recorded) { info('That Accepted submission is already recorded. Panel not opened.'); return; }
       let catalog=[];
       const restored = pending || draft;
       if(restored&&evidence.captureSource==='accepted'&&(evidence.submissionId!==restored.submissionId||evidence.attemptedAt!==restored.attemptedAt)){
@@ -174,7 +192,8 @@ globalThis.DsaCapture = {
       timer=null;const current=context();
       if(currentUrl&&current?.problem.url!==currentUrl)close();
       if(!submission)return;
-      if(current?.problem.url!==submission.url||Date.now()-submission.started>120000){submission=null;return;}
+      if(current?.problem.url!==submission.url){submission=null;return;}
+      if(Date.now()-submission.started>120000){info('The verdict window closed without a fresh verdict. Save practice can also be started from the Recall popup.');submission=null;return;}
       const result=current.adapter.submissionResult(doc);
       if(result.pending)submission.sawPending=true;
       const newIdentity=result.submissionId&&result.submissionId!==submission.initial.submissionId;
@@ -182,16 +201,38 @@ globalThis.DsaCapture = {
       const changedText=result.text&&result.text!==submission.initial.text;
       if(!result.terminal||(!submission.sawPending&&!newIdentity&&!changedNode&&!changedText))return;
       submission=null;
-      if(result.accepted)void open({captureSource:'accepted',submissionId:result.submissionId||page.location.href.match(/\/submissions\/(?:detail\/)?(\d+)/)?.[1]||null,attemptedAt:new Date().toISOString()});
+      if(result.accepted){info('Accepted detected — opening the recording panel.');void open({captureSource:'accepted',submissionId:result.submissionId||page.location.href.match(/\/submissions\/(?:detail\/)?(\d+)/)?.[1]||null,attemptedAt:new Date().toISOString()});}
+      else info(`Verdict "${result.text}" is not Accepted, so no recording was opened.`);
     }
-    function arm(current){submission={url:current.problem.url,started:Date.now(),initial:current.adapter.submissionResult(doc),sawPending:false};schedule();}
+    function arm(current){info('Submit detected — watching for the verdict.');submission={url:current.problem.url,started:Date.now(),initial:current.adapter.submissionResult(doc),sawPending:false};schedule();}
     function schedule() { if(submission&&context()?.adapter.submissionResult(doc).pending)submission.sawPending=true; if (timer===null) timer=page.setTimeout(check,150); }
+    // A missed Submit click must not lose the submission: any inserted result
+    // container that reaches Accepted with a new submissionId re-arms the flow.
+    function insertedResult(records) {
+      for (const record of records) for (const added of record?.addedNodes||[]) {
+        let node = added?.nodeType===1 ? added : null;
+        for (let depth=0; node&&depth<3; depth++, node=node.firstElementChild)
+          if (node.getAttribute?.('data-e2e-locator')?.match(/result/i)||node.matches?.('[data-testid*="verdict" i],[data-testid*="result" i],[class*="result-state" i],[role="status"][class*="verdict" i]')) return true;
+      }
+      return false;
+    }
+    function recordAccepted(records) {
+      if (submission||currentUrl||opening||!Array.isArray(records)||!insertedResult(records)) return;
+      const current = context(); if (!current) return;
+      const result=current.adapter.submissionResult(doc);
+      const id=result.submissionId||page.location.href.match(/\/submissions\/(?:detail\/)?(\d+)/)?.[1];
+      if (!result.terminal||!result.accepted||!id||seenIds.has(id)) return;
+      seenIds.add(id);
+      info('Accepted detected without a Submit click — opening the recording panel.');
+      void open({captureSource:'accepted',submissionId:id,attemptedAt:new Date().toISOString()});
+    }
     doc.addEventListener('click',event => { const current=context(); if (!event.isTrusted || !current) return; if (current.adapter.isSubmit(event.target)) arm(current); else if (current.adapter.isRun(event.target) || event.target.closest?.('a[href]')) submission=null; },true);
-    doc.addEventListener('keydown',event => { const current=context(); if (event.isTrusted && current?.adapter.isSubmitShortcut(event)) arm(current); },true);
-    const observer=new MutationObserver(()=>{if(submission||currentUrl&& !page.location.href.startsWith(currentUrl))schedule();}); observer.observe(doc.documentElement,{childList:true,subtree:true,characterData:true});
-    page.addEventListener('popstate',()=>{submission=null;schedule();});
+    doc.addEventListener('keydown',event => { const current=context(); if (event.isTrusted && current?.adapter.isSubmitShortcut(event)) { info('Submit detected — watching for the verdict.'); arm(current); } },true);
+    const observer=new MutationObserver(records=>{noteProblem();if(submission||currentUrl&&!page.location.href.startsWith(currentUrl))schedule();recordAccepted(records);}); observer.observe(doc.documentElement,{childList:true,subtree:true,characterData:true});
+    page.addEventListener('popstate',()=>{submission=null;noteProblem();schedule();});
     page.addEventListener('pagehide',() => { submission=null; close(); observer.disconnect(); if (timer!==null) page.clearTimeout(timer); timer=null; });
-    page.addEventListener('pageshow',() => observer.observe(doc.documentElement,{childList:true,subtree:true,characterData:true}));
+    page.addEventListener('pageshow',() => { noteProblem(); observer.observe(doc.documentElement,{childList:true,subtree:true,characterData:true}); });
+    noteProblem();
     return { open };
   },
 };

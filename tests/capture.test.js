@@ -111,6 +111,27 @@ test('queues reject malformed evidence and storage without dropping saved events
   assert.match((await ui.send({type:'QUEUE_CAPTURE',problem,evidence:{captureSource:'accepted',attemptedAt:payload.attemptedAt}})).error,/Invalid submission evidence/);
   ui.storage['recall-queue:'+problem.url]={bad:true};assert.match((await ui.send({type:'SHIFT_CAPTURE',problem})).error,/queue is invalid/);assert.deepEqual(ui.storage['recall-queue:'+problem.url],{bad:true});
 });
+test('confirmed saves record the submission and mark it recorded for content scripts',async()=>{
+  const storage={},saved=worker(async()=>Response.json({attempt:{id:payload.requestId}}),storage);
+  assert.equal((await saved.send({type:'SAVE_CAPTURE',problem,payload:{...payload,submissionId:'777'}})).saved,true);
+  assert.deepEqual([...storage['recall-seen:'+problem.url]],['777']);
+  assert.equal((await saved.send({type:'GET_PENDING_CAPTURE',problem,submissionId:'777'})).recorded,true);
+  assert.equal((await saved.send({type:'GET_PENDING_CAPTURE',problem,submissionId:'778'})).recorded,false);
+  const old=await saved.send({type:'GET_PENDING_CAPTURE',problem});
+  assert.equal(old.recorded,false);
+});
+test('unfinished or queued submissions stay eligible for a recording panel',async()=>{
+  const storage={},ui=worker(async()=>{throw new Error('offline');},storage);
+  const evidence={captureSource:'accepted',eventId:'777',submissionId:'777',attemptedAt:payload.attemptedAt};
+  await ui.send({type:'QUEUE_CAPTURE',problem,evidence});
+  assert.equal((await ui.send({type:'GET_PENDING_CAPTURE',problem,submissionId:'777'})).recorded,false);
+  assert.equal((await ui.send({type:'SAVE_CAPTURE',problem,payload:{...payload,submissionId:'777'}})).saved,false);
+  assert.equal((await ui.send({type:'GET_PENDING_CAPTURE',problem,submissionId:'777'})).recorded,false);
+  const finished=worker(async()=>Response.json({attempt:{id:payload.requestId}}),storage);
+  assert.equal((await finished.send({type:'SAVE_CAPTURE',problem,payload:{...payload,submissionId:'777'}})).saved,true);
+  assert.equal((await finished.send({type:'GET_PENDING_CAPTURE',problem,submissionId:'777'})).recorded,true);
+  assert.equal((storage['recall-queue:'+problem.url]||[]).length,0);
+});
 test('reconciliation clears only a confirmed identical saved request',async()=>{
   for(const status of ['saved','conflict','removed','missing']){
     const storage={['recall-pending:'+problem.url]:payload};
