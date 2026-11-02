@@ -1,7 +1,7 @@
-import { ForwardRef, useId } from 'react';
+import { forwardRef, useId } from 'react';
 import './Form.css';
 
-export const Input = ForwardRef(function Input({
+export const Input = forwardRef(function Input({
   label,
   id,
   type = 'text',

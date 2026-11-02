@@ -36,14 +36,15 @@ export function FocusBadge({ tier, profileName, label }) {
     medium: 'Medium focus',
     lower: 'Lower focus'
   };
+  const text = label || textMap[tier];
 
   return (
     <Badge
       variant={variantMap[tier]}
       size="sm"
-      aria-label={`${textMap[tier]} for ${profileName}`}
+      aria-label={profileName ? `${text} for ${profileName}` : text}
     >
-      {textMap[tier]}
+      {text}
     </Badge>
   );
 }

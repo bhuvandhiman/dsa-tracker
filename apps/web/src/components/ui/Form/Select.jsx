@@ -1,7 +1,7 @@
-import { ForwardRef, useId } from 'react';
+import { forwardRef, useId } from 'react';
 import './Form.css';
 
-export const Select = ForwardRef(function Select({
+export const Select = forwardRef(function Select({
   label,
   id,
   placeholder,
