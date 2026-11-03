@@ -83,7 +83,7 @@ test('a lost final solve response recovers from the server without rescanning or
 test('expired website access can preserve local checkpoints offline but cannot authorize API writes',async()=>{
   const owner='fa631c58-72ad-4a67-89d8-f6a4ae5d1641';
   const stored={'recall-account-session':{source:'website',user:{id:owner,email:'fixture@example.test'},project:'https://fixture.supabase.co',accessToken:'expired',expiresAt:1}};let calls=0;
-  const client=createAccountClient({storage:{session:{async get(key){return {[key]:stored[key]};}}}},async()=>{calls++;throw new TypeError('offline');});
+  const client=createAccountClient({storage:{local:{async get(key){return {[key]:stored[key]};}}}},async()=>{calls++;throw new TypeError('offline');});
   assert.equal(await client.localScope(owner),owner);assert.equal(calls,0);await assert.rejects(client.localScope('foreign'),/account changed/);
   await assert.rejects(client.request('/imports/legacy',{method:'POST'},owner),error=>error.retryable&&error.code==='NETWORK');assert.equal(calls,1);
 });

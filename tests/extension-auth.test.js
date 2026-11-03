@@ -13,8 +13,8 @@ const config={mode:'supabase',configured:true,url:'https://example.supabase.co',
 const user={id:owner,email:'fixture@example.test',email_confirmed_at:'2026-10-03T00:00:00Z'};
 const saved=(id=owner,expiresAt=1000000)=>({user:{id,email:user.email},accessToken:'access-'+id,refreshToken:'refresh-'+id,expiresAt,project:config.url});
 function clientFixture(handler,{mode='supabase',initial,clock=()=>1000}={}){
-  const session={},local={};if(initial)session['recall-account-session']=initial;
-  const client=createAccountClient({storage:{local,session:{async get(key){return {[key]:session[key]};},async set(values){Object.assign(session,values);},async remove(key){delete session[key];}}}},async(url,options)=>url.endsWith('/auth/config')?Response.json({...config,mode}):handler(url,options),clock);
+  const session={},local={};if(initial)local['recall-account-session']=initial;
+  const client=createAccountClient({storage:{local:{async get(key){return {[key]:local[key]};},async set(values){Object.assign(local,values);},async remove(key){delete local[key];}},session:{async get(key){return {[key]:session[key]};},async set(values){Object.assign(session,values);},async remove(key){delete session[key];}}}},async(url,options)=>url.endsWith('/auth/config')?Response.json({...config,mode}):handler(url,options),clock);
   return {client,session,local};
 }
 
@@ -38,15 +38,48 @@ test('extension login and refresh reject invalid inputs, expired credentials and
   const refreshed=await createExtensionAuth(config,async(url,options)=>{if(url.includes('/token?')){assert.equal(url,config.url+'/auth/v1/token?grant_type=refresh_token');assert.deepEqual(JSON.parse(options.body),{refresh_token:'fixture-refresh'});return Response.json({access_token:'a',refresh_token:'r',expires_in:60});}return Response.json(user);})('refresh',{refreshToken:'fixture-refresh'});
   assert.equal(refreshed.user.id,owner);
 });
-test('extension keeps credentials only in session storage and sends scoped Bearer requests',async()=>{
+test('extension keeps credentials only in durable extension storage and sends scoped Bearer requests',async()=>{
   const {client,session,local}=clientFixture(async(url,options)=>{
     if(url.endsWith('/login')){assert.deepEqual(JSON.parse(options.body),{email:user.email,password:'fixture-password'});return Response.json(saved());}
     assert.equal(url,'http://127.0.0.1:3001/api/imports/legacy');assert.equal(options.headers.Authorization,'Bearer access-'+owner);assert.equal(options.headers['X-Recall-Workspace'],owner);assert.equal(options.credentials,'omit');assert.equal(options.redirect,'error');return Response.json({added:1});
   });
   assert.equal((await client.status()).connected,false);
-  const state=await client.signIn(user.email,'fixture-password');assert.equal(state.scope,owner);assert.ok(!('accessToken' in state));assert.deepEqual(local,{});assert.ok(!JSON.stringify(session).includes('fixture-password'));
-  await client.request('/imports/legacy',{method:'POST'},owner);await client.signOut();assert.deepEqual(session,{});
+  const state=await client.signIn(user.email,'fixture-password');assert.equal(state.scope,owner);assert.ok(!('accessToken' in state));assert.deepEqual(session,{});assert.ok(!JSON.stringify(local).includes('fixture-password'));
+  await client.request('/imports/legacy',{method:'POST'},owner);await client.signOut();assert.deepEqual(local,{});
   await assert.rejects(client.request('/imports/legacy',{},owner),/Sign into/);
+});
+test('a session stored by an older version migrates into durable storage once',async()=>{
+  const legacy={...saved(),source:'website'};
+  const fixture=clientFixture(async url=>{assert.ok(url.endsWith('/auth/config'));return Response.json(config);});
+  fixture.session['recall-account-session']=legacy;
+  assert.equal((await fixture.client.status()).connected,true);
+  assert.deepEqual(fixture.local['recall-account-session'],legacy);assert.deepEqual(fixture.session,{});
+});
+test('website sessions with a refresh credential renew themselves and announce rotations',async()=>{
+  const announced=[];let refreshes=0;
+  const local={};const client=createAccountClient({storage:{local:{async get(key){return {[key]:local[key]};},async set(values){Object.assign(local,values);},async remove(key){delete local[key];}},session:{}},tabs:{async query(){return [{id:7}];},async sendMessage(tab,message){announced.push({tab,message});}}},async(url,options)=>{
+    if(url.endsWith('/auth/config'))return Response.json(config);
+    if(url.endsWith('/refresh')){refreshes++;return Response.json({user,accessToken:'renewed',refreshToken:'rotated',expiresAt:1000000,project:config.url});}
+    assert.equal(options.headers.Authorization,'Bearer renewed');return Response.json({ok:true});
+  },()=>1000);
+  local['recall-account-session']={source:'website',user:{id:owner,email:user.email},project:config.url,accessToken:'stale',refreshToken:'older-refresh',expiresAt:2000};
+  await client.request('/ready',{},owner);
+  assert.equal(refreshes,1);assert.equal(local['recall-account-session'].accessToken,'renewed');
+  assert.deepEqual(announced,[{tab:7,message:{type:'RECALL_SESSION_ROTATED',owner,accessToken:'renewed',refreshToken:'rotated'}}]);
+});
+test('website connections store the refresh credential the website shares',async()=>{
+  const {client,local}=clientFixture(async url=>{assert.ok(url.endsWith('/connect'));return Response.json({source:'website',user,accessToken:'access',expiresAt:1000000,project:config.url});});
+  const state=await client.connectWebsite('access',owner,'shared-refresh');
+  assert.equal(state.connected,true);assert.equal(local['recall-account-session'].refreshToken,'shared-refresh');
+});
+test('capture requests accept a longer timeout budget for cold starts',async()=>{
+  const {client}=clientFixture((url,options)=>url.endsWith('/diagnostics')?Response.json({ok:true}):new Promise((resolve,reject)=>{
+    options.signal.addEventListener('abort',()=>reject(new TypeError('budget elapsed')),{once:true});
+    setTimeout(()=>resolve(Response.json({ok:true})),2000);
+  }),{initial:saved()});
+  await assert.rejects(client.request('/capture',{method:'POST',timeoutMs:1000},owner),error=>error.code==='TIMEOUT'&&error.retryable);
+  await assert.rejects(client.request('/ready',{timeoutMs:1000},owner),error=>error.code==='TIMEOUT');
+  await client.request('/ready',{timeoutMs:120000},owner);
 });
 test('concurrent extension requests refresh once and use the renewed token',async()=>{
   let refreshes=0,requests=0;
@@ -58,16 +91,16 @@ test('concurrent extension requests refresh once and use the renewed token',asyn
 });
 test('logout during refresh cannot resurrect a session or send an old request',async()=>{
   let release,started;const pending=new Promise(resolve=>{release=resolve;});const begun=new Promise(resolve=>{started=resolve;});
-  const {client,session}=clientFixture(async url=>{assert.ok(url.endsWith('/refresh'));started();await pending;return Response.json(saved());},{initial:saved(owner,2000)});
-  const request=client.request('/ready',{},owner);await begun;await client.signOut();release();await assert.rejects(request,/account changed/i);assert.deepEqual(session,{});
+  const {client,local}=clientFixture(async url=>{assert.ok(url.endsWith('/refresh'));started();await pending;return Response.json(saved());},{initial:saved(owner,2000)});
+  const request=client.request('/ready',{},owner);await begun;await client.signOut();release();await assert.rejects(request,/account changed/i);assert.deepEqual(local,{});
 });
 test('invalid refresh clears credentials; network failures keep them; foreign refresh owners are rejected',async()=>{
   for(const status of [401,503]){
-    const {client,session}=clientFixture(async()=>Response.json({error:'Refresh failed'},{status}),{initial:saved(owner,2000)});
-    await assert.rejects(client.request('/ready',{},owner),/Refresh failed/);assert.equal(Boolean(session['recall-account-session']),status===503);
+    const {client,local}=clientFixture(async()=>Response.json({error:'Refresh failed'},{status}),{initial:saved(owner,2000)});
+    await assert.rejects(client.request('/ready',{},owner),/Refresh failed/);assert.equal(Boolean(local['recall-account-session']),status===503);
   }
-  const {client,session}=clientFixture(async()=>Response.json(saved(other)),{initial:saved(owner,2000)});
-  await assert.rejects(client.request('/ready',{},owner),/session changed/i);assert.deepEqual(session,{});
+  const {client,local}=clientFixture(async()=>Response.json(saved(other)),{initial:saved(owner,2000)});
+  await assert.rejects(client.request('/ready',{},owner),/session changed/i);assert.deepEqual(local,{});
 });
 test('account switches reject stale pages and preserve separate namespaces including old local data',async()=>{
   const {client}=clientFixture(async()=>Response.json(saved(other)),{initial:saved()});
@@ -112,9 +145,9 @@ test('new-account requests do not share the old account refresh promise',async()
   await client.signIn(user.email,'fixture-password');await client.request('/ready',{},other);release();await rejected;
 });
 test('logout waits for an in-flight session write and removes its late result',async()=>{
-  let release,began;const blocked=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{began=resolve;}),session={};
-  const client=createAccountClient({storage:{session:{async get(key){return {[key]:session[key]};},async set(values){began();await blocked;Object.assign(session,values);},async remove(key){delete session[key];}}}},async url=>Response.json(url.endsWith('/auth/config')?config:saved()),()=>1000);
-  const login=client.signIn(user.email,'fixture-password');await started;const logout=client.signOut();release();await Promise.all([login,logout]);assert.deepEqual(session,{});
+  let release,began;const blocked=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{began=resolve;}),local={};
+  const client=createAccountClient({storage:{local:{async get(key){return {[key]:local[key]};},async set(values){began();await blocked;Object.assign(local,values);},async remove(key){delete local[key];}},session:{}}},async url=>Response.json(url.endsWith('/auth/config')?config:saved()),()=>1000);
+  const login=client.signIn(user.email,'fixture-password');await started;const logout=client.signOut();release();await Promise.all([login,logout]);assert.deepEqual(local,{});
 });
 test('cancelling during token refresh ends the request without a later API write',async()=>{
   let release,began;const blocked=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{began=resolve;});const controller=new AbortController();

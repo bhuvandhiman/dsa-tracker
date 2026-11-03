@@ -111,6 +111,27 @@ test('queues reject malformed evidence and storage without dropping saved events
   assert.match((await ui.send({type:'QUEUE_CAPTURE',problem,evidence:{captureSource:'accepted',attemptedAt:payload.attemptedAt}})).error,/Invalid submission evidence/);
   ui.storage['recall-queue:'+problem.url]={bad:true};assert.match((await ui.send({type:'SHIFT_CAPTURE',problem})).error,/queue is invalid/);assert.deepEqual(ui.storage['recall-queue:'+problem.url],{bad:true});
 });
+test('background flush replays a pending recording with its stored request ID',async()=>{
+  const owner='fa631c58-72ad-4a67-89d8-f6a4ae5d1641',key=`recall-user:${owner}:recall-pending:${problem.url}`,storage={[key]:{...payload,submissionId:'777'}},requests=[];
+  const account={scope:async()=>owner,assertScope:async expected=>{if(expected!==owner)throw new Error('Account changed');return owner;},key:(owned,name)=>`recall-user:${owned}:${name}`,request:async(path,options)=>{requests.push({path,body:JSON.parse(options.body)});return Response.json({attempt:{id:payload.requestId}});}};
+  const ui=worker(()=>assert.fail('Unexpected fetch'),storage,account);
+  assert.equal((await ui.send({type:'FLUSH_PENDING'},{id:'test',url:'chrome-extension://test/setup.html'})).kept,true);
+  assert.equal(requests.length,1);assert.equal(requests[0].path,'/capture');assert.equal(requests[0].body.requestId,payload.requestId);
+  assert.equal(storage[key],undefined);
+  assert.deepEqual([...storage[`recall-user:${owner}:recall-seen:${problem.url}`]],['777']);
+  assert.equal((await ui.send({type:'FLUSH_PENDING'},{id:'test',url:'chrome-extension://test/setup.html'})).kept,true);
+});
+test('flush keeps recordings when the API is down or the account changed',async()=>{
+  const key=`recall-pending:${problem.url}`,storage={[key]:payload};
+  const offline=worker(async()=>{throw new TypeError('offline');},storage);
+  await offline.send({type:'FLUSH_PENDING'},{id:'test',url:'chrome-extension://test/setup.html'});
+  assert.deepEqual(storage[key],payload);
+  const ownerKey=`recall-user:fa631c58-72ad-4a67-89d8-f6a4ae5d1641:recall-pending:${problem.url}`;
+  const changed=worker(()=>assert.fail('No fetch expected'),{[ownerKey]:payload},{scope:async()=>'local',assertScope:async expected=>{if(expected!==undefined&&expected!=='local')throw new Error('Recall account changed. Refresh this page before continuing.');return 'local';},key:(owned,name)=>owned==='local'?name:`recall-user:${owned}:${name}`,request:async()=>assert.fail('No fetch expected')});
+  await changed.send({type:'FLUSH_PENDING'},{id:'test',url:'chrome-extension://test/setup.html'});
+  assert.deepEqual(changed.storage[ownerKey],payload);
+  assert.match((await changed.send({type:'FLUSH_PENDING'},{})).error,/Invalid flush sender/);
+});
 test('confirmed saves record the submission and mark it recorded for content scripts',async()=>{
   const storage={},saved=worker(async()=>Response.json({attempt:{id:payload.requestId}}),storage);
   assert.equal((await saved.send({type:'SAVE_CAPTURE',problem,payload:{...payload,submissionId:'777'}})).saved,true);

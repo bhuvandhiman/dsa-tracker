@@ -1,8 +1,12 @@
 const channel='recall-website-auth-v1';
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 
-// Transfer short-lived access only, never passwords or refresh credentials.
-// The extension validates the token with Supabase before trusting its owner.
+// Shares the current access token and, when present, the refresh credential so
+// the extension can keep saving while the dashboard stays closed for months.
+// The extension announces its rotations back to this page, so both sides keep
+// one Supabase refresh-token family and never reuse a rotated token. Passwords
+// never cross this bridge. The extension validates the token with Supabase
+// before trusting its owner.
 export function connectWebsiteExtension(client,target=window,onState=()=>{},onPracticeChanged=()=>{}){
   let active=true,nonce=null,lastOwner=null,signedOutOwner=null,revision=0;
   const pending=new Map();
@@ -11,10 +15,11 @@ export function connectWebsiteExtension(client,target=window,onState=()=>{},onPr
   const report=value=>{if(active)onState(value);};
   function publish(session){
     if(!active||!uuid.test(session?.user?.id||'')||typeof session.access_token!=='string'||!session.access_token||session.access_token.length>8192)return;
+    if(session.refresh_token!==undefined&&(typeof session.refresh_token!=='string'||session.refresh_token.length>8192))return;
     lastOwner=session.user.id;signedOutOwner=null;
     if(!nonce)return;
     sessionRevision=crypto.randomUUID();
-    target.postMessage({channel,type:'SESSION',nonce,owner:lastOwner,accessToken:session.access_token,sessionRevision},target.location.origin);
+    target.postMessage({channel,type:'SESSION',nonce,owner:lastOwner,accessToken:session.access_token,...(session.refresh_token?{refreshToken:session.refresh_token}:{}),sessionRevision},target.location.origin);
   }
   const subscription=client?.auth.onAuthStateChange((event,session)=>{
     revision++;
@@ -35,6 +40,12 @@ export function connectWebsiteExtension(client,target=window,onState=()=>{},onPr
       return;
     }
     if(event.data.type==='CONNECTED'&&nonce&&event.data.nonce===nonce&&event.data.owner===lastOwner&&event.data.sessionRevision===sessionRevision){report({detected:true,connected:!event.data.error&&event.data.connected===true,error:event.data.error||''});return;}
+    if(event.data.type==='SESSION_ROTATED'&&nonce&&event.data.nonce===nonce&&client&&event.data.owner===lastOwner){
+      // Adopt the extension's rotation so this tab stays inside the same token
+      // family; its own SDK events then republish the session normally.
+      if(typeof event.data.accessToken==='string'&&event.data.accessToken.length<=8192&&typeof event.data.refreshToken==='string'&&event.data.refreshToken.length<=8192)void client.auth.setSession({access_token:event.data.accessToken,refresh_token:event.data.refreshToken}).catch(()=>{});
+      return;
+    }
     if(event.data.type!=='HELLO'||!uuid.test(event.data.nonce||''))return;
     nonce=event.data.nonce;
     report({detected:true,connected:false,outdated:event.data.protocol!==4});

@@ -24,10 +24,19 @@ async function save(message, problem, scope) {
   if (stored && JSON.stringify(stored) !== JSON.stringify(payload)) throw new Error('An unfinished recording exists. Refresh the page to retry that recording first.');
   // Persist before writing; API failures and worker restarts retain the same request ID.
   await chrome.storage.local.set({ [key]: payload });
-  const response = await recallAccount.request('/capture', {
+  const send = timeoutMs => recallAccount.request('/capture', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-      credentials: 'omit', redirect: 'error',
+      credentials: 'omit', redirect: 'error', timeoutMs,
     },scope);
+  let response;
+  try { response = await send(25000); }
+  catch (error) {
+    // A cold host needs longer than one request budget; the retry reuses the
+    // same idempotent payload so a slow wake-up still completes the save.
+    if (error?.code !== 'TIMEOUT') throw error;
+    await new Promise(done => setTimeout(done, 1500));
+    response = await send(45000);
+  }
   let data;
   try { data = await readRecallResponse(response); } catch(error) {
     if ([400,404,413,415].includes(error.status)) {
@@ -52,12 +61,54 @@ async function save(message, problem, scope) {
   await notifyPracticeChanged(chrome,scope,payload.requestId);
   return { saved: true, practiceUnit:data.attempt.practiceUnit, websiteOrigin:recallRuntime.websiteOrigin };
 }
+
+// Pending recordings are already-persisted, idempotent payloads that failed to
+// reach the API. Flush them whenever the worker wakes, so a closed dashboard or
+// an offline spell never loses practice. Each attempt reuses the stored request
+// ID and keeps the pending entry on any failure for the next retry.
+const FLUSH_ALARM='recall-pending-flush',RETRY_ALARM='recall-pending-retry';
+let flushing=null;
+async function flushPending(){
+  if(flushing)return flushing;
+  flushing=(async()=>{
+    const jobs=[];
+    try{
+      const data=await chrome.storage.local.get(null);
+      for(const [key,value] of Object.entries(data)){
+        const user=/^recall-user:([0-9a-f-]{36}):recall-pending:(.+)$/.exec(key),plain=/^recall-pending:(.+)$/.exec(key);
+        if((!user&&!plain)||!value||typeof value!=='object'||Array.isArray(value))continue;
+        const problem=DsaAdapters[0].getProblem(String(value.url||(user?user[2]:plain[1])));
+        if(!problem)continue;
+        const scope=user?user[1]:'local';
+        const previous=active.get(key)||Promise.resolve();
+        const next=previous.catch(()=>{}).then(async()=>{
+          const stored=(await chrome.storage.local.get(key))[key];
+          if(!stored)return;
+          await recallAccount.assertScope(scope);
+          await save({payload:stored},problem,scope);
+        });
+        active.set(key,next);
+        next.catch(()=>{}).finally(()=>{if(active.get(key)===next)active.delete(key);});
+        jobs.push(next);
+      }
+      await Promise.allSettled(jobs);
+    }finally{flushing=null;}
+  })();
+  return flushing;
+}
+chrome.runtime.onStartup?.addListener(()=>{void flushPending();});
+chrome.runtime.onInstalled?.addListener(()=>{void flushPending();void chrome.alarms?.create(FLUSH_ALARM,{periodInMinutes:30});});
+chrome.alarms?.onAlarm?.addListener(alarm=>{if(alarm?.name===FLUSH_ALARM||alarm?.name===RETRY_ALARM)void flushPending();});
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'PING') { sendResponse({ status: 'worker-ready', version: chrome.runtime.getManifest().version }); return; }
   if (message?.type === 'LIST_RECORDINGS') {
     if (!trustedPage(sender) || sender.url?.split('#')[0] !== chrome.runtime.getURL('setup.html')) { sendResponse({error:'Invalid settings sender'}); return; }
     (async()=>{const scope=await recallAccount.localScope(),prefix=scope==='local'?'':`recall-user:${scope}:`,data=await chrome.storage.local.get(null);return {records:Object.entries(data).filter(([key])=>key.startsWith(prefix)&&/^recall-(pending|draft|queue|conflict):/.test(key.slice(prefix.length))).map(([key,value])=>{key=key.slice(prefix.length);return {kind:key.split(':')[0].replace('recall-',''),url:key.startsWith('recall-conflict:')?value?.url:key.slice(key.indexOf(':')+1),value};})};})().then(sendResponse,error=>sendResponse({error:error.message}));
     return true;
+  }
+  if (message?.type === 'FLUSH_PENDING') {
+    if (!trustedPage(sender)) { sendResponse({error:'Invalid flush sender'}); return; }
+    flushPending().then(()=>sendResponse({kept:true}),error=>sendResponse({error:error.message}));return;
   }
   if (!['SAVE_CAPTURE','GET_PENDING_CAPTURE','GET_PRACTICE_CONTEXT','SAVE_EDITABLE_DRAFT','QUEUE_CAPTURE','SHIFT_CAPTURE','RECONCILE_CAPTURE','RELEASE_CONFLICT'].includes(message?.type)) return;
   let problem;
@@ -120,6 +171,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     active.set(pendingKey(problem.url,scope),next);
     try { return await next; } finally { if (active.get(pendingKey(problem.url,scope)) === next) active.delete(pendingKey(problem.url,scope)); }
   };
-  run().then(sendResponse, error => sendResponse({ saved: false, error: error.message || 'Could not save. Try again.' }));
+  run().then(sendResponse, error => {
+    // The payload is already persisted locally; schedule a background retry.
+    chrome.alarms?.create(RETRY_ALARM,{delayInMinutes:5});
+    sendResponse({ saved: false, error: error.message || 'Could not save. Try again.' });
+  });
   return true;
 });

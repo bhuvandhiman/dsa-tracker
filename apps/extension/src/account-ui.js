@@ -12,7 +12,7 @@ connect.addEventListener('click',async()=>{
   catch(error){status.textContent=error.message;}finally{connect.disabled=false;}
 });
 chrome.storage.onChanged.addListener((changes,area)=>{
-  const change=changes['recall-account-session'];if(area!=='session'||!change||!loaded)return;
+  const change=changes['recall-account-session'];if(area!=='local'||!change||!loaded)return;
   // Routine token renewal must not interrupt imports or in-progress settings.
   if((change.newValue?.user?.id||null)!==scope||!connected)location.reload();
 });

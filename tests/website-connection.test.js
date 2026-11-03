@@ -18,9 +18,9 @@ const jwt=(sub=owner,exp=Math.floor(Date.now()/1000)+3600)=>`e30.${Buffer.from(J
 const saved=(id=owner,expiresAt=100000,accessToken='access')=>({source:'website',user:{id,email:user.email},project:config.url,expiresAt,accessToken});
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 function account(handler,{initial,clock=()=>1000}={}){
-  const session=initial?{[key]:initial}:{},local={draft:'kept'};
-  const client=createAccountClient({storage:{session:{async get(name){return {[name]:session[name]};},async set(values){Object.assign(session,values);},async remove(name){delete session[name];}},local}},async(url,options)=>url.endsWith('/auth/config')?Response.json(config):handler(url,options),clock);
-  return {client,session,local};
+  const durable=initial?{[key]:initial}:{},legacy={};
+  const client=createAccountClient({storage:{local:{async get(name){return {[name]:durable[name]};},async set(values){Object.assign(durable,values);},async remove(name){delete durable[name];}},session:{async get(name){return {[name]:legacy[name]};},async set(values){Object.assign(legacy,values);},async remove(name){delete legacy[name];}}}},async(url,options)=>url.endsWith('/auth/config')?Response.json(config):handler(url,options),clock);
+  return {client,durable,legacy};
 }
 function fakeWindow(){
   const listeners=new Map(),messages=[];
@@ -48,45 +48,58 @@ test('website connection endpoint is uncached and requires proof even without a 
 });
 test('extension uses website access only, blocks expired requests and reconnects to the same owner',async()=>{
   let clock=1000,calls=0;
-  const {client,session,local}=account(async(url,options)=>{
+  const {client,durable}=account(async(url,options)=>{
     calls++;if(url.endsWith('/connect'))return Response.json(saved(owner,100000,'renewed'));
     assert.ok(!url.endsWith('/refresh'));assert.equal(options.headers.Authorization,'Bearer access');return Response.json({ok:true});
   },{initial:saved(owner,20000),clock:()=>clock});
   await client.request('/ready',{},owner);clock=20000;assert.equal((await client.status()).connected,false);
   await assert.rejects(client.request('/capture',{method:'POST'},owner),/website/);assert.equal(calls,1);
-  const state=await client.connectWebsite('renewed',owner);assert.equal(state.connected,true);assert.ok(!('accessToken' in state));assert.ok(!('refreshToken' in session[key]));assert.deepEqual(local,{draft:'kept'});
+  const state=await client.connectWebsite('renewed',owner);assert.equal(state.connected,true);assert.ok(!('accessToken' in state));assert.ok(!('refreshToken' in durable[key]));
+  const shared=await client.connectWebsite('renewed',owner,'shared-refresh');assert.equal(shared.connected,true);assert.equal(durable[key].refreshToken,'shared-refresh');
 });
 test('website account changes reject stale pages and older tokens cannot replace a newer connection',async()=>{
-  const {client,session}=account(async(_url,options)=>Response.json(JSON.parse(options.body).accessToken==='older'?saved(other,80000,'older'):saved(other,100000,'new-owner')),{initial:saved()});
+  const {client,durable}=account(async(_url,options)=>Response.json(JSON.parse(options.body).accessToken==='older'?saved(other,80000,'older'):saved(other,100000,'new-owner')),{initial:saved()});
   await client.connectWebsite('new-owner',other);await assert.rejects(client.request('/ready',{},owner),/account changed/i);
-  await client.connectWebsite('older',other);assert.equal(session[key].accessToken,'new-owner');
-  await client.disconnectWebsite(owner);assert.equal(session[key].user.id,other);
-  await client.disconnectWebsite(other);assert.deepEqual(session,{});
+  await client.connectWebsite('older',other);assert.equal(durable[key].accessToken,'new-owner');
+  await client.disconnectWebsite(owner);assert.equal(durable[key].user.id,other);
+  await client.disconnectWebsite(other);assert.deepEqual(durable,{});
 });
 test('website sign-out cancels an unfinished connection and cannot resurrect credentials',async()=>{
   let release,began;const waiting=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{began=resolve;});
-  const {client,session}=account(async()=>{began();await waiting;return Response.json(saved());});
-  const pending=client.connectWebsite('access',owner),rejected=assert.rejects(pending,/connection changed/i);await started;await client.disconnectWebsite(owner);release();await rejected;assert.deepEqual(session,{});
+  const {client,durable}=account(async()=>{began();await waiting;return Response.json(saved());});
+  const pending=client.connectWebsite('access',owner),rejected=assert.rejects(pending,/connection changed/i);await started;await client.disconnectWebsite(owner);release();await rejected;assert.deepEqual(durable,{});
 });
 test('website sign-out leaves separate password sessions alone and malformed connections do not overwrite them',async()=>{
   const initial={...saved(),source:undefined,refreshToken:'legacy-refresh'};
-  const {client,session}=account(async()=>Response.json({...saved(other),refreshToken:'must-not-copy'}),{initial});
-  await client.disconnectWebsite(owner);assert.deepEqual(session[key],initial);
-  await assert.rejects(client.connectWebsite('access',owner),/reconnect/);assert.deepEqual(session[key],initial);
+  const {client,durable}=account(async()=>Response.json({...saved(other),refreshToken:'must-not-copy'}),{initial});
+  await client.disconnectWebsite(owner);assert.deepEqual(durable[key],initial);
+  await assert.rejects(client.connectWebsite('access',owner),/reconnect/);assert.deepEqual(durable[key],initial);
   await assert.rejects(client.connectWebsite('access','local'),/Invalid/);
 });
-test('website bridge synchronizes login, renewal and sign-out, sends no passwords or refresh tokens',async()=>{
+test('website bridge synchronizes login, renewal, sign-out and shares only the rotating refresh credential',async()=>{
   const target=fakeWindow();let change,unsubscribed=false;
-  const session={user,access_token:'access',refresh_token:'must-never-transfer'};
+  const session={user,access_token:'access',refresh_token:'shared-refresh'};
   const client={auth:{onAuthStateChange(fn){change=fn;return {data:{subscription:{unsubscribe(){unsubscribed=true;}}}};},async getSession(){return {data:{session}};}}};
   const stop=connectWebsiteExtension(client,target);assert.equal(target.messages[0].data.type,'READY');
   const hello={channel,type:'HELLO',nonce:other};
   target.dispatch(hello,{origin:'https://evil.test'});target.dispatch(hello,{source:{}});target.dispatch({...hello,nonce:'bad'});await tick();assert.equal(target.messages.length,1);
-  target.dispatch(hello);await tick();assert.equal(target.messages.at(-1).data.accessToken,'access');
-  change('TOKEN_REFRESHED',{...session,access_token:'renewed'});assert.equal(target.messages.at(-1).data.accessToken,'renewed');
+  target.dispatch(hello);await tick();assert.equal(target.messages.at(-1).data.accessToken,'access');assert.equal(target.messages.at(-1).data.refreshToken,'shared-refresh');
+  change('TOKEN_REFRESHED',{...session,access_token:'renewed',refresh_token:'rotated-refresh'});assert.equal(target.messages.at(-1).data.accessToken,'renewed');assert.equal(target.messages.at(-1).data.refreshToken,'rotated-refresh');
   change('SIGNED_OUT',null);assert.equal(target.messages.at(-1).data.accessToken,null);assert.equal(target.messages.at(-1).data.owner,owner);
-  assert.ok(!JSON.stringify(target.messages).includes('must-never-transfer'));assert.ok(target.messages.every(message=>message.origin===target.location.origin));
+  assert.ok(!JSON.stringify(target.messages).includes('password'));assert.ok(target.messages.every(message=>message.origin===target.location.origin));
   const count=target.messages.length;stop();change('SIGNED_IN',session);assert.equal(target.messages.length,count);assert.equal(unsubscribed,true);
+});
+test('the website adopts the extension session rotation for the same owner only',async()=>{
+  const target=fakeWindow();let adopted=null,change;
+  const client={auth:{onAuthStateChange(fn){change=fn;return {data:{subscription:{unsubscribe(){}}}};},async getSession(){return {data:{session:null}};},async setSession(value){adopted=value;return {data:{session:null}};}}};
+  const stop=connectWebsiteExtension(client,target);
+  target.dispatch({channel,type:'HELLO',nonce:other,protocol:4});
+  change('SIGNED_IN',{user,access_token:'access',refresh_token:'refresh'});
+  const rotated={channel,type:'SESSION_ROTATED',nonce:other,owner,accessToken:'rotated-access',refreshToken:'rotated-refresh'};
+  target.dispatch({...rotated,owner:other});await tick();assert.equal(adopted,null);
+  target.dispatch({...rotated,refreshToken:undefined});await tick();assert.equal(adopted,null);
+  target.dispatch(rotated);await tick();assert.deepEqual(adopted,{access_token:'rotated-access',refresh_token:'rotated-refresh'});
+  stop();
 });
 test('a delayed website session read cannot reconnect after sign-out or teardown',async()=>{
   let release,change;const pending=new Promise(resolve=>{release=resolve;}),target=fakeWindow();
@@ -102,9 +115,9 @@ test('sign-out before the content bridge is ready still disconnects the recorded
 test('isolated content bridge rejects foreign frames, origins, sources and nonces',async()=>{
   const target=fakeWindow(),calls=[];
   vm.runInNewContext(readFileSync(new URL('../apps/extension/src/website-bridge.js',import.meta.url),'utf8'),{window:target,location:target.location,crypto:{randomUUID:()=>other},chrome:{runtime:{onMessage:{addListener(){}},sendMessage:async message=>{calls.push(message);return {};}}}});
-  const message={channel,type:'SESSION',nonce:other,owner,accessToken:'access',refreshToken:'never-copy'};
+  const message={channel,type:'SESSION',nonce:other,owner,accessToken:'access',refreshToken:'forwarded-refresh'};
   target.dispatch(message,{origin:'https://evil.test'});target.dispatch(message,{source:{}});target.dispatch({...message,nonce:owner});target.dispatch({...message,owner:'local'});assert.equal(calls.length,0);
-  target.dispatch(message);target.dispatch({...message,accessToken:null});await tick();assert.equal(calls.length,2);assert.equal(calls[0].type,'RECALL_WEBSITE_SESSION');assert.ok(!JSON.stringify(calls).includes('never-copy'));
+  target.dispatch(message);target.dispatch({...message,accessToken:null});await tick();assert.equal(calls.length,2);assert.equal(calls[0].type,'RECALL_WEBSITE_SESSION');assert.equal(calls[0].refreshToken,'forwarded-refresh');
   const framed=fakeWindow();framed.top={};vm.runInNewContext(readFileSync(new URL('../apps/extension/src/website-bridge.js',import.meta.url),'utf8'),{window:framed});assert.equal(framed.messages.length,0);
 });
 test('worker grants the bridge only to the exact configured website top frame and opens a fixed login URL',async()=>{
@@ -112,10 +125,11 @@ test('worker grants the bridge only to the exact configured website top frame an
   const chrome={runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onMessage:{addListener(fn){listener=fn;}}},tabs:{async query(){return [];},async create(value){opened.push(value);}}};
   const source=readFileSync(new URL('../apps/extension/src/account-worker.js',import.meta.url),'utf8').replace(/^import .*;\r?$/gm,'').replace(/^export /gm,'');
   vm.runInNewContext(source,{chrome,URL,connectionAction,openRecallWebsite,createImportController,notifyPracticeChanged,recallRuntime:{websiteOrigin:'http://127.0.0.1:5173'},createAccountClient:()=>account});
-  const sender={id:'test',frameId:0,tab:{id:1},url:'http://127.0.0.1:5173/#/dashboard'},message={type:'RECALL_WEBSITE_SESSION',accessToken:'access',owner};
+  const sender={id:'test',frameId:0,tab:{id:1},url:'http://127.0.0.1:5173/#/dashboard'},message={type:'RECALL_WEBSITE_SESSION',accessToken:'access',owner,refreshToken:'from-site'};
   const send=(message,sender)=>new Promise(resolve=>listener(message,sender,resolve));
   for(const bad of [{...sender,url:'https://leetcode.com/'},{...sender,url:'http://127.0.0.1:3001/'},{...sender,url:'http://127.0.0.1:5173.evil.test/'},{...sender,frameId:1},{...sender,id:'foreign'},{...sender,tab:undefined}])assert.match((await send(message,bad)).error,/configured/);
   assert.equal(calls.length,0);assert.equal((await send(message,sender)).scope,owner);assert.equal(calls.length,1);
+  assert.deepEqual(calls[0],['access',owner,'from-site']);
   assert.match((await send({type:'RECALL_OPEN_WEBSITE'},sender)).error,/Settings/);
   assert.equal((await send({type:'RECALL_OPEN_WEBSITE',url:'https://evil.test'},{id:'test',url:'chrome-extension://test/setup.html'})).opened,true);assert.deepEqual(opened.map(value=>value.url),['http://127.0.0.1:5173/#/connect']);
 });
@@ -125,9 +139,9 @@ test('account panel connects through the website and renewals do not interrupt i
   const source=readFileSync(new URL('../apps/extension/src/account-ui.js',import.meta.url),'utf8').replace(/^import .*;\r?$/gm,'');
   vm.runInNewContext(source,{chrome,connection:async()=>({mode:'supabase',connected:true,scope:owner,email:user.email}),document:{querySelector:name=>name==='#recall-account-status'?status:button,createElement:()=>({addEventListener(){}})},location:{reload(){reloads++;}}});
   await tick();assert.equal(button.textContent,'Open Recall');await clicked();assert.equal(sent[0].type,'RECALL_OPEN_WEBSITE');
-  storageChange({[key]:{newValue:saved()}},'session');assert.equal(reloads,0);
-  storageChange({[key]:{newValue:saved(other)}},'session');assert.equal(reloads,1);
-  storageChange({[key]:{}},'session');assert.equal(reloads,2);
+  storageChange({[key]:{newValue:saved()}},'local');assert.equal(reloads,0);
+  storageChange({[key]:{newValue:saved(other)}},'local');assert.equal(reloads,1);
+  storageChange({[key]:{}},'local');assert.equal(reloads,2);
 });
 
 test('connection acknowledgement ignores stale renewal results and reports old extensions',async()=>{

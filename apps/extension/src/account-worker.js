@@ -24,7 +24,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   }
   if(message?.type==='RECALL_WEBSITE_SESSION'){
     if(!trustedWebsite(sender)){respond({error:'Connect from the configured Recall website.'});return;}
-    const operation=message.accessToken===null?recallAccount.disconnectWebsite(message.owner):recallAccount.connectWebsite(message.accessToken,message.owner);
+    const operation=message.accessToken===null?recallAccount.disconnectWebsite(message.owner):recallAccount.connectWebsite(message.accessToken,message.owner,message.refreshToken);
     operation.then(respond,error=>respond({error:error.message||'Website connection failed.'}));return true;
   }
   if(!['RECALL_ACCOUNT_STATUS','RECALL_OPEN_WEBSITE','RECALL_SIGN_IN','RECALL_SIGN_OUT','RECALL_API','RECALL_STATE_GET','RECALL_STATE_SET','RECALL_STATE_REMOVE'].includes(message?.type))return;
